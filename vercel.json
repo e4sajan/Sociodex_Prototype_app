@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "src/routes/potopia (1).html"
+      "destination": "/src/routes/potopia (1).html"
     }
   ]
 }
