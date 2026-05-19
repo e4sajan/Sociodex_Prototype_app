@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/src/routes/index.tsx"
+      "destination": "src/routes/potopia (1).html"
     }
   ]
 }
