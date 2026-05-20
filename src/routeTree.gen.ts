@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
-import { Route as MemoryRouteImport } from './routes/memory'
 import { Route as GuestsRouteImport } from './routes/guests'
 import { Route as ComboRouteImport } from './routes/combo'
 import { Route as IndexRouteImport } from './routes/index'
@@ -19,11 +18,6 @@ import { Route as MSlugRouteImport } from './routes/m.$slug'
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MemoryRoute = MemoryRouteImport.update({
-  id: '/memory',
-  path: '/memory',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuestsRoute = GuestsRouteImport.update({
@@ -51,7 +45,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
   '/guests': typeof GuestsRoute
-  '/memory': typeof MemoryRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -59,7 +52,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
   '/guests': typeof GuestsRoute
-  '/memory': typeof MemoryRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -68,30 +60,21 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
   '/guests': typeof GuestsRoute
-  '/memory': typeof MemoryRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combo' | '/guests' | '/memory' | '/tracker' | '/m/$slug'
+  fullPaths: '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combo' | '/guests' | '/memory' | '/tracker' | '/m/$slug'
-  id:
-    | '__root__'
-    | '/'
-    | '/combo'
-    | '/guests'
-    | '/memory'
-    | '/tracker'
-    | '/m/$slug'
+  to: '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
+  id: '__root__' | '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComboRoute: typeof ComboRoute
   GuestsRoute: typeof GuestsRoute
-  MemoryRoute: typeof MemoryRoute
   TrackerRoute: typeof TrackerRoute
   MSlugRoute: typeof MSlugRoute
 }
@@ -103,13 +86,6 @@ declare module '@tanstack/react-router' {
       path: '/tracker'
       fullPath: '/tracker'
       preLoaderRoute: typeof TrackerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/memory': {
-      id: '/memory'
-      path: '/memory'
-      fullPath: '/memory'
-      preLoaderRoute: typeof MemoryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guests': {
@@ -147,7 +123,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComboRoute: ComboRoute,
   GuestsRoute: GuestsRoute,
-  MemoryRoute: MemoryRoute,
   TrackerRoute: TrackerRoute,
   MSlugRoute: MSlugRoute,
 }

@@ -58,7 +58,7 @@ export function CartDrawer() {
             <span className="font-display text-2xl font-semibold">₹{cartTotal(combos)}</span>
           </div>
           <Link
-            to="/memory"
+            to="/"
             onClick={() => setCartOpen(false)}
             className={`flex w-full items-center justify-center gap-2 rounded-full bg-primary px-5 py-3 font-medium text-primary-foreground transition-opacity ${
               combos.length === 0 ? "pointer-events-none opacity-50" : "hover:opacity-90"

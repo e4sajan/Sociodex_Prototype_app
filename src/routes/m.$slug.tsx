@@ -243,7 +243,7 @@ function PublicMemoryPage() {
           <Sprout style={{ margin: "0 auto 1rem", width: 48, height: 48, color: "#2C5F2E" }} />
           <h1 style={{ fontFamily: '"Cormorant Garamond", serif', fontSize: "2rem" }}>This memory page hasn't been planted yet</h1>
           <p style={{ marginTop: "0.5rem", opacity: 0.6 }}>Create a memory in Nandi Invites to see it here.</p>
-          <Link to="/memory" style={{ display: "inline-block", marginTop: "1.5rem", background: "#2C5F2E", color: "#fff", borderRadius: "9999px", padding: "0.65rem 1.5rem", fontWeight: 600, textDecoration: "none" }}>
+          <Link to="/" style={{ display: "inline-block", marginTop: "1.5rem", background: "#2C5F2E", color: "#fff", borderRadius: "9999px", padding: "0.65rem 1.5rem", fontWeight: 600, textDecoration: "none" }}>
             Create one
           </Link>
         </div>
