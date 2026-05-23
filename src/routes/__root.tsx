@@ -13,7 +13,10 @@ function NotFoundComponent() {
           The page you're looking for doesn't exist or has been moved.
         </p>
         <div className="mt-6">
-          <Link to="/" className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90">
+          <Link
+            to="/"
+            className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+          >
             Go home
           </Link>
         </div>
@@ -28,16 +31,27 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Nandi Invites — Plant Gifting & Memory Experiences" },
-      { name: "description", content: "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs in one luxurious place." },
+      {
+        name: "description",
+        content:
+          "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs in one luxurious place.",
+      },
       { property: "og:title", content: "Nandi Invites — Plant Gifting & Memory Experiences" },
-      { property: "og:description", content: "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs." },
+      {
+        property: "og:description",
+        content:
+          "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
-      { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap",
+      },
       { rel: "stylesheet", href: appCss },
     ],
   }),

@@ -10,7 +10,9 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuestsRouteImport } from './routes/guests'
+import { Route as CreatorRouteImport } from './routes/creator'
 import { Route as ComboRouteImport } from './routes/combo'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
@@ -20,9 +22,19 @@ const TrackerRoute = TrackerRouteImport.update({
   path: '/tracker',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const GuestsRoute = GuestsRouteImport.update({
   id: '/guests',
   path: '/guests',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CreatorRoute = CreatorRouteImport.update({
+  id: '/creator',
+  path: '/creator',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ComboRoute = ComboRouteImport.update({
@@ -44,14 +56,18 @@ const MSlugRoute = MSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
+  '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
+  '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -59,22 +75,48 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/combo': typeof ComboRoute
+  '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
+  fullPaths:
+    | '/'
+    | '/combo'
+    | '/creator'
+    | '/guests'
+    | '/login'
+    | '/tracker'
+    | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
-  id: '__root__' | '/' | '/combo' | '/guests' | '/tracker' | '/m/$slug'
+  to:
+    | '/'
+    | '/combo'
+    | '/creator'
+    | '/guests'
+    | '/login'
+    | '/tracker'
+    | '/m/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/combo'
+    | '/creator'
+    | '/guests'
+    | '/login'
+    | '/tracker'
+    | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ComboRoute: typeof ComboRoute
+  CreatorRoute: typeof CreatorRoute
   GuestsRoute: typeof GuestsRoute
+  LoginRoute: typeof LoginRoute
   TrackerRoute: typeof TrackerRoute
   MSlugRoute: typeof MSlugRoute
 }
@@ -88,11 +130,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrackerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/guests': {
       id: '/guests'
       path: '/guests'
       fullPath: '/guests'
       preLoaderRoute: typeof GuestsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/creator': {
+      id: '/creator'
+      path: '/creator'
+      fullPath: '/creator'
+      preLoaderRoute: typeof CreatorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/combo': {
@@ -122,7 +178,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ComboRoute: ComboRoute,
+  CreatorRoute: CreatorRoute,
   GuestsRoute: GuestsRoute,
+  LoginRoute: LoginRoute,
   TrackerRoute: TrackerRoute,
   MSlugRoute: MSlugRoute,
 }
