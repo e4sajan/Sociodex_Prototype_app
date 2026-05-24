@@ -13,6 +13,8 @@ export function CartDrawer() {
   // Quick add guest pop-up modal state
   const [quickAddComboId, setQuickAddComboId] = useState<string | null>(null); // holds c.id when modal is open
   const [newGuestName, setNewGuestName] = useState("");
+  const [selectGuestsComboId, setSelectGuestsComboId] = useState<string | null>(null);
+  const [guestSearchQuery, setGuestSearchQuery] = useState("");
   const [newGuestStreet, setNewGuestStreet] = useState("");
   const [newGuestCity, setNewGuestCity] = useState("");
   const [newGuestPin, setNewGuestPin] = useState("");
@@ -318,79 +320,72 @@ export function CartDrawer() {
 
                     {/* Recipient Configurator Panel */}
                     {activeItemSelector === c.id && (
-                      <div className="mt-1 rounded-xl bg-muted/40 p-3 border border-border/30 max-h-[380px] overflow-y-auto space-y-2 fade-up">
-                        <div className="flex items-center justify-between text-[10px] text-muted-foreground pb-2 border-b border-border/20">
-                          <span>Choose who receives this keepsake:</span>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => {
-                                const allIds = guests.map((g) => g.id);
-                                setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: allIds }));
-                              }}
-                              className="text-[10px] text-primary font-bold hover:underline"
-                            >
-                              Select All
-                            </button>
-                            <span className="text-border">|</span>
-                            <button
-                              onClick={() =>
-                                setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: [] }))
-                              }
-                              className="text-[10px] text-muted-foreground font-bold hover:underline"
-                            >
-                              Clear All
-                            </button>
-                          </div>
+                      <div className="mt-2.5 rounded-2xl bg-muted/40 p-4 border border-border/20 space-y-3.5 fade-up">
+                        <div className="text-xs text-[#6B6159] leading-normal font-medium text-left">
+                          Choose existing guests or enter new details to assign recipients.
                         </div>
-
-                        {/* Guest List Checklist */}
-                        <div className="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                          {guests.length === 0 ? (
-                            <div className="text-[10px] text-muted-foreground text-center py-2">
-                              No guests found. Add some recipients using the button below!
-                            </div>
-                          ) : (
-                            guests.map((g) => {
-                              const isChecked = selectedGuests.includes(g.id);
-                              return (
-                                <label
-                                  key={g.id}
-                                  className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:bg-muted/70 rounded-lg px-2 transition-colors"
-                                >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => {
-                                      const next = isChecked
-                                        ? selectedGuests.filter((id) => id !== g.id)
-                                        : [...selectedGuests, g.id];
-                                      setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: next }));
-                                    }}
-                                    className="h-3.5 w-3.5 rounded text-primary focus:ring-primary/20 cursor-pointer"
-                                  />
-                                  <div className="min-w-0 flex-1 text-left">
-                                    <span className="text-[11px] text-foreground font-medium block">
-                                      {g.firstName} {g.lastName}
-                                    </span>
-                                    <span className="text-[9px] text-muted-foreground block truncate">
-                                      📍 {g.street}, {g.city} ({g.pin})
-                                    </span>
-                                  </div>
-                                </label>
-                              );
-                            })
-                          )}
-                        </div>
-
-                        {/* Trigger Quick Add Pop-up Modal */}
-                        <div className="border-t border-border/20 pt-2">
+                        
+                        <div className="grid grid-cols-2 gap-2.5">
+                          <button
+                            onClick={() => setSelectGuestsComboId(c.id)}
+                            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-primary/20 bg-white hover:bg-primary/5 hover:border-primary text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99] select-none"
+                          >
+                            <span className="text-xl">👥</span>
+                            <span className="text-[10px] font-bold text-neutral-800 leading-tight">
+                              Choose Existing
+                            </span>
+                            <span className="text-[8px] text-muted-foreground">
+                              Select from guest list
+                            </span>
+                          </button>
+                          
                           <button
                             onClick={() => setQuickAddComboId(c.id)}
-                            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-primary/30 hover:border-primary text-xs font-semibold text-primary bg-primary/5 hover:bg-primary/10 transition-all hover:scale-[1.01]"
+                            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-[#C17F5A]/30 bg-[#FAF8F5] hover:bg-[#FAF8F5]/80 hover:border-[#C17F5A] text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99] select-none"
                           >
-                            ➕ Add recipient with delivery address
+                            <span className="text-xl">➕</span>
+                            <span className="text-[10px] font-bold text-neutral-800 leading-tight">
+                              Add New Guest
+                            </span>
+                            <span className="text-[8px] text-muted-foreground">
+                              Enter delivery details
+                            </span>
                           </button>
                         </div>
+
+                        {/* Linked Recipients Summary */}
+                        {itemQuantity > 0 && (
+                          <div className="border-t border-border/20 pt-3 text-left">
+                            <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">
+                              Connected Recipients ({itemQuantity})
+                            </span>
+                            <div className="flex flex-wrap gap-1.5">
+                              {selectedGuests.map((id) => {
+                                const g = guests.find((guest) => guest.id === id);
+                                if (!g) return null;
+                                return (
+                                  <span
+                                    key={id}
+                                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/10 px-2.5 py-0.5 text-[9px] font-bold text-primary"
+                                  >
+                                    👤 {g.firstName} {g.lastName}
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const next = selectedGuests.filter((x) => x !== id);
+                                        setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: next }));
+                                      }}
+                                      className="text-primary hover:text-red-500 font-extrabold ml-1 shrink-0 cursor-pointer"
+                                      title="Remove connection"
+                                    >
+                                      ✕
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                   </li>
@@ -567,6 +562,153 @@ export function CartDrawer() {
           </div>
         </div>
       )}
+
+      {/* Select Guests Checklist Pop-up Modal Window */}
+      {selectGuestsComboId && (() => {
+        const c = combos.find((x) => x.id === selectGuestsComboId);
+        if (!c) return null;
+        const selectedGuests = selectedGuestsMap[c.id] || [];
+        
+        // Filter guests based on search query
+        const filteredGuests = guests.filter((g) =>
+          `${g.firstName} ${g.lastName} ${g.city} ${g.street}`.toLowerCase().includes(guestSearchQuery.toLowerCase())
+        );
+        
+        return (
+          <div
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in"
+            onClick={() => {
+              setSelectGuestsComboId(null);
+              setGuestSearchQuery("");
+            }}
+          >
+            <div
+              className="w-full max-w-md rounded-3xl bg-card border border-border/40 p-6 shadow-2xl animate-scale-in max-h-[90vh] overflow-y-auto flex flex-col gap-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between border-b border-border/20 pb-3">
+                <div>
+                  <h3 className="font-display text-xl font-bold flex items-center gap-1.5 text-primary">
+                    <span>👥 Connect Recipients</span>
+                  </h3>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Select guests to receive this keepsake pot ({c.plant.name}).
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setSelectGuestsComboId(null);
+                    setGuestSearchQuery("");
+                  }}
+                  className="rounded-full p-2 hover:bg-muted text-muted-foreground transition"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="relative">
+                <input
+                  type="text"
+                  value={guestSearchQuery}
+                  onChange={(e) => setGuestSearchQuery(e.target.value)}
+                  placeholder="Search guests by name or city..."
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-xs outline-none focus:border-primary transition"
+                />
+                {guestSearchQuery && (
+                  <button
+                    onClick={() => setGuestSearchQuery("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 text-xs"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Selection Shortcuts */}
+              <div className="flex items-center justify-between text-[10px] text-muted-foreground border-b border-border/10 pb-2">
+                <span>Select guests:</span>
+                <div className="flex gap-2.5">
+                  <button
+                    onClick={() => {
+                      const allIds = guests.map((g) => g.id);
+                      setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: allIds }));
+                    }}
+                    className="text-[10px] text-primary font-bold hover:underline"
+                  >
+                    Select All
+                  </button>
+                  <span className="text-border">|</span>
+                  <button
+                    onClick={() =>
+                      setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: [] }))
+                    }
+                    className="text-[10px] text-muted-foreground font-bold hover:underline"
+                  >
+                    Clear All
+                  </button>
+                </div>
+              </div>
+
+              {/* Checklist list */}
+              <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                {guests.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-6">
+                    No guests in your manager yet.
+                  </div>
+                ) : filteredGuests.length === 0 ? (
+                  <div className="text-xs text-muted-foreground text-center py-6">
+                    No guests match your search.
+                  </div>
+                ) : (
+                  filteredGuests.map((g) => {
+                    const isChecked = selectedGuests.includes(g.id);
+                    return (
+                      <label
+                        key={g.id}
+                        className="flex items-center gap-2.5 cursor-pointer py-1.5 hover:bg-muted/70 rounded-lg px-2 transition-colors"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => {
+                            const next = isChecked
+                              ? selectedGuests.filter((id) => id !== g.id)
+                              : [...selectedGuests, g.id];
+                            setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: next }));
+                          }}
+                          className="h-4 w-4 rounded text-primary focus:ring-primary/20 cursor-pointer"
+                        />
+                        <div className="min-w-0 flex-1 text-left">
+                          <span className="text-[11px] text-foreground font-semibold block leading-tight">
+                            {g.firstName} {g.lastName}
+                          </span>
+                          <span className="text-[9px] text-muted-foreground block truncate mt-0.5">
+                            📍 {g.street}, {g.city} ({g.pin})
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Confirm CTA */}
+              <div className="mt-4 flex justify-end gap-2.5 pt-3 border-t border-border/20">
+                <button
+                  onClick={() => {
+                    setSelectGuestsComboId(null);
+                    setGuestSearchQuery("");
+                  }}
+                  className="w-full rounded-full bg-primary py-2.5 text-xs font-bold text-primary-foreground transition shadow-md shadow-primary/10 hover:opacity-95"
+                >
+                  Save & Connect Recipients ({selectedGuests.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </>
   );
 }
