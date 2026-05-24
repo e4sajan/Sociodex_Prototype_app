@@ -1175,33 +1175,6 @@ function CreatedPreview({
             >
               Attach your live memory page as a custom printed QR code on a premium plant pot!
             </p>
-            <div
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "0.4rem", marginTop: "0.6rem" }}
-              className="md:justify-start"
-            >
-              <span style={{ fontSize: "0.75rem", color: "#8E857E", fontWeight: 500 }}>
-                Memory Page:
-              </span>
-              <span
-                onClick={copyUrl}
-                style={{
-                  fontSize: "0.75rem",
-                  color: accent,
-                  fontWeight: 600,
-                  cursor: "pointer",
-                  background: `${accent}0c`,
-                  padding: "0.15rem 0.5rem",
-                  borderRadius: "9999px",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "0.25rem",
-                  border: `1px solid ${accent}25`,
-                }}
-                title="Click to copy link"
-              >
-                {data.slug} 📋 {copied ? "Copied!" : "Copy Link"}
-              </span>
-            </div>
           </div>
           <div className="shrink-0 w-full md:w-auto">
             <button

@@ -255,139 +255,74 @@ export function CartDrawer() {
                       </button>
                     </div>
 
-                    {/* Interactive Glassmorphic Recipient Status Card (High-Conversion Nudge) */}
-                    <div
-                      onClick={() =>
-                        setActiveItemSelector(activeItemSelector === c.id ? null : c.id)
-                      }
-                      className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition-all ${
-                        itemQuantity === 0
-                          ? "border-amber-300 bg-amber-500/5 hover:bg-amber-500/10 shadow-sm shadow-amber-500/5 animate-pulse"
-                          : "border-primary bg-primary/5 hover:bg-primary/10"
-                      }`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div
-                          className={`p-1.5 rounded-lg shrink-0 ${itemQuantity === 0 ? "bg-amber-500/20 text-amber-600" : "bg-primary/20 text-primary"}`}
-                        >
-                          <Gift className="h-4 w-4" />
+                    {/* Recipient Connection permanently visible panel */}
+                    <div className="mt-2.5 rounded-2xl border border-border bg-[#FAF8F5]/30 p-3.5 space-y-3 text-left">
+                      {/* Header */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs">🚚</span>
+                          <span className="text-[10px] font-bold text-[#C17F5A] uppercase tracking-wider">
+                            Shipping Recipients
+                          </span>
                         </div>
-                        <div className="text-left">
-                          <div className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground leading-none">
-                            Recipient Connection
-                          </div>
-                          <div className="text-xs font-bold text-foreground mt-1">
-                            {itemQuantity === 0 ? (
-                              <span className="text-amber-700 dark:text-amber-400">
-                                ⚠️ No recipients connected yet
-                              </span>
-                            ) : (
-                              <span className="text-primary">
-                                {itemQuantity} Recipient{itemQuantity > 1 ? "s" : ""} Linked
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Small initials avatar stack for linked recipients */}
                         {itemQuantity > 0 && (
-                          <div className="flex -space-x-1.5 overflow-hidden mr-1">
-                            {selectedGuests.slice(0, 3).map((id) => {
-                              const g = guests.find((guest) => guest.id === id);
-                              if (!g) return null;
-                              return (
-                                <span
-                                  key={id}
-                                  className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground border border-background ring-1 ring-primary/10"
-                                >
-                                  {g.firstName[0]}
-                                </span>
-                              );
-                            })}
-                            {itemQuantity > 3 && (
-                              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[8px] font-bold text-muted-foreground border border-background">
-                                +{itemQuantity - 3}
-                              </span>
-                            )}
-                          </div>
+                          <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold text-primary">
+                            {itemQuantity} {itemQuantity === 1 ? "recipient" : "recipients"}
+                          </span>
                         )}
-                        <span className="text-[10px] text-muted-foreground">
-                          {activeItemSelector === c.id ? "Minimize ▴" : "Personalize ▾"}
-                        </span>
+                      </div>
+
+                      {/* Recipient List or Empty Placeholder */}
+                      {itemQuantity === 0 ? (
+                        <div className="rounded-xl border border-dashed border-neutral-200 bg-white/60 p-3 text-center">
+                          <p className="text-[11px] text-muted-foreground">
+                            No recipients connected yet. Ship this keepsake to:
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+                          {selectedGuests.map((id) => {
+                            const g = guests.find((guest) => guest.id === id);
+                            if (!g) return null;
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1.5 rounded-full bg-white border border-neutral-200 px-3 py-1 text-[10px] font-semibold text-neutral-800 shadow-2xs transition hover:border-neutral-300"
+                              >
+                                👤 {g.firstName} {g.lastName}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    const next = selectedGuests.filter((x) => x !== id);
+                                    setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: next }));
+                                  }}
+                                  className="text-neutral-400 hover:text-red-500 font-extrabold ml-1 shrink-0 cursor-pointer text-[10px] transition-colors"
+                                  title="Remove recipient"
+                                >
+                                  ✕
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Always Persistent Action Buttons Grid */}
+                      <div className="grid grid-cols-2 gap-2 mt-1">
+                        <button
+                          onClick={() => setSelectGuestsComboId(c.id)}
+                          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-primary/20 bg-white hover:bg-primary/5 hover:border-primary text-xs font-bold text-neutral-800 transition cursor-pointer select-none active:scale-[0.98] w-full shadow-2xs"
+                        >
+                          👥 Choose Existing
+                        </button>
+                        <button
+                          onClick={() => setQuickAddComboId(c.id)}
+                          className="flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl border border-dashed border-[#C17F5A]/30 bg-[#FAF8F5] hover:bg-[#FAF8F5]/80 hover:border-[#C17F5A] text-xs font-bold text-neutral-800 transition cursor-pointer select-none active:scale-[0.98] w-full shadow-2xs"
+                        >
+                          ➕ Add New Guest
+                        </button>
                       </div>
                     </div>
-
-                    {/* Recipient Configurator Panel */}
-                    {activeItemSelector === c.id && (
-                      <div className="mt-2.5 rounded-2xl bg-muted/40 p-4 border border-border/20 space-y-3.5 fade-up">
-                        <div className="text-xs text-[#6B6159] leading-normal font-medium text-left">
-                          Choose existing guests or enter new details to assign recipients.
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-2.5">
-                          <button
-                            onClick={() => setSelectGuestsComboId(c.id)}
-                            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-primary/20 bg-white hover:bg-primary/5 hover:border-primary text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99] select-none"
-                          >
-                            <span className="text-xl">👥</span>
-                            <span className="text-[10px] font-bold text-neutral-800 leading-tight">
-                              Choose Existing
-                            </span>
-                            <span className="text-[8px] text-muted-foreground">
-                              Select from guest list
-                            </span>
-                          </button>
-                          
-                          <button
-                            onClick={() => setQuickAddComboId(c.id)}
-                            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-dashed border-[#C17F5A]/30 bg-[#FAF8F5] hover:bg-[#FAF8F5]/80 hover:border-[#C17F5A] text-center transition-all cursor-pointer shadow-2xs hover:scale-[1.01] active:scale-[0.99] select-none"
-                          >
-                            <span className="text-xl">➕</span>
-                            <span className="text-[10px] font-bold text-neutral-800 leading-tight">
-                              Add New Guest
-                            </span>
-                            <span className="text-[8px] text-muted-foreground">
-                              Enter delivery details
-                            </span>
-                          </button>
-                        </div>
-
-                        {/* Linked Recipients Summary */}
-                        {itemQuantity > 0 && (
-                          <div className="border-t border-border/20 pt-3 text-left">
-                            <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider block mb-1.5">
-                              Connected Recipients ({itemQuantity})
-                            </span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {selectedGuests.map((id) => {
-                                const g = guests.find((guest) => guest.id === id);
-                                if (!g) return null;
-                                return (
-                                  <span
-                                    key={id}
-                                    className="inline-flex items-center gap-1 rounded-full bg-primary/10 border border-primary/10 px-2.5 py-0.5 text-[9px] font-bold text-primary"
-                                  >
-                                    👤 {g.firstName} {g.lastName}
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const next = selectedGuests.filter((x) => x !== id);
-                                        setSelectedGuestsMap((prev) => ({ ...prev, [c.id]: next }));
-                                      }}
-                                      className="text-primary hover:text-red-500 font-extrabold ml-1 shrink-0 cursor-pointer"
-                                      title="Remove connection"
-                                    >
-                                      ✕
-                                    </button>
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </li>
                 );
               })}

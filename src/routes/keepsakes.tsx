@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { CURATED_KEEPSAKES, OCCASIONS, type CuratedKeepsake } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { PotPlantPreview } from "@/components/PotPlantPreview";
@@ -14,7 +14,9 @@ import {
   Download,
   Edit2,
   Info,
-  Gift
+  Gift,
+  Link2,
+  ExternalLink
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -40,6 +42,39 @@ function ChooseKeepsakePage() {
   const [selectedOccasion, setSelectedOccasion] = useState<string>("All");
   const [successProductId, setSuccessProductId] = useState<string | null>(null);
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+  const [copied, setCopied] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
+
+  useEffect(() => {
+    if (memory?.slug) {
+      const url =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/m/${memory.slug}`
+          : `/m/${memory.slug}`;
+      QRCode.toDataURL(url, {
+        margin: 1,
+        width: 360,
+        color: { dark: "#2C5F2E", light: "#FFFDF9" },
+      })
+        .then((generated) => {
+          setQrUrl(generated);
+        })
+        .catch((err) => {
+          console.error("Failed to generate QR in keepsakes banner", err);
+        });
+    }
+  }, [memory]);
+
+  const handleShare = () => {
+    if (!memory?.slug) return;
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/m/${memory.slug}`
+        : `/m/${memory.slug}`;
+    navigator.clipboard?.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Filter curated products based on occasion
   const filteredProducts = useMemo(() => {
@@ -120,10 +155,39 @@ function ChooseKeepsakePage() {
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap shrink-0 items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 w-full sm:flex sm:flex-wrap sm:w-auto sm:items-center">
+                <button
+                  onClick={handleShare}
+                  className="inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer select-none active:scale-95 w-full sm:w-auto"
+                >
+                  <Link2 className="h-3.5 w-3.5 text-neutral-500" />
+                  {copied ? "Link Copied! ✓" : "Copy Link"}
+                </button>
+                
+                {qrUrl && (
+                  <a
+                    href={qrUrl}
+                    download={`${memory.slug}-qr.png`}
+                    className="inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer select-none active:scale-95 w-full sm:w-auto"
+                  >
+                    <Download className="h-3.5 w-3.5 text-neutral-500" />
+                    Download QR
+                  </a>
+                )}
+
+                <a
+                  href={`/m/${memory.slug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition active:scale-95 w-full sm:w-auto"
+                >
+                  <ExternalLink className="h-3.5 w-3.5 text-neutral-500" />
+                  View Page
+                </a>
+
                 <Link
                   to="/creator"
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition"
+                  className="inline-flex items-center justify-center sm:justify-start gap-1.5 rounded-xl border border-neutral-200 bg-white px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 transition w-full sm:w-auto"
                 >
                   <Edit2 className="h-3.5 w-3.5 text-neutral-500" />
                   Edit Page
