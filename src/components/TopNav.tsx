@@ -6,7 +6,7 @@ import { ShoppingBag, Sprout, Heart, Users, BarChart3, LogOut, LogIn, Home } fro
 const TABS = [
   { to: "/", label: "Home", icon: Home },
   { to: "/creator", label: "Memory Creator", icon: Heart },
-  { to: "/combo", label: "Keepsake Builder", icon: Sprout },
+  { to: "/keepsakes", label: "Choose Keepsake", icon: Sprout },
   { to: "/guests", label: "Guest Manager", icon: Users },
   { to: "/tracker", label: "Activity Tracker", icon: BarChart3 },
 ] as const;

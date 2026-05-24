@@ -413,7 +413,7 @@ function TrackerControlCenter() {
   }, [activeMemory]);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
+    <div className="mx-auto max-w-7xl px-4 pt-8 pb-28 sm:py-8 sm:px-6">
       {/* Page Header */}
       <div className="mb-8 flex flex-col justify-between gap-4 border-b border-border/40 pb-6 sm:flex-row sm:items-center">
         <div className="fade-up">

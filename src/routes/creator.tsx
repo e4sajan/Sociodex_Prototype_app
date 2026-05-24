@@ -209,7 +209,7 @@ function MemoryCreator() {
 
   if (created)
     return (
-      <CreatedPreview data={created} qrUrl={qrUrl} onNext={() => navigate({ to: "/combo" })} />
+      <CreatedPreview data={created} qrUrl={qrUrl} onNext={() => navigate({ to: "/keepsakes" })} />
     );
 
   return (
@@ -1072,7 +1072,7 @@ function CreatedPreview({
                 boxShadow: `0 4px 14px ${accent}55`,
               }}
             >
-              Build your keepsake →
+              Choose your keepsake →
             </button>
           </div>
         </div>
@@ -1226,7 +1226,7 @@ function CreatedPreview({
               onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              Build Your Keepsake Pot →
+              Choose Your Keepsake →
             </button>
           </div>
         </div>

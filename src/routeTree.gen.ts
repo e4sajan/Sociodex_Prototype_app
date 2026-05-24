@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as KeepsakesRouteImport } from './routes/keepsakes'
 import { Route as GuestsRouteImport } from './routes/guests'
 import { Route as CreatorRouteImport } from './routes/creator'
 import { Route as ComboRouteImport } from './routes/combo'
@@ -25,6 +26,11 @@ const TrackerRoute = TrackerRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KeepsakesRoute = KeepsakesRouteImport.update({
+  id: '/keepsakes',
+  path: '/keepsakes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuestsRoute = GuestsRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
   '/guests': typeof GuestsRoute
+  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/combo'
     | '/creator'
     | '/guests'
+    | '/keepsakes'
     | '/login'
     | '/tracker'
     | '/m/$slug'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/combo'
     | '/creator'
     | '/guests'
+    | '/keepsakes'
     | '/login'
     | '/tracker'
     | '/m/$slug'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/combo'
     | '/creator'
     | '/guests'
+    | '/keepsakes'
     | '/login'
     | '/tracker'
     | '/m/$slug'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   ComboRoute: typeof ComboRoute
   CreatorRoute: typeof CreatorRoute
   GuestsRoute: typeof GuestsRoute
+  KeepsakesRoute: typeof KeepsakesRoute
   LoginRoute: typeof LoginRoute
   TrackerRoute: typeof TrackerRoute
   MSlugRoute: typeof MSlugRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/keepsakes': {
+      id: '/keepsakes'
+      path: '/keepsakes'
+      fullPath: '/keepsakes'
+      preLoaderRoute: typeof KeepsakesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guests': {
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   ComboRoute: ComboRoute,
   CreatorRoute: CreatorRoute,
   GuestsRoute: GuestsRoute,
+  KeepsakesRoute: KeepsakesRoute,
   LoginRoute: LoginRoute,
   TrackerRoute: TrackerRoute,
   MSlugRoute: MSlugRoute,

@@ -219,3 +219,108 @@ export const ACTIVITIES = [
   { id: "a6", text: "Priya's gift is in transit", time: "2 hrs ago", color: "#D29A4D" },
   { id: "a7", text: "Bulk invite sent to 8 guests", time: "3 hrs ago", color: "#2C5F2E" },
 ];
+
+export type CuratedKeepsake = {
+  id: string;
+  name: string;
+  description: string;
+  pot: Pot;
+  plant: Plant;
+  finish: Finish;
+  tagline: string;
+  rating: number;
+  badge?: string;
+  occasion: string;
+  image?: string;
+};
+
+export const CURATED_KEEPSAKES: CuratedKeepsake[] = [
+  {
+    id: "ck1",
+    name: "The Prosperity Harmony",
+    description: "Bring home wealth and good fortune with this lush, jade succulent nested in a gorgeous sun ochre glazed ceramic pot. Hand-tied with a golden Blessing tag.",
+    pot: POTS.find(p => p.id === "p9") || POTS[8], // Sun Ochre
+    plant: PLANTS.find(p => p.id === "pl4") || PLANTS[3], // Jade Plant
+    finish: FINISHES.find(f => f.id === "f4") || FINISHES[3], // Blessing
+    tagline: "Ideal for milestone success & career growth",
+    rating: 4.9,
+    badge: "Best Seller",
+    occasion: "Blessings",
+    image: "/prosperity_harmony.png"
+  },
+  {
+    id: "ck2",
+    name: "Peace & Harmony Lily",
+    description: "Elegant ivory white blooms of the Peace Lily paired with a satin smooth ivory cloud ceramic pot. Designed to bring harmony, serenity, and a gentle thank you into any home.",
+    pot: POTS.find(p => p.id === "p4") || POTS[3], // Cloud White
+    plant: PLANTS.find(p => p.id === "pl3") || PLANTS[2], // Peace Lily
+    finish: FINISHES.find(f => f.id === "f3") || FINISHES[2], // Gratitude
+    tagline: "Perfect expression of heartfelt thanks",
+    rating: 4.8,
+    occasion: "Thank You",
+    image: "/peace_harmony_lily.png"
+  },
+  {
+    id: "ck3",
+    name: "The Wedding Eternal Bloom",
+    description: "Symbolizing strong roots and growing in eternal union. Featuring a broad-leaf dark green Rubber Plant in a warm, romantic sunset rose clay pot, finished with a gold-accented Wedding tag.",
+    pot: POTS.find(p => p.id === "p7") || POTS[6], // Rose Clay
+    plant: PLANTS.find(p => p.id === "pl7") || PLANTS[6], // Rubber Plant
+    finish: FINISHES.find(f => f.id === "f7") || FINISHES[6], // Wedding
+    tagline: "Nurturing love that grows stronger over time",
+    rating: 5.0,
+    badge: "Trending",
+    occasion: "Wedding",
+    image: "/wedding_eternal_bloom.png"
+  },
+  {
+    id: "ck4",
+    name: "Milestone Celebration",
+    description: "Celebrate a beautiful new year in bloom! A vibrant, climbing money plant in a rich, starry indigo blue glazed ceramic pot, tied with a joyful Birthday badge.",
+    pot: POTS.find(p => p.id === "p5") || POTS[4], // Indigo Bloom
+    plant: PLANTS.find(p => p.id === "pl1") || PLANTS[0], // Money Plant
+    finish: FINISHES.find(f => f.id === "f8") || FINISHES[7], // Birthday
+    tagline: "Vibrant and lively birthday surprise",
+    rating: 4.7,
+    badge: "Popular",
+    occasion: "Birthday",
+    image: "/milestone_celebration.png"
+  },
+  {
+    id: "ck5",
+    name: "Earthen Farewell Shield",
+    description: "A resilient, air-purifying Snake Plant paired with a deep mossy forest stone slate pot. A beautiful parting gift wishing them deep roots on their next high flight.",
+    pot: POTS.find(p => p.id === "p3") || POTS[2], // Forest Stone
+    plant: PLANTS.find(p => p.id === "pl2") || PLANTS[1], // Snake Plant
+    finish: FINISHES.find(f => f.id === "f9") || FINISHES[8], // Farewell
+    tagline: "Sturdy companion for exciting new beginnings",
+    rating: 4.9,
+    occasion: "Farewell",
+    image: "/earthen_farewell_shield.png"
+  },
+  {
+    id: "ck6",
+    name: "Sacred Healing Tulsi",
+    description: "Infuse warm earthen blessings and health into a new home. Features a fragrant, sacred Tulsi plant in a raw handcrafted terracotta clay pot, hand-tied with a copper-finished New Home badge.",
+    pot: POTS.find(p => p.id === "p1") || POTS[0], // Terra Classic
+    plant: PLANTS.find(p => p.id === "pl10") || PLANTS[9], // Tulsi (Holy Basil)
+    finish: FINISHES.find(f => f.id === "f10") || FINISHES[9], // New Home
+    tagline: "Divine peace and health-giving vibes for new homes",
+    rating: 4.8,
+    occasion: "Housewarming",
+    image: "/sacred_healing_tulsi.png"
+  },
+  {
+    id: "ck7",
+    name: "Areca Palm Sanctuary",
+    description: "Welcome absolute warmth and tropical joy with a tall, vibrant Areca Palm housed in a soft botanical sage green pot. Complemented by a Friendship ribbon.",
+    pot: POTS.find(p => p.id === "p8") || POTS[7], // Mint Whisper
+    plant: PLANTS.find(p => p.id === "pl6") || PLANTS[5], // Areca Palm
+    finish: FINISHES.find(f => f.id === "f6") || FINISHES[5], // Friendship
+    tagline: "Bright green fronds for bright friendships",
+    rating: 4.9,
+    badge: "Eco Pick",
+    occasion: "Friendship",
+    image: "/areca_palm_sanctuary.png"
+  }
+];
