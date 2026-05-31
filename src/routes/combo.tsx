@@ -4,7 +4,16 @@ import QRCode from "qrcode";
 import { POTS, PLANTS, FINISHES, THEMES, type Pot, type Plant, type Finish } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { PotPlantPreview } from "@/components/PotPlantPreview";
-import { Check, Sparkles, Share2, Download, Edit2, ArrowLeft, ArrowRight, ShoppingBag } from "lucide-react";
+import {
+  Check,
+  Sparkles,
+  Share2,
+  Download,
+  Edit2,
+  ArrowLeft,
+  ArrowRight,
+  ShoppingBag,
+} from "lucide-react";
 
 export const Route = createFileRoute("/combo")({
   head: () => ({
@@ -18,7 +27,8 @@ export const Route = createFileRoute("/combo")({
     ],
   }),
   component: ComboBuilder,
-});type Step = 0 | 1 | 2;
+});
+type Step = 0 | 1 | 2;
 const STEPS = ["Pot", "Plant", "Emotion"] as const;
 
 const PLANT_MEANINGS: Record<string, string> = {
@@ -31,7 +41,7 @@ const PLANT_MEANINGS: Record<string, string> = {
   "Rubber Plant": "Strength, presence & good luck",
   "Spider Plant": "Simplicity, warmth & fresh air",
   "ZZ Plant": "Endurance, prosperity & steady path",
-  "Tulsi (Holy Basil)": "Divine blessings, health & sacred peace"
+  "Tulsi (Holy Basil)": "Divine blessings, health & sacred peace",
 };
 
 const POT_DESCRIPTIONS: Record<string, string> = {
@@ -44,20 +54,20 @@ const POT_DESCRIPTIONS: Record<string, string> = {
   "Rose Clay": "Sunset terracotta, blush ceramic",
   "Mint Whisper": "Soft botanical sage green",
   "Sun Ochre": "Vibrant glazed mustard earth",
-  "Geo Prism": "Architectural lavender tone"
+  "Geo Prism": "Architectural lavender tone",
 };
 
 const FINISH_WISHES: Record<string, string> = {
-  "Love": "Tied with deep care & heart",
-  "Celebration": "To high spirits & memories",
-  "Gratitude": "A gentle, lifetime thank you",
-  "Blessing": "Shine bright on your path",
-  "Memory": "Preserved forever in bloom",
-  "Friendship": "Companion in every season",
-  "Wedding": "Growing together in unity",
-  "Birthday": "A beautiful new year in bloom",
-  "Farewell": "Deep roots for your next flight",
-  "New Home": "May this home grow with joy"
+  Love: "Tied with deep care & heart",
+  Celebration: "To high spirits & memories",
+  Gratitude: "A gentle, lifetime thank you",
+  Blessing: "Shine bright on your path",
+  Memory: "Preserved forever in bloom",
+  Friendship: "Companion in every season",
+  Wedding: "Growing together in unity",
+  Birthday: "A beautiful new year in bloom",
+  Farewell: "Deep roots for your next flight",
+  "New Home": "May this home grow with joy",
 };
 
 function ComboBuilder() {
@@ -131,7 +141,6 @@ function ComboBuilder() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6 pb-20">
-      
       {/* ── DESKTOP & TABLET VIEWPORT (LG SIZES AND UP) ── */}
       <div className="hidden lg:block">
         {/* Keepsake Connection Banner */}
@@ -155,8 +164,8 @@ function ComboBuilder() {
                       🌱 Linked Keepsake Memory
                     </span>
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>✓
-                      QR Connected
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      ✓ QR Connected
                     </span>
                   </div>
                   <h2 className="mt-1 font-display text-base sm:text-lg font-bold text-foreground truncate">
@@ -177,7 +186,8 @@ function ComboBuilder() {
                     )}
                   </h2>
                   <p className="mt-1 text-xs text-muted-foreground hidden sm:block">
-                    A printed QR code linking to this page will be attached to your plant keepsake pot.
+                    A printed QR code linking to this page will be attached to your plant keepsake
+                    pot.
                   </p>
                 </div>
               </div>
@@ -246,7 +256,8 @@ function ComboBuilder() {
             Build a <em className="text-primary not-italic">plant</em>, attach a memory.
           </h1>
           <p className="mx-auto mt-2 max-w-xl text-muted-foreground text-sm">
-            Three quiet decisions. One thoughtful gift that grows long after the celebration is over.
+            Three quiet decisions. One thoughtful gift that grows long after the celebration is
+            over.
           </p>
         </section>
 
@@ -304,7 +315,9 @@ function ComboBuilder() {
                     key={item.id}
                     onClick={() => handleSelect(item)}
                     className={`group relative flex flex-col items-center rounded-2xl border bg-background p-3.5 text-center lift cursor-pointer select-none ${
-                      selected ? "border-primary ring-2 ring-primary/30" : "border-border hover:border-neutral-300"
+                      selected
+                        ? "border-primary ring-2 ring-primary/30"
+                        : "border-border hover:border-neutral-300"
                     }`}
                   >
                     {selected && (
@@ -321,8 +334,12 @@ function ComboBuilder() {
                         <span className="text-4xl">{(item as Finish).emoji}</span>
                       )}
                     </div>
-                    <div className="mt-3 truncate text-xs font-bold text-neutral-800 w-full">{item.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">₹{item.price}</div>
+                    <div className="mt-3 truncate text-xs font-bold text-neutral-800 w-full">
+                      {item.name}
+                    </div>
+                    <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                      ₹{item.price}
+                    </div>
                   </button>
                 );
               })}
@@ -385,7 +402,8 @@ function ComboBuilder() {
                     Keepsake Summary
                   </div>
                   <h3 className="font-display text-xl font-bold text-neutral-800 leading-snug">
-                    {plant?.name ?? "Your Plant"} <span className="text-muted-foreground text-sm font-sans font-normal">in</span>{" "}
+                    {plant?.name ?? "Your Plant"}{" "}
+                    <span className="text-muted-foreground text-sm font-sans font-normal">in</span>{" "}
                     {pot?.name ?? "Your Pot"}
                   </h3>
                   {finish && (
@@ -396,7 +414,10 @@ function ComboBuilder() {
                 </div>
 
                 <div className="space-y-1.5 rounded-xl bg-background/60 p-3.5 text-xs">
-                  <Row label={pot ? `Pot · ${pot.name}` : "Pot"} val={pot ? `₹${pot.price}` : "—"} />
+                  <Row
+                    label={pot ? `Pot · ${pot.name}` : "Pot"}
+                    val={pot ? `₹${pot.price}` : "—"}
+                  />
                   <Row
                     label={plant ? `Plant · ${plant.name}` : "Plant"}
                     val={plant ? `₹${plant.price}` : "—"}
@@ -534,12 +555,19 @@ function ComboBuilder() {
           {/* Greenhouse glass rays */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/30 via-transparent to-transparent pointer-events-none" />
           <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-white/30 blur-2xl pointer-events-none animate-sun-drift" />
-          
+
           {/* Ceramic Studio Pedestal base */}
           <div className="absolute bottom-3 inset-x-0 flex flex-col items-center pointer-events-none z-0">
             {/* Wooden shelf top line */}
             <div className="w-5/6 h-1 rounded-full bg-neutral-800/10 shadow-sm" />
-            <ellipse cx="150" cy="8" rx="60" ry="7" fill="rgba(92,61,46,0.12)" className="transform translate-y-0.5" />
+            <ellipse
+              cx="150"
+              cy="8"
+              rx="60"
+              ry="7"
+              fill="rgba(92,61,46,0.12)"
+              className="transform translate-y-0.5"
+            />
           </div>
 
           {/* Plant Model Preview */}
@@ -593,7 +621,11 @@ function ComboBuilder() {
               Step {step + 1} of 3
             </span>
             <h2 className="font-display text-lg font-bold text-neutral-800 leading-tight mt-0.5">
-              {step === 0 ? "Choose Pot Style" : step === 1 ? "Choose Plant Lore" : "Tether Emotion Tag"}
+              {step === 0
+                ? "Choose Pot Style"
+                : step === 1
+                  ? "Choose Plant Lore"
+                  : "Tether Emotion Tag"}
             </h2>
           </div>
 
@@ -623,14 +655,16 @@ function ComboBuilder() {
                       <Check className="h-2.5 w-2.5" />
                     </div>
                   )}
-                  
+
                   <div className="h-16 w-full flex items-center justify-center">
                     {step === 0 ? (
                       <PotPlantPreview pot={item as Pot} size={56} />
                     ) : step === 1 ? (
                       <PotPlantPreview plant={item as Plant} size={56} />
                     ) : (
-                      <span className="text-3xl filter drop-shadow-sm">{(item as Finish).emoji}</span>
+                      <span className="text-3xl filter drop-shadow-sm">
+                        {(item as Finish).emoji}
+                      </span>
                     )}
                   </div>
 
@@ -658,18 +692,20 @@ function ComboBuilder() {
           {/* Current Build Selected Choices Summary Ribbon */}
           <div className="bg-[#FAF8F5] border border-neutral-100 rounded-xl p-2.5 text-[10px] flex flex-wrap gap-x-3 gap-y-1 items-center justify-center text-muted-foreground mt-1 mb-2.5">
             <div className="flex items-center gap-0.5">
-              <span className="text-neutral-500 font-medium">Pot:</span> 
+              <span className="text-neutral-500 font-medium">Pot:</span>
               <span className="font-bold text-neutral-800">{pot ? pot.name : "—"}</span>
             </div>
             <span className="text-neutral-300">•</span>
             <div className="flex items-center gap-0.5">
-              <span className="text-neutral-500 font-medium">Plant:</span> 
+              <span className="text-neutral-500 font-medium">Plant:</span>
               <span className="font-bold text-neutral-800">{plant ? plant.name : "—"}</span>
             </div>
             <span className="text-neutral-300">•</span>
             <div className="flex items-center gap-0.5">
-              <span className="text-neutral-500 font-medium">Tag:</span> 
-              <span className="font-bold text-neutral-800">{finish ? `${finish.emoji} ${finish.name}` : "—"}</span>
+              <span className="text-neutral-500 font-medium">Tag:</span>
+              <span className="font-bold text-neutral-800">
+                {finish ? `${finish.emoji} ${finish.name}` : "—"}
+              </span>
             </div>
           </div>
 
@@ -684,7 +720,7 @@ function ComboBuilder() {
                 <ArrowLeft className="h-4 w-4" />
               </button>
             )}
-            
+
             <button
               onClick={() => {
                 if (step < 2) {
@@ -709,15 +745,12 @@ function ComboBuilder() {
                   Add custom plant to cart (₹{total}) <ShoppingBag className="h-3.5 w-3.5" />
                 </>
               ) : (
-                <>
-                  Add tag to complete keepsake
-                </>
+                <>Add tag to complete keepsake</>
               )}
             </button>
           </div>
         </div>
       </div>
-
     </div>
   );
 }

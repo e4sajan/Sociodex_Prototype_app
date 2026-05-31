@@ -16,7 +16,7 @@ import {
   Info,
   Gift,
   Link2,
-  ExternalLink
+  ExternalLink,
 } from "lucide-react";
 import QRCode from "qrcode";
 
@@ -79,7 +79,7 @@ function ChooseKeepsakePage() {
   // Filter curated products based on occasion
   const filteredProducts = useMemo(() => {
     if (selectedOccasion === "All") return CURATED_KEEPSAKES;
-    
+
     // Custom loose mapping of occasions
     return CURATED_KEEPSAKES.filter((p) => {
       if (selectedOccasion === "Wedding") return p.occasion === "Wedding";
@@ -102,7 +102,7 @@ function ChooseKeepsakePage() {
       plant: product.plant,
       finish: product.finish,
     });
-    
+
     setTimeout(() => {
       setSuccessProductId(null);
     }, 2000);
@@ -121,9 +121,7 @@ function ChooseKeepsakePage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-6">
         {/* ── LINKED MEMORY PAGE BANNER (IF ACTIVE) ── */}
         {memory ? (
-          <div
-            className="relative mb-8 overflow-hidden rounded-2xl border bg-white p-4.5 shadow-xs sm:p-5 transition-all hover:shadow-md fade-up border-l-6 border-l-[#2C5F2E]"
-          >
+          <div className="relative mb-8 overflow-hidden rounded-2xl border bg-white p-4.5 shadow-xs sm:p-5 transition-all hover:shadow-md fade-up border-l-6 border-l-[#2C5F2E]">
             <div className="absolute right-0 top-0 -mr-16 -mt-16 h-32 w-32 rounded-full opacity-5 bg-[#2C5F2E]" />
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between relative z-10">
               <div className="flex items-start gap-3">
@@ -142,16 +140,23 @@ function ChooseKeepsakePage() {
                   <h2 className="mt-1 font-display text-base sm:text-lg font-bold text-neutral-800 truncate">
                     {memory.isInvitation ? (
                       <>
-                        Event Invite: <em className="text-[#2C5F2E] not-italic font-semibold">{memory.coupleNames || memory.recipient || "Our Wedding"}</em>
+                        Event Invite:{" "}
+                        <em className="text-[#2C5F2E] not-italic font-semibold">
+                          {memory.coupleNames || memory.recipient || "Our Wedding"}
+                        </em>
                       </>
                     ) : (
                       <>
-                        Wish Book: <em className="text-[#2C5F2E] not-italic font-semibold">{memory.recipient}'s Celebration</em>
+                        Wish Book:{" "}
+                        <em className="text-[#2C5F2E] not-italic font-semibold">
+                          {memory.recipient}'s Celebration
+                        </em>
                       </>
                     )}
                   </h2>
                   <p className="mt-1 text-[11px] text-[#6B6159] hidden sm:block">
-                    A laser-printed QR wood tag linking to this digital scrapbook will be hand-attached to your selected plant keepsake.
+                    A laser-printed QR wood tag linking to this digital scrapbook will be
+                    hand-attached to your selected plant keepsake.
                   </p>
                 </div>
               </div>
@@ -163,7 +168,7 @@ function ChooseKeepsakePage() {
                   <Link2 className="h-3.5 w-3.5 text-neutral-500" />
                   {copied ? "Link Copied! ✓" : "Copy Link"}
                 </button>
-                
+
                 {qrUrl && (
                   <a
                     href={qrUrl}
@@ -210,7 +215,8 @@ function ChooseKeepsakePage() {
                     Create a memory page first to link a live QR code tag
                   </h2>
                   <p className="text-[11px] text-amber-700/80 mt-0.5 max-w-lg leading-relaxed">
-                    You can purchase keepsakes directly, but creating a memory book allows you to link video wishes, photos, and digital cards to the physical plant pot.
+                    You can purchase keepsakes directly, but creating a memory book allows you to
+                    link video wishes, photos, and digital cards to the physical plant pot.
                   </p>
                 </div>
               </div>
@@ -239,7 +245,8 @@ function ChooseKeepsakePage() {
             that grows with <em className="text-[#2C5F2E] not-italic font-semibold">every wish</em>
           </h1>
           <p className="mt-3 text-sm text-[#6B6159] leading-relaxed max-w-lg mx-auto">
-            Choose from our pre-curated signature botanical packages. Beautiful plants paired with premium handcrafted clay pots and custom occasion tags, ready to ship.
+            Choose from our pre-curated signature botanical packages. Beautiful plants paired with
+            premium handcrafted clay pots and custom occasion tags, ready to ship.
           </p>
         </section>
 
@@ -268,7 +275,7 @@ function ChooseKeepsakePage() {
           {filteredProducts.map((product) => {
             const itemPrice = product.pot.price + product.plant.price + product.finish.price;
             const isAdded = successProductId === product.id;
-            
+
             return (
               <article
                 key={product.id}
@@ -291,7 +298,7 @@ function ChooseKeepsakePage() {
                 <div className="relative aspect-square w-full rounded-2xl bg-gradient-to-b from-[#F9F8F6] to-[#EFECE6] border border-neutral-100 flex items-center justify-center overflow-hidden mb-4 group-hover:scale-[1.01] transition-transform duration-300">
                   {/* Subtle glass reflection rays */}
                   <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/40 via-transparent to-transparent pointer-events-none" />
-                  
+
                   {/* Realtime dynamic preview or custom product photo */}
                   {product.image && !brokenImages[product.id] ? (
                     <img
@@ -310,7 +317,7 @@ function ChooseKeepsakePage() {
                       />
                     </div>
                   )}
-                  
+
                   {/* Occasion Label Ribbon */}
                   <div className="absolute bottom-2.5 left-2.5 bg-neutral-900/5 text-neutral-800/80 font-semibold px-2 py-0.5 rounded-md text-[8px] uppercase tracking-widest leading-none border border-neutral-200 bg-white shadow-2xs">
                     🏷️ {product.occasion}
@@ -324,13 +331,14 @@ function ChooseKeepsakePage() {
                       {product.name}
                     </h3>
                     <p className="text-[10px] font-semibold text-[#C17F5A] mt-0.5">
-                      {product.plant.name} + {product.pot.name} ({product.finish.emoji} {product.finish.name})
+                      {product.plant.name} + {product.pot.name} ({product.finish.emoji}{" "}
+                      {product.finish.name})
                     </p>
                     <p className="text-xs text-[#6B6159] mt-2 line-clamp-3 leading-relaxed">
                       {product.description}
                     </p>
                   </div>
-                  
+
                   <div className="pt-2">
                     <span className="text-[10px] text-neutral-400 font-semibold italic block">
                       ✦ {product.tagline}
@@ -378,9 +386,12 @@ function ChooseKeepsakePage() {
         {filteredProducts.length === 0 && (
           <div className="text-center py-16 bg-white rounded-3xl border border-neutral-200/60 max-w-lg mx-auto p-8 shadow-xs fade-up">
             <span className="text-4xl block mb-2">🌿</span>
-            <h3 className="font-display text-xl font-bold text-neutral-800">No signature packages found</h3>
+            <h3 className="font-display text-xl font-bold text-neutral-800">
+              No signature packages found
+            </h3>
             <p className="text-xs text-[#6B6159] mt-2 max-w-xs mx-auto leading-relaxed">
-              We don't have a curated pack ready for this exact category, but you can build one instantly in our 3-step Keepsake builder!
+              We don't have a curated pack ready for this exact category, but you can build one
+              instantly in our 3-step Keepsake builder!
             </p>
             <Link
               to="/combo"
@@ -409,7 +420,9 @@ function ChooseKeepsakePage() {
                 Want to mix and match?
               </h2>
               <p className="text-xs text-neutral-300 leading-relaxed">
-                Design a custom living keepsake! Select from 10+ artisan glazed pots, 10+ premium air-purifying indoor plants, and custom occasion badges to forge a gift that is completely one-of-a-kind.
+                Design a custom living keepsake! Select from 10+ artisan glazed pots, 10+ premium
+                air-purifying indoor plants, and custom occasion badges to forge a gift that is
+                completely one-of-a-kind.
               </p>
             </div>
 
