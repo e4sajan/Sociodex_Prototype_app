@@ -1,7 +1,21 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@/lib/store";
 import { useState, useEffect } from "react";
-import { Sprout, Gift, ArrowRight, Calendar, Sparkles } from "lucide-react";
+import {
+  Sprout,
+  Gift,
+  ArrowRight,
+  Calendar,
+  Sparkles,
+  QrCode,
+  Cake,
+  Heart,
+  Smile,
+  Home,
+  Baby,
+  Wine,
+  ChevronRight,
+} from "lucide-react";
 
 const TAGLINES = [
   "Send more than a message.",
@@ -45,6 +59,99 @@ const SLIDES = [
   },
 ];
 
+const OCCASION_TABS = {
+  wishes: {
+    id: "wishes" as const,
+    label: "Keepsake Pages & Wishbooks",
+    badge: "Surprise Pages & Wishbooks",
+    icon: Gift,
+    description: "Make someone feel deeply remembered. Collect personal letters, photos, videos, and group voice notes from friends and family for high-emotion milestones.",
+    themeColor: "#2C5F2E",
+    glowClass: "bg-[#2C5F2E]/10 shadow-[#2C5F2E]/5",
+    borderActive: "border-[#2C5F2E]",
+    badgeActiveBg: "bg-[#EAF3DE] text-[#2C5F2E]",
+    items: [
+      {
+        title: "For Birthdays",
+        desc: "Collect group wishes before midnight. Add photos, video greetings, voice notes, and attach them to a botanical QR tag.",
+        emoji: "🎂",
+        icon: Cake,
+        image: "/keepsake_surprise_wishes2.png",
+        features: ["Group Wishes", "Voice Notes", "Photo Grid"],
+      },
+      {
+        title: "For Anniversaries",
+        desc: "Create a shared timeline of love. Compile letters, digital memories, videos, and playlists from the years together.",
+        emoji: "💍",
+        icon: Heart,
+        image: "/keepsake_surprise_wishes.png",
+        features: ["Love Timeline", "Memory Video", "Music Playlist"],
+      },
+      {
+        title: "For Thank You",
+        desc: "Express gratitude in a warm, lasting format. Record audio appreciations and upload photos to a secure, permanent page.",
+        emoji: "🙏",
+        icon: Sparkles,
+        image: "/keepsake_surprise_emotions.png",
+        features: ["Audio Thanks", "Private Vault", "Custom Letter"],
+      },
+      {
+        title: "For Sorry",
+        desc: "When standard messaging feels too small. Create a thoughtful, dedicated page that gives your emotional words the space they deserve.",
+        emoji: "❤️",
+        icon: Smile,
+        image: "/keepsake_surprise_emotions.png",
+        features: ["Private Space", "Expressive Letter", "Audio Note"],
+      },
+    ],
+  },
+  invites: {
+    id: "invites" as const,
+    label: "Smart Event Invitations",
+    badge: "Smart Event Invitations",
+    icon: Calendar,
+    description: "Invite beautifully. Manage easily. Seamlessly handle custom guest RSVPs, dynamic Google location maps, timeline schedules, and collaborative photo walls for milestone events.",
+    themeColor: "#C17F5A",
+    glowClass: "bg-[#C17F5A]/10 shadow-[#C17F5A]/5",
+    borderActive: "border-[#C17F5A]",
+    badgeActiveBg: "bg-[#FAEEDA] text-[#C17F5A]",
+    items: [
+      {
+        title: "For Weddings",
+        desc: "Invite beautifully. Manage custom RSVP forms, interactive Google location maps, multi-day schedules, and elegant digital themes.",
+        emoji: "✨",
+        icon: Sparkles,
+        image: "/wedding_eternal_bloom.png",
+        features: ["Smart RSVPs", "Directions Map", "Schedules"],
+      },
+      {
+        title: "For Housewarming",
+        desc: "Share your new home details with maps, schedules, blessings wall for guests, and QR keepsakes for physical invitation tags.",
+        emoji: "🏡",
+        icon: Home,
+        image: "/prosperity_harmony.png",
+        features: ["Interactive Maps", "Timeline", "Blessings Wall"],
+      },
+      {
+        title: "For Baby Showers",
+        desc: "Celebrate new arrivals beautifully. Share your baby gift registry, event schedule timeline, and receive warm digital guestbook blessings.",
+        emoji: "👶",
+        icon: Baby,
+        image: "/keepsake_surprise_invite.png",
+        features: ["Gift Registry", "Guestbook", "Shower Schedule"],
+      },
+      {
+        title: "For Special Gatherings",
+        desc: "Perfect for reunions, dinners, or meetups. Coordinate task sign-ups, track live RSVPs, and share photos in one secure hub.",
+        emoji: "🥂",
+        icon: Wine,
+        image: "/milestone_celebration.png",
+        features: ["RSVP Tracker", "Shared Album", "Coordination Map"],
+      },
+    ],
+  },
+};
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -64,6 +171,13 @@ function LandingPage() {
   const navigate = useNavigate();
   const [activeTaglineIndex, setActiveTaglineIndex] = useState(0);
   const [activeWordIndex, setActiveWordIndex] = useState(0);
+  const [activeTab, setActiveTab] = useState<"wishes" | "invites">("wishes");
+  const [activeItemIndex, setActiveItemIndex] = useState(0);
+
+  const handleTabChange = (tab: "wishes" | "invites") => {
+    setActiveTab(tab);
+    setActiveItemIndex(0);
+  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -445,237 +559,134 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* ── 8. USE CASE BLOCKS (CLEARLY BIFURCATED: WISHES vs INVITATIONS) ── */}
-      <section className="py-24 px-4 max-w-7xl mx-auto sm:px-6 relative">
+      {/* ── 8. MINIMALIST OCCASIONS SHOWCASE ── */}
+      <section id="occasions" className="py-20 px-4 max-w-6xl mx-auto sm:px-6 relative">
         {/* Background glow effects to give depth */}
-        <div className="absolute top-1/3 left-10 w-96 h-96 bg-[#2C5F2E]/3 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-2/3 right-10 w-96 h-96 bg-[#C17F5A]/3 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-10 w-72 h-72 bg-[#2C5F2E]/2 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-10 w-72 h-72 bg-[#C17F5A]/2 rounded-full blur-3xl pointer-events-none" />
 
         {/* Section Header */}
-        <div className="text-center space-y-3 mb-20">
-          <span className="text-[10px] font-extrabold text-[#C17F5A] uppercase tracking-widest bg-[#C17F5A]/10 px-3.5 py-1.5 rounded-full">
-            Occasions
+        <div className="text-center space-y-2 mb-12">
+          <span className="text-[9px] font-extrabold text-[#C17F5A] uppercase tracking-widest bg-[#C17F5A]/8 px-3 py-1 rounded-full">
+            Templates
           </span>
           <h2
-            className="font-display text-4xl sm:text-5xl font-medium text-neutral-900 tracking-tight"
+            className="font-display text-3xl sm:text-4xl font-medium text-neutral-900 tracking-tight"
             style={{ fontFamily: "'Cormorant Garamond', serif" }}
           >
             Crafted For Every Moment
           </h2>
-          <p className="text-xs sm:text-sm text-[#6B6159] max-w-md mx-auto leading-relaxed font-medium">
-            Explore our beautifully structured, high-emotion delivery formats, clearly divided by
-            product capabilities.
+          <p className="text-xs text-[#6B6159] max-w-sm mx-auto leading-relaxed">
+            Beautifully structured, high-emotion delivery formats tailored for your corporate or personal events.
           </p>
         </div>
 
-        {/* Two Column Bifurcated Layout */}
-        <div className="grid gap-10 lg:grid-cols-2 items-start">
-          {/* Column 1: Surprise Pages & Wishbooks */}
-          <div className="space-y-8">
-            {/* Organic Header Card */}
-            <div className="bg-gradient-to-br from-[#EAF3DE]/60 to-[#FFFDF9] border border-[#2C5F2E]/15 rounded-[2rem] p-6 sm:p-8 space-y-3 shadow-xs relative overflow-hidden group">
-              <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#2C5F2E]/5 rounded-full blur-xl pointer-events-none" />
-              <div className="flex items-center gap-3 text-[#2C5F2E] font-bold text-sm tracking-wide">
-                <span className="w-10 h-10 rounded-2xl bg-white border border-[#2C5F2E]/10 flex items-center justify-center shadow-xs">
-                  <Gift className="h-5 w-5 text-[#2C5F2E]" />
-                </span>
-                <span className="font-extrabold text-xs tracking-wider uppercase font-sans">
-                  SURPRISE PAGES & WISHBOOKS
-                </span>
-              </div>
-              <p className="text-xs text-[#6B6159] leading-relaxed font-medium">
-                Make someone feel deeply remembered. Collect personal letters, photos, videos, and
-                group voice notes from friends and family for high-emotion milestones.
-              </p>
-            </div>
+        {/* Minimal Tab Switcher */}
+        <div className="flex justify-center mb-10">
+          <div className="inline-flex p-1 rounded-full bg-white border border-[#5c3d2e]/8 shadow-2xs relative z-10">
+            {(["wishes", "invites"] as const).map((tabKey) => {
+              const tab = OCCASION_TABS[tabKey];
+              const isSelected = activeTab === tabKey;
+              return (
+                <button
+                  key={tabKey}
+                  onClick={() => handleTabChange(tabKey)}
+                  className={`px-5 py-2 rounded-full text-[10px] font-extrabold uppercase tracking-widest transition-all duration-300 cursor-pointer select-none ${
+                    isSelected
+                      ? tabKey === "wishes"
+                        ? "bg-[#2C5F2E] text-white"
+                        : "bg-[#C17F5A] text-white"
+                      : "text-neutral-500 hover:text-neutral-800"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
-            {/* Column 1 Cards Grid */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              {[
-                {
-                  title: "For Birthdays",
-                  desc: "Collect group wishes before midnight. Add photos, video greetings, voice notes, and attach it to a botanical QR tag.",
-                  emoji: "🎂",
-                  features: ["Group Wishes", "Voice Notes", "Photo Grid"],
-                  borderColor:
-                    "hover:bg-[#EAF3DE]/20 hover:border-[#2C5F2E]/30 hover:shadow-[#2C5F2E]/5",
-                  tagColor: "group-hover:bg-[#EAF3DE] group-hover:text-[#2C5F2E]",
-                  textColor: "group-hover:text-[#2C5F2E]",
-                },
-                {
-                  title: "For Anniversaries",
-                  desc: "Create a shared timeline of love. Compile letters, digital memories, videos, and playlists from the years together.",
-                  emoji: "💍",
-                  features: ["Love Timeline", "Memory Video", "Music Playlist"],
-                  borderColor:
-                    "hover:bg-[#EAF3DE]/20 hover:border-[#2C5F2E]/30 hover:shadow-[#2C5F2E]/5",
-                  tagColor: "group-hover:bg-[#EAF3DE] group-hover:text-[#2C5F2E]",
-                  textColor: "group-hover:text-[#2C5F2E]",
-                },
-                {
-                  title: "For Thank You",
-                  desc: "Express gratitude in a warm, lasting format. Record audio appreciations and upload photos to a secure, permanent page.",
-                  emoji: "🙏",
-                  features: ["Audio Thanks", "Private Vault", "Custom Letter"],
-                  borderColor:
-                    "hover:bg-[#EAF3DE]/20 hover:border-[#2C5F2E]/30 hover:shadow-[#2C5F2E]/5",
-                  tagColor: "group-hover:bg-[#EAF3DE] group-hover:text-[#2C5F2E]",
-                  textColor: "group-hover:text-[#2C5F2E]",
-                },
-                {
-                  title: "For Sorry",
-                  desc: "When standard messaging feels too small. Create a thoughtful, dedicated page that gives your emotional words the space they deserve.",
-                  emoji: "❤️",
-                  features: ["Private Space", "Expressive Letter", "Audio Note"],
-                  borderColor:
-                    "hover:bg-[#EAF3DE]/20 hover:border-[#2C5F2E]/30 hover:shadow-[#2C5F2E]/5",
-                  tagColor: "group-hover:bg-[#EAF3DE] group-hover:text-[#2C5F2E]",
-                  textColor: "group-hover:text-[#2C5F2E]",
-                },
-              ].map((item, idx) => (
+        {/* Minimal Grid */}
+        <div className="grid gap-8 lg:grid-cols-12 items-center relative z-10">
+          
+          {/* Left Canvas: Premium Image Mockup */}
+          <div className="lg:col-span-5 flex justify-center">
+            <div className="relative w-full aspect-square md:aspect-[4/3] lg:aspect-square max-w-[340px] rounded-[1.75rem] border border-[#5c3d2e]/8 bg-[#FFFDF9] p-3 shadow-soft overflow-hidden">
+              {OCCASION_TABS[activeTab].items.map((item, idx) => (
                 <div
                   key={idx}
-                  onClick={handleStartCTA}
-                  className={`card-soft p-6 bg-[#FFFDF9] border border-[#5c3d2e]/10 rounded-2xl shadow-[0_4px_20px_rgba(92,61,46,0.01)] hover:shadow-xl transition-all duration-500 hover:translate-y-[-4px] flex flex-col justify-between group cursor-pointer ${item.borderColor}`}
+                  className={`absolute inset-3 rounded-2xl overflow-hidden border border-neutral-100 bg-neutral-50 transition-all duration-700 ease-in-out ${
+                    activeItemIndex === idx
+                      ? "opacity-100 scale-100 z-10"
+                      : "opacity-0 scale-95 pointer-events-none z-0"
+                  }`}
                 >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-full bg-white border border-[#5c3d2e]/8 flex items-center justify-center text-sm shadow-2xs group-hover:scale-110 transition-transform duration-500">
-                          {item.emoji}
-                        </span>
-                        <h4
-                          className={`font-display text-sm sm:text-base font-bold text-neutral-800 transition-colors duration-300 ${item.textColor}`}
-                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                        >
-                          {item.title}
-                        </h4>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#6B6159] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
-                    </div>
-                    <p className="text-[11px] sm:text-xs text-[#6B6159] leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-
-                  <div className="mt-4 pt-4 border-t border-[#5c3d2e]/6 flex flex-wrap gap-1.5">
-                    {item.features.map((feat) => (
-                      <span
-                        key={feat}
-                        className={`text-[9px] font-bold text-[#6B6159] bg-neutral-100 px-2 py-0.5 rounded-md transition-colors duration-300 ${item.tagColor}`}
-                      >
-                        {feat}
-                      </span>
-                    ))}
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-md border border-neutral-150/40 py-1 px-2.5 rounded-full text-[8px] font-bold text-neutral-800 uppercase tracking-widest">
+                    {item.title}
                   </div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Column 2: Smart Event Invitations */}
-          <div className="space-y-8">
-            {/* Organic Header Card */}
-            <div className="bg-gradient-to-br from-[#FAEEDA]/60 to-[#FFFDF9] border border-[#C17F5A]/15 rounded-[2rem] p-6 sm:p-8 space-y-3 shadow-xs relative overflow-hidden group">
-              <div className="absolute -right-6 -bottom-6 w-24 h-24 bg-[#C17F5A]/5 rounded-full blur-xl pointer-events-none" />
-              <div className="flex items-center gap-3 text-[#C17F5A] font-bold text-sm tracking-wide">
-                <span className="w-10 h-10 rounded-2xl bg-white border border-[#C17F5A]/10 flex items-center justify-center shadow-xs">
-                  <Calendar className="h-5 w-5 text-[#C17F5A]" />
-                </span>
-                <span className="font-extrabold text-xs tracking-wider uppercase font-sans">
-                  SMART EVENT INVITATIONS
-                </span>
-              </div>
-              <p className="text-xs text-[#6B6159] leading-relaxed font-medium">
-                Invite beautifully. Manage easily. Seamlessly handle custom guest RSVPs, dynamic
-                Google location maps, timeline schedules, and collaborative photo walls for
-                milestone events.
+          {/* Right Clean List */}
+          <div className="lg:col-span-7 space-y-4">
+            <div className="space-y-1 text-left pb-2 border-b border-[#5c3d2e]/8 mb-4">
+              <span className="text-[9px] font-extrabold uppercase tracking-widest text-[#C17F5A]">
+                {OCCASION_TABS[activeTab].badge}
+              </span>
+              <p className="text-xs text-[#6B6159] leading-relaxed">
+                {OCCASION_TABS[activeTab].description}
               </p>
             </div>
 
-            {/* Column 2 Cards Grid */}
-            <div className="grid gap-6 sm:grid-cols-2">
-              {[
-                {
-                  title: "For Weddings",
-                  desc: "Invite beautifully. Manage custom RSVP forms, interactive Google location maps, multi-day schedules, and elegant digital themes.",
-                  emoji: "✨",
-                  features: ["Smart RSVPs", "Directions Map", "Schedule Timelines"],
-                  borderColor:
-                    "hover:bg-[#FAEEDA]/20 hover:border-[#C17F5A]/30 hover:shadow-[#C17F5A]/5",
-                  tagColor: "group-hover:bg-[#FAEEDA] group-hover:text-[#C17F5A]",
-                  textColor: "group-hover:text-[#C17F5A]",
-                },
-                {
-                  title: "For Housewarming",
-                  desc: "Share your new home details with maps, schedules, blessings wall for guests, and QR keepsakes for physical invitation tags.",
-                  emoji: "🏡",
-                  features: ["Interactive Maps", "Timeline", "Blessings Wall"],
-                  borderColor:
-                    "hover:bg-[#FAEEDA]/20 hover:border-[#C17F5A]/30 hover:shadow-[#C17F5A]/5",
-                  tagColor: "group-hover:bg-[#FAEEDA] group-hover:text-[#C17F5A]",
-                  textColor: "group-hover:text-[#C17F5A]",
-                },
-                {
-                  title: "For Baby Showers",
-                  desc: "Celebrate new arrivals beautifully. Share your baby gift registry, event schedule timeline, and receive warm digital guestbook blessings.",
-                  emoji: "👶",
-                  features: ["Gift Registry", "Guestbook", "Event Schedule"],
-                  borderColor:
-                    "hover:bg-[#FAEEDA]/20 hover:border-[#C17F5A]/30 hover:shadow-[#C17F5A]/5",
-                  tagColor: "group-hover:bg-[#FAEEDA] group-hover:text-[#C17F5A]",
-                  textColor: "group-hover:text-[#C17F5A]",
-                },
-                {
-                  title: "For Special Gatherings",
-                  desc: "Perfect for reunions, milestone dinners, and meetups. Track active RSVPs, coordinate shared tasks, and upload photos together.",
-                  emoji: "🥂",
-                  features: ["RSVP Tracker", "Shared Album", "Coordination Map"],
-                  borderColor:
-                    "hover:bg-[#FAEEDA]/20 hover:border-[#C17F5A]/30 hover:shadow-[#C17F5A]/5",
-                  tagColor: "group-hover:bg-[#FAEEDA] group-hover:text-[#C17F5A]",
-                  textColor: "group-hover:text-[#C17F5A]",
-                },
-              ].map((item, idx) => (
-                <div
-                  key={idx}
-                  onClick={handleStartCTA}
-                  className={`card-soft p-6 bg-[#FFFDF9] border border-[#5c3d2e]/10 rounded-2xl shadow-[0_4px_20px_rgba(92,61,46,0.01)] hover:shadow-xl transition-all duration-500 hover:translate-y-[-4px] flex flex-col justify-between group cursor-pointer ${item.borderColor}`}
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="w-8 h-8 rounded-full bg-white border border-[#5c3d2e]/8 flex items-center justify-center text-sm shadow-2xs group-hover:scale-110 transition-transform duration-500">
-                          {item.emoji}
-                        </span>
-                        <h4
-                          className={`font-display text-sm sm:text-base font-bold text-neutral-800 transition-colors duration-300 ${item.textColor}`}
-                          style={{ fontFamily: "'Cormorant Garamond', serif" }}
-                        >
-                          {item.title}
-                        </h4>
-                      </div>
-                      <ArrowRight className="h-3.5 w-3.5 text-[#6B6159] opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300" />
+            <div className="space-y-1">
+              {OCCASION_TABS[activeTab].items.map((item, idx) => {
+                const isActive = activeItemIndex === idx;
+                return (
+                  <div
+                    key={idx}
+                    onMouseEnter={() => setActiveItemIndex(idx)}
+                    onClick={() => setActiveItemIndex(idx)}
+                    className={`flex items-start gap-4 p-4 rounded-xl transition-all duration-500 cursor-pointer select-none ${
+                      isActive
+                        ? "bg-[#FAF8F5] md:translate-x-1"
+                        : "opacity-60 hover:opacity-100"
+                    }`}
+                  >
+                    <span className="font-sans text-[10px] font-extrabold text-[#C17F5A] tracking-widest mt-1.5 shrink-0">
+                      0{idx + 1}.
+                    </span>
+                    <div className="space-y-0.5 text-left flex-1">
+                      <h3 className="font-display text-base font-bold text-neutral-800">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs text-[#6B6159] leading-relaxed">
+                        {item.desc}
+                      </p>
                     </div>
-                    <p className="text-[11px] sm:text-xs text-[#6B6159] leading-relaxed">
-                      {item.desc}
-                    </p>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="mt-4 pt-4 border-t border-[#5c3d2e]/6 flex flex-wrap gap-1.5">
-                    {item.features.map((feat) => (
-                      <span
-                        key={feat}
-                        className={`text-[9px] font-bold text-[#6B6159] bg-neutral-100 px-2 py-0.5 rounded-md transition-colors duration-300 ${item.tagColor}`}
-                      >
-                        {feat}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
+            <div className="pt-2 text-left">
+              <button
+                onClick={handleStartCTA}
+                className={`inline-flex items-center gap-2 rounded-full px-6 py-3 text-xs font-bold text-white transition-all cursor-pointer select-none ${
+                  activeTab === "wishes" ? "bg-[#2C5F2E] hover:bg-[#38763b]" : "bg-[#C17F5A] hover:bg-[#b0704d]"
+                }`}
+              >
+                Create a page <ArrowRight className="h-3 w-3" />
+              </button>
             </div>
           </div>
+
         </div>
       </section>
 

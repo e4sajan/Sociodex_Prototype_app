@@ -921,21 +921,44 @@ function PublicMemoryPage() {
             className="p-5 sm:p-10"
           >
             {/* Elegant Botanical Logo inside unwrap */}
-            <div
-              style={{
-                width: 72,
-                height: 72,
-                borderRadius: "50%",
-                background: `${pageTheme.accent}12`,
-                border: `1.5px solid ${pageTheme.accent}30`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                margin: "0 auto 1.5rem",
-              }}
-            >
-              <span style={{ fontSize: "2rem" }}>🌿</span>
-            </div>
+            {activeMemory.isCorporate && activeMemory.corporateLogo ? (
+              <div
+                style={{
+                  maxHeight: 64,
+                  maxWidth: 180,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 1.75rem",
+                }}
+              >
+                <img
+                  src={activeMemory.corporateLogo}
+                  alt="Company Logo"
+                  style={{
+                    maxHeight: "64px",
+                    maxWidth: "180px",
+                    objectFit: "contain",
+                  }}
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: "50%",
+                  background: `${pageTheme.accent}12`,
+                  border: `1.5px solid ${pageTheme.accent}30`,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  margin: "0 auto 1.5rem",
+                }}
+              >
+                <span style={{ fontSize: "2rem" }}>🌿</span>
+              </div>
+            )}
 
             <span
               style={{
@@ -943,12 +966,12 @@ function PublicMemoryPage() {
                 fontWeight: 700,
                 letterSpacing: "0.15em",
                 textTransform: "uppercase",
-                color: "#C17F5A",
+                color: pageTheme.accent,
                 display: "block",
                 marginBottom: "0.5rem",
               }}
             >
-              Nandi Invites Keepsake
+              {activeMemory.isCorporate ? "Branded Corporate Presentation" : "Nandi Invites Keepsake"}
             </span>
 
             <h2
@@ -1069,29 +1092,31 @@ function PublicMemoryPage() {
       )}
 
       {/* ── BACKGROUND DRIFTING SPARKLES ── */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {sparklesList.map((s) => (
-          <span
-            key={s.id}
-            style={{
-              position: "absolute",
-              left: `${s.left}%`,
-              bottom: "-20px",
-              width: s.size,
-              height: s.size,
-              borderRadius: "50%",
-              background: `radial-gradient(circle, rgba(212,175,55,0.4) 0%, rgba(212,175,55,0) 70%)`,
-              boxShadow: `0 0 6px rgba(212,175,55,0.5)`,
-              animation: `sparkleMove ${s.duration}s linear ${s.delay}s infinite`,
-            }}
-          />
-        ))}
-      </div>
+      {!activeMemory.isCorporate && (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          {sparklesList.map((s) => (
+            <span
+              key={s.id}
+              style={{
+                position: "absolute",
+                left: `${s.left}%`,
+                bottom: "-20px",
+                width: s.size,
+                height: s.size,
+                borderRadius: "50%",
+                background: `radial-gradient(circle, rgba(212,175,55,0.4) 0%, rgba(212,175,55,0) 70%)`,
+                boxShadow: `0 0 6px rgba(212,175,55,0.5)`,
+                animation: `sparkleMove ${s.duration}s linear ${s.delay}s infinite`,
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       <Toaster position="top-center" />
 
       {/* Confetti Particle Strip */}
-      <ConfettiAnimation />
+      {!activeMemory.isCorporate && <ConfettiAnimation />}
 
       {/* Google fonts link load */}
       <link
@@ -1145,15 +1170,34 @@ function PublicMemoryPage() {
       {/* ── MAIN CONTAINER ── */}
       <div className="max-w-3xl mx-auto px-4 mt-6 sm:px-6">
         {/* HERO SECTION */}
-        <section className="text-center py-10 px-4 rounded-[2rem] border border-[#5c3d2e]/10 bg-white shadow-[0_4px_24px_rgba(92,61,46,0.03)] relative overflow-hidden">
-          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#c9915a] to-transparent opacity-60" />
+        <section className={`text-center py-10 px-4 rounded-[2rem] border bg-white relative overflow-hidden ${
+          activeMemory.isCorporate 
+            ? "border-neutral-200 shadow-[0_8px_30px_rgba(0,0,0,0.025)]" 
+            : "border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.03)]"
+        }`}>
+          {activeMemory.isCorporate ? (
+            <div className="absolute top-0 inset-x-0 h-1 bg-neutral-200 opacity-60" />
+          ) : (
+            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#c9915a] to-transparent opacity-60" />
+          )}
+
+          {/* Corporate Branding Logo */}
+          {activeMemory.isCorporate && activeMemory.corporateLogo && (
+            <div className="flex justify-center mb-6">
+              <img
+                src={activeMemory.corporateLogo}
+                alt="Company Logo"
+                className="max-h-12 max-w-[200px] object-contain animate-fade-in"
+              />
+            </div>
+          )}
 
           {/* Occasion Badge */}
           <span
             className="inline-flex items-center gap-1.5 rounded-full px-4.5 py-1.5 text-xs font-bold text-white shadow-sm mb-4"
             style={{ backgroundColor: pageTheme.accent }}
           >
-            {getOccasionIcon(activeMemory.occasion)} {activeMemory.occasion}
+            {activeMemory.isCorporate ? "💼" : getOccasionIcon(activeMemory.occasion)} {activeMemory.occasion}
           </span>
 
           {activeMemory.isInvitation ? (

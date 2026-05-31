@@ -130,6 +130,8 @@ export type MemoryData = {
   dressCode?: string;
   registryInfo?: string;
   timeline?: { time: string; event: string }[];
+  isCorporate?: boolean;
+  corporateLogo?: string;
 };
 
 type State = {

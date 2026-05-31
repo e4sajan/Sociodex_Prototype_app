@@ -77,6 +77,20 @@ function MemoryCreator() {
   const photoInput = useRef<HTMLInputElement>(null);
   const audioInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
+  const logoInput = useRef<HTMLInputElement>(null);
+
+  const [isCorporate, setIsCorporate] = useState(false);
+  const [corporateLogo, setCorporateLogo] = useState("");
+
+  const handleLogoUpload = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+    const reader = new FileReader();
+    reader.onload = () => {
+      setCorporateLogo(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handlePageTypeSelect = (type: "wish" | "invite") => {
     setPageType(type);
@@ -88,11 +102,14 @@ function MemoryCreator() {
   };
 
   const isValid = () => {
-    if (isInvitation) {
-      return coupleNames.trim() && from.trim() && date;
-    } else {
-      return recipient.trim() && from.trim() && date;
+    const baseValid = isInvitation
+      ? coupleNames.trim() && from.trim() && date
+      : recipient.trim() && from.trim() && date;
+    
+    if (isCorporate && !corporateLogo) {
+      return false;
     }
+    return baseValid;
   };
 
   const handlePhotos = (files: FileList | null) => {
@@ -183,6 +200,8 @@ function MemoryCreator() {
         contributions: [],
         reactions: [],
         replies: [],
+        isCorporate,
+        corporateLogo,
       };
       const url =
         typeof window !== "undefined" ? `${window.location.origin}/m/${slug}` : `/m/${slug}`;
@@ -273,6 +292,69 @@ function MemoryCreator() {
               </div>
             </button>
           </div>
+        </div>
+
+        {/* Corporate Mode Toggle & Logo Upload */}
+        <div className="card-soft p-5 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+          <input
+            ref={logoInput}
+            type="file"
+            accept="image/*"
+            hidden
+            onChange={(e) => handleLogoUpload(e.target.files)}
+          />
+          
+          <div className="flex items-center justify-between gap-4">
+            <h3 className="text-sm font-semibold text-neutral-800 flex items-center gap-2">
+              💼 Corporate Branding Mode
+            </h3>
+            <button
+              type="button"
+              onClick={() => setIsCorporate(!isCorporate)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                isCorporate ? "bg-[#2C5F2E]" : "bg-neutral-200"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  isCorporate ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {isCorporate && (
+            <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="text-xs text-neutral-500 font-medium max-w-[320px] text-left">
+                Please upload a company logo to apply professional corporate branding:
+              </div>
+              <div className="w-full sm:w-auto flex-1 max-w-[280px]">
+                {corporateLogo ? (
+                  <div className="relative flex items-center justify-between gap-3 p-2.5 rounded-xl border border-[#2C5F2E]/30 bg-[#EAF3DE]/10 bg-white">
+                    <div className="h-8 flex items-center justify-center p-1 bg-white rounded border border-neutral-100 flex-1 max-w-[160px]">
+                      <img src={corporateLogo} alt="Corporate Logo" className="max-h-full max-w-full object-contain" />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCorporateLogo("")}
+                      className="p-1.5 rounded-full hover:bg-red-50 text-neutral-450 hover:text-red-500 transition cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => logoInput.current?.click()}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50/50 px-4 py-3 text-xs font-bold text-neutral-700 hover:border-[#2C5F2E]/50 hover:bg-neutral-50 transition cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4 text-neutral-400" />
+                    Upload Company Logo *
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Card 2: Basics Info & Theme */}
