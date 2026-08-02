@@ -8,9 +8,10 @@ import {
   Check,
   ShieldCheck,
   Sparkles,
+  Mail,
 } from "lucide-react";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
-import { signInWithGoogle, isSupabaseConfigured } from "@/lib/supabase";
+import { signInWithGoogle, sendEmailMagicLink, isSupabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -87,8 +88,43 @@ export function LoginPage() {
     }
   }, [currentUser, navigate, redirectPath]);
 
-  const [activeTab, setActiveTab] = useState<"google" | "phone">("google");
+  const [activeTab, setActiveTab] = useState<"google" | "email" | "phone">("google");
   const [loading, setLoading] = useState(false);
+
+  // Email Magic Link flow states
+  const [emailInput, setEmailInput] = useState("");
+  const [emailNotice, setEmailNotice] = useState("");
+  const [emailError, setEmailError] = useState("");
+
+  const handleEmailMagicLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
+
+    setLoading(true);
+    setEmailError("");
+    setEmailNotice("");
+
+    if (isSupabaseConfigured) {
+      const { error } = await sendEmailMagicLink(emailInput.trim());
+      setLoading(false);
+      if (error) {
+        setEmailError(error.message);
+      } else {
+        setEmailNotice(`✨ Magic login link sent to ${emailInput}! Check your inbox to complete sign in.`);
+      }
+    } else {
+      setTimeout(() => {
+        login({
+          name: emailInput.split("@")[0],
+          email: emailInput.trim(),
+          avatar: "✨",
+          provider: "email",
+        });
+        setLoading(false);
+        navigate({ to: redirectPath });
+      }, 1000);
+    }
+  };
 
   // Google flow states
   const [showGoogleModal, setShowGoogleModal] = useState(false);
@@ -232,25 +268,36 @@ export function LoginPage() {
           <div className="mt-6 flex rounded-full bg-[#F4ECE0] p-1">
             <button
               onClick={() => setActiveTab("google")}
-              className={`flex-1 rounded-full py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "google"
                   ? "bg-white text-[#241621] shadow-xs"
                   : "text-[#6B5A66] hover:text-[#241621]"
               }`}
             >
               <Chrome className="h-3.5 w-3.5 text-[#E4603C]" />
-              Google Account
+              Google
+            </button>
+            <button
+              onClick={() => setActiveTab("email")}
+              className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === "email"
+                  ? "bg-white text-[#241621] shadow-xs"
+                  : "text-[#6B5A66] hover:text-[#241621]"
+              }`}
+            >
+              <Mail className="h-3.5 w-3.5 text-[#E4603C]" />
+              Email
             </button>
             <button
               onClick={() => setActiveTab("phone")}
-              className={`flex-1 rounded-full py-2.5 text-xs font-bold transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === "phone"
                   ? "bg-white text-[#241621] shadow-xs"
                   : "text-[#6B5A66] hover:text-[#241621]"
               }`}
             >
               <Smartphone className="h-3.5 w-3.5 text-[#E4603C]" />
-              Mobile Number
+              Mobile
             </button>
           </div>
         )}
@@ -310,10 +357,54 @@ export function LoginPage() {
                   Continue with Google
                 </button>
 
+                <div className="pt-2 text-center">
+                  <button
+                    onClick={() => setShowGoogleModal(true)}
+                    className="text-xs font-bold text-[#E4603C] hover:underline cursor-pointer"
+                  >
+                    Or use Quick Demo Account
+                  </button>
+                </div>
+
                 <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-[#6B5A66] uppercase tracking-widest font-semibold">
                   <ShieldCheck className="h-3 w-3 text-[#E4603C]" /> End-to-End Encrypted
                 </div>
               </div>
+            )}
+
+            {/* EMAIL SIGN IN PANEL */}
+            {activeTab === "email" && (
+              <form onSubmit={handleEmailMagicLinkSubmit} className="space-y-4 text-left">
+                {emailNotice && (
+                  <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium leading-relaxed">
+                    {emailNotice}
+                  </div>
+                )}
+                {emailError && (
+                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+                    {emailError}
+                  </div>
+                )}
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6B5A66]">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={emailInput}
+                    onChange={(e) => setEmailInput(e.target.value)}
+                    placeholder="sarah@example.com"
+                    className="mt-1 w-full rounded-2xl border border-[#241621]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#E4603C]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white py-3.5 text-xs font-bold shadow-md cursor-pointer transition-all"
+                >
+                  Send Magic Login Link ✉️
+                </button>
+              </form>
             )}
 
             {/* PHONE SIGN IN PANEL */}
