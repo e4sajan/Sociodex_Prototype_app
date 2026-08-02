@@ -2,6 +2,10 @@ import { createFileRoute, useParams, Link } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useMemo } from "react";
 import {
   useStore,
+  PERMISSION_MATRIX,
+  type PermissionAction,
+  getPageRole,
+  type PageRole,
   type Collaborator,
   type MemoryData,
   type SimulatedContribution,
@@ -9,6 +13,7 @@ import {
   type SimulatedReply,
 } from "@/lib/store";
 import { THEMES } from "@/lib/data";
+import { SocioDexLogo } from "@/components/SocioDexLogo";
 import {
   Check,
   X,
@@ -58,8 +63,8 @@ const PUBLIC_THEMES: Record<
     bg: "#E9EFE2",
     gradient: "linear-gradient(135deg, #F3F7EF 0%, #D2DBC9 100%)",
     card: "#FFFFFF",
-    accent: "#2C5F2E",
-    text: "#1A1714",
+    accent: "#E4603C",
+    text: "#241621",
     name: "Sage",
   },
   t2: {
@@ -67,7 +72,7 @@ const PUBLIC_THEMES: Record<
     gradient: "linear-gradient(135deg, #FAF2EC 0%, #E3C3AF 100%)",
     card: "#FFFFFF",
     accent: "#C17F5A",
-    text: "#1A1714",
+    text: "#241621",
     name: "Terracotta",
   },
   t3: {
@@ -75,7 +80,7 @@ const PUBLIC_THEMES: Record<
     gradient: "linear-gradient(135deg, #F2F3FB 0%, #C4CADF 100%)",
     card: "#FFFFFF",
     accent: "#3E4A75",
-    text: "#1A1714",
+    text: "#241621",
     name: "Indigo",
   },
   t4: {
@@ -83,7 +88,7 @@ const PUBLIC_THEMES: Record<
     gradient: "linear-gradient(135deg, #FDF9F2 0%, #E9C99A 100%)",
     card: "#FFFFFF",
     accent: "#D29A4D",
-    text: "#1A1714",
+    text: "#241621",
     name: "Sunset",
   },
   t5: {
@@ -91,14 +96,14 @@ const PUBLIC_THEMES: Record<
     gradient: "linear-gradient(135deg, #FAF4F3 0%, #E5C3BE 100%)",
     card: "#FFFFFF",
     accent: "#B85D6E",
-    text: "#1A1714",
+    text: "#241621",
     name: "Rose",
   },
 };
 
 /* ─── Avatar Colours Rotator ─── */
 const AVATAR_PALETTES = [
-  { bg: "#EAF3DE", text: "#27500A" }, // green
+  { bg: "#F4ECE0", text: "#27500A" }, // green
   { bg: "#E6F1FB", text: "#0C447C" }, // blue
   { bg: "#FAEEDA", text: "#633806" }, // amber
   { bg: "#EEEDFE", text: "#3C3489" }, // purple
@@ -203,7 +208,7 @@ function SimulatedAudioPlayer({ src, name }: { src?: string; name: string }) {
       <button
         onClick={togglePlay}
         aria-label={isPlaying ? "Pause voice note" : "Play voice note"}
-        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#2C5F2E] hover:bg-[#4A8A4C] text-white transition-all cursor-pointer shadow-sm"
+        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white transition-all cursor-pointer shadow-sm"
       >
         {isPlaying ? (
           <Pause className="h-5 w-5 fill-white" />
@@ -214,7 +219,7 @@ function SimulatedAudioPlayer({ src, name }: { src?: string; name: string }) {
 
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-neutral-800 truncate mb-1.5 flex items-center gap-1.5">
-          <Volume2 className="h-3.5 w-3.5 text-[#2C5F2E]" />
+          <Volume2 className="h-3.5 w-3.5 text-[#E4603C]" />
           {name}
         </div>
 
@@ -232,7 +237,7 @@ function SimulatedAudioPlayer({ src, name }: { src?: string; name: string }) {
                 className="w-[3px] rounded-full transition-all duration-150"
                 style={{
                   height: `${barHeight}px`,
-                  backgroundColor: isActive ? "#2C5F2E" : "#E5E5E5",
+                  backgroundColor: isActive ? "#E4603C" : "#E5E5E5",
                 }}
               />
             );
@@ -313,10 +318,17 @@ function PublicMemoryPage() {
   const setGuestRsvp = useStore((s) => s.setGuestRsvp);
 
   // Local UI States
-  const [tab, setTab] = useState<"all" | "photos" | "videos">("all");
+  const [tab, setTab] = useState<"all" | "wishes" | "photos" | "audios" | "videos">("all");
   const [isNudgeDismissed, setIsNudgeDismissed] = useState(false);
   const [showContributeSheet, setShowContributeSheet] = useState(false);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [isRibbonDismissed, setIsRibbonDismissed] = useState(false);
+  const [showRolesModal, setShowRolesModal] = useState(false);
+  const toggleFollowPage = useStore((s) => s.toggleFollowPage);
+  const userRole: PageRole = getPageRole(activeMemory, currentUser);
+  const isFollowing = activeMemory?.followers?.some(
+    (f) => f.toLowerCase() === (currentUser?.name || currentUser?.email || "").toLowerCase()
+  );
 
   // Form states for adding contribution
   const [contribType, setContribType] = useState<"wish" | "photo" | "audio" | "video">("wish");
@@ -376,7 +388,7 @@ function PublicMemoryPage() {
           memory_page_id: activeMemory.slug,
           contributor_id: "user-mock1",
           contributor_name: "Ananya Sharma",
-          contributor_avatar_color: "#EAF3DE",
+          contributor_avatar_color: "#F4ECE0",
           type: "wish",
           content_text:
             "Wishing you the absolute happiest of birthdays! You bring so much light and joy into our lives. May this year be filled with beautiful plants, abundance, and endless peace. 🎂🌸",
@@ -563,7 +575,9 @@ function PublicMemoryPage() {
     });
 
     if (tab === "all") return list;
+    if (tab === "wishes") return list.filter((c) => c.type === "wish");
     if (tab === "photos") return list.filter((c) => c.type === "photo");
+    if (tab === "audios") return list.filter((c) => c.type === "audio");
     if (tab === "videos") return list.filter((c) => c.type === "video");
     return list;
   }, [approvedContributions, tab, activeMemory?.pinnedContributionIds]);
@@ -604,16 +618,16 @@ function PublicMemoryPage() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F3EC] p-4 text-center">
         <div>
-          <Sprout className="mx-auto h-12 w-12 text-[#2C5F2E] mb-4 animate-bounce" />
+          <Sprout className="mx-auto h-12 w-12 text-[#E4603C] mb-4 animate-bounce" />
           <h1 className="font-display text-2xl font-bold">Memory card not found</h1>
           <p className="text-neutral-500 mt-2">
             The memory page you are trying to view does not exist.
           </p>
           <Link
-            to="/"
-            className="inline-block mt-4 rounded-full bg-[#2C5F2E] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#4A8A4C] transition-all"
+            to="/creator"
+            className="inline-block mt-4 rounded-full bg-[#E4603C] px-6 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-[#c94b29] transition-all"
           >
-            Go Home
+            Go to Creator
           </Link>
         </div>
       </div>
@@ -971,16 +985,16 @@ function PublicMemoryPage() {
                 marginBottom: "0.5rem",
               }}
             >
-              {activeMemory.isCorporate ? "Branded Corporate Presentation" : "Nandi Invites Keepsake"}
+              {activeMemory.isCorporate ? "Branded Corporate Presentation" : "SocioDex Keepsake"}
             </span>
 
             <h2
               style={{
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: "'Baloo 2', 'Inter', system-ui, sans-serif",
                 fontSize: "clamp(1.5rem, 8vw, 2.2rem)",
                 margin: "0 0 1rem",
                 lineHeight: 1.1,
-                color: "#1A1714",
+                color: "#241621",
                 fontWeight: 500,
               }}
             >
@@ -1004,7 +1018,7 @@ function PublicMemoryPage() {
             <p
               style={{
                 fontSize: "0.82rem",
-                color: "#6B6159",
+                color: "#594855",
                 lineHeight: 1.6,
                 marginBottom: "2rem",
                 padding: "0 0.5rem",
@@ -1126,19 +1140,50 @@ function PublicMemoryPage() {
 
       {/* ── TOP HEADER AUTH BAR ── */}
       {!isPreview && (
-        <div className="sticky top-0 z-30 bg-white/70 backdrop-blur-md border-b border-[#5c3d2e]/10 py-3.5 px-4 sm:px-6">
+        <div className="sticky top-0 z-30 bg-white/70 backdrop-blur-md border-b border-[#241621]/10 py-3.5 px-4 sm:px-6">
           <div className="max-w-4xl mx-auto flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2 text-neutral-800 hover:opacity-85">
-              <Sprout className="h-5 w-5 text-[#2C5F2E]" />
-              <span className="font-display font-semibold text-lg tracking-tight">
-                Nandi Invites
-              </span>
+            <Link to="/" className="flex items-center gap-2 hover:opacity-85">
+              <SocioDexLogo size="sm" />
             </Link>
 
             <div className="flex items-center gap-3">
+              {/* Role Badge Indicator */}
+              {activeMemory && (
+                <button
+                  type="button"
+                  onClick={() => setShowRolesModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C]/10 border border-[#E4603C]/30 px-3 py-1 text-xs font-bold text-[#E4603C] hover:bg-[#E4603C]/20 transition-all cursor-pointer select-none"
+                  title="Click to view 4 Page Roles & Rules"
+                >
+                  {userRole === "creator" && "👑 Page Creator"}
+                  {userRole === "admin" && "🛡️ Page Admin"}
+                  {userRole === "contributor" && "✍️ Page Contributor"}
+                  {userRole === "follower" && "⭐ Page Follower"}
+                  {userRole === "visitor" && "👁️ Visitor"}
+                </button>
+              )}
+
+              {/* Follow Page Button */}
+              {activeMemory && currentUser && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentUser) {
+                      toggleFollowPage(activeMemory.slug, currentUser.name || currentUser.email || "");
+                    }
+                  }}
+                  className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all cursor-pointer select-none ${
+                    isFollowing
+                      ? "bg-[#EBC85A] text-[#241621] shadow-xs"
+                      : "border border-[#241621]/15 bg-white text-[#241621] hover:bg-[#FAF6F0]"
+                  }`}
+                >
+                  {isFollowing ? "⭐ Following" : "⭐ Follow Page"}
+                </button>
+              )}
               {currentUser ? (
                 <div className="flex items-center gap-3">
-                  <span className="h-8 w-8 rounded-full bg-[#2C5F2E]/10 text-sm font-bold flex items-center justify-center border border-[#2C5F2E]/25">
+                  <span className="h-8 w-8 rounded-full bg-[#E4603C]/10 text-sm font-bold flex items-center justify-center border border-[#E4603C]/25">
                     {currentUser.name[0]}
                   </span>
                   <span className="hidden sm:inline text-xs font-bold text-neutral-700 truncate max-w-[100px]">
@@ -1149,7 +1194,7 @@ function PublicMemoryPage() {
                       useStore.getState().logout();
                       toast.success("Signed out successfully.");
                     }}
-                    className="rounded-full border border-[#5c3d2e]/10 px-3.5 py-1.5 text-[11px] font-semibold hover:bg-neutral-50 cursor-pointer"
+                    className="rounded-full border border-[#241621]/10 px-3.5 py-1.5 text-[11px] font-semibold hover:bg-neutral-50 cursor-pointer"
                   >
                     Sign Out
                   </button>
@@ -1157,7 +1202,7 @@ function PublicMemoryPage() {
               ) : (
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="rounded-full bg-[#2C5F2E] px-4.5 py-1.5 text-xs font-semibold text-white hover:bg-[#4A8A4C] cursor-pointer shadow-sm"
+                  className="rounded-full bg-[#E4603C] px-4.5 py-1.5 text-xs font-semibold text-white hover:bg-[#c94b29] cursor-pointer shadow-sm"
                 >
                   Sign In
                 </button>
@@ -1173,7 +1218,7 @@ function PublicMemoryPage() {
         <section className={`text-center py-10 px-4 rounded-[2rem] border bg-white relative overflow-hidden ${
           activeMemory.isCorporate 
             ? "border-neutral-200 shadow-[0_8px_30px_rgba(0,0,0,0.025)]" 
-            : "border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.03)]"
+            : "border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.03)]"
         }`}>
           {activeMemory.isCorporate ? (
             <div className="absolute top-0 inset-x-0 h-1 bg-neutral-200 opacity-60" />
@@ -1202,12 +1247,12 @@ function PublicMemoryPage() {
 
           {activeMemory.isInvitation ? (
             <>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#6B6159] block mb-2 mt-1">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-[#594855] block mb-2 mt-1">
                 YOU ARE CORDIALLY INVITED TO CELEBRATE
               </span>
               <h1
                 className="font-display text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight text-neutral-900 leading-none mt-2"
-                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                style={{ fontFamily: "'Baloo 2', serif" }}
               >
                 The {activeMemory.occasion} of
                 <br />
@@ -1227,7 +1272,7 @@ function PublicMemoryPage() {
             <>
               <h1
                 className="font-display text-4xl sm:text-5xl md:text-6xl font-medium tracking-tight text-neutral-900 leading-none mt-2"
-                style={{ fontFamily: "'Cormorant Garamond', serif" }}
+                style={{ fontFamily: "'Baloo 2', serif" }}
               >
                 Happy {activeMemory.occasion},
                 <br />
@@ -1244,7 +1289,7 @@ function PublicMemoryPage() {
             </>
           )}
 
-          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#6B6159] mt-3">
+          <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#594855] mt-3">
             <Calendar className="h-3.5 w-3.5 text-[#C17F5A]" />
             {new Date(activeMemory.date).toLocaleDateString(undefined, {
               weekday: "long",
@@ -1258,21 +1303,21 @@ function PublicMemoryPage() {
           <div className="mt-8 border-t border-neutral-100 pt-6 flex justify-around items-center max-w-sm mx-auto animate-fade-in">
             <div className="text-center">
               <span className="block text-2xl font-bold text-neutral-800">{stats.wishes}</span>
-              <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-[#594855] uppercase tracking-wider">
                 Wishes
               </span>
             </div>
             <div className="h-6 w-px bg-neutral-200" />
             <div className="text-center">
               <span className="block text-2xl font-bold text-neutral-800">{stats.photos}</span>
-              <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-[#594855] uppercase tracking-wider">
                 Photos
               </span>
             </div>
             <div className="h-6 w-px bg-neutral-200" />
             <div className="text-center">
               <span className="block text-2xl font-bold text-neutral-800">{stats.attending}</span>
-              <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-wider">
+              <span className="text-[10px] font-bold text-[#594855] uppercase tracking-wider">
                 Attending
               </span>
             </div>
@@ -1316,7 +1361,7 @@ function PublicMemoryPage() {
                     href={activeMemory.venueMapsUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#2C5F2E] to-[#1c1917] hover:opacity-95 rounded-full px-5 py-2 mt-4.5 cursor-pointer shadow-sm select-none transition-all duration-300"
+                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-white bg-gradient-to-r from-[#E4603C] to-[#1c1917] hover:opacity-95 rounded-full px-5 py-2 mt-4.5 cursor-pointer shadow-sm select-none transition-all duration-300"
                   >
                     📍 Get Map Directions
                   </a>
@@ -1380,7 +1425,7 @@ function PublicMemoryPage() {
 
         {/* RSVP CARD SYSTEM (If guest gid is present in URL) */}
         {currentGuest && (
-          <section className="mt-6 p-6 rounded-2xl border border-[#5c3d2e]/10 bg-white text-center shadow-sm">
+          <section className="mt-6 p-6 rounded-2xl border border-[#241621]/10 bg-white text-center shadow-sm">
             <h2 className="font-display text-xl font-bold text-neutral-800">
               Welcome, {currentGuest.firstName}! Will you be joining the celebration? 🥂
             </h2>
@@ -1393,8 +1438,8 @@ function PublicMemoryPage() {
                 onClick={() => handleRsvpClick("attending")}
                 className={`rounded-full px-5 py-2.5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
                   currentGuest.rsvp === "attending"
-                    ? "bg-[#2C5F2E] text-white border-transparent"
-                    : "bg-[#EAF3DE]/30 text-[#27500A] border-[#27500A]/20 hover:bg-[#EAF3DE]/60"
+                    ? "bg-[#E4603C] text-white border-transparent"
+                    : "bg-[#F4ECE0]/30 text-[#27500A] border-[#27500A]/20 hover:bg-[#F4ECE0]/60"
                 }`}
               >
                 <Check className="h-3.5 w-3.5" />
@@ -1417,8 +1462,8 @@ function PublicMemoryPage() {
 
         {/* CONTRIBUTOR AVATAR STRIP */}
         {uniqueContributors.length > 0 && (
-          <section className="mt-6 flex flex-wrap items-center gap-3 justify-center bg-white/40 border border-[#5c3d2e]/5 rounded-2xl p-3">
-            <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-wider">
+          <section className="mt-6 flex flex-wrap items-center gap-3 justify-center bg-white/40 border border-[#241621]/5 rounded-2xl p-3">
+            <span className="text-[10px] font-bold text-[#594855] uppercase tracking-wider">
               Loved ones posting:
             </span>
             <div className="flex items-center -space-x-2.5">
@@ -1456,7 +1501,7 @@ function PublicMemoryPage() {
 
         {/* SOFT SIGN-IN NUDGE */}
         {!currentUser && !isNudgeDismissed && (
-          <section className="mt-6 p-5 rounded-2xl border border-[#5c3d2e]/10 bg-white shadow-sm flex items-start gap-4 relative animate-fade-in">
+          <section className="mt-6 p-5 rounded-2xl border border-[#241621]/10 bg-white shadow-sm flex items-start gap-4 relative animate-fade-in">
             <div className="h-10 w-10 shrink-0 rounded-full bg-amber-50 text-[#C17F5A] flex items-center justify-center">
               <Lock className="h-5 w-5" />
             </div>
@@ -1469,7 +1514,7 @@ function PublicMemoryPage() {
               <div className="flex gap-2.5 mt-3">
                 <button
                   onClick={() => setShowAuthModal(true)}
-                  className="rounded-full bg-[#2C5F2E] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#4A8A4C] transition-all cursor-pointer shadow-sm"
+                  className="rounded-full bg-[#E4603C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#c94b29] transition-all cursor-pointer shadow-sm"
                 >
                   Sign In Now
                 </button>
@@ -1490,7 +1535,7 @@ function PublicMemoryPage() {
         <section className="mt-10">
           <h2
             className="font-display text-2xl font-semibold text-center text-neutral-800 mb-6"
-            style={{ fontFamily: "'Cormorant Garamond', serif" }}
+            style={{ fontFamily: "'Baloo 2', serif" }}
           >
             From the Creator 🌸
           </h2>
@@ -1501,10 +1546,10 @@ function PublicMemoryPage() {
               {activeMemory.wishes.map((w, i) => (
                 <div
                   key={i}
-                  className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-[#5c3d2e]/10 relative shadow-sm"
+                  className="bg-white/80 backdrop-blur-md rounded-2xl p-5 border border-[#241621]/10 relative shadow-sm"
                   style={{ borderLeft: `4px solid ${pageTheme.accent}` }}
                 >
-                  <span className="absolute top-4 right-4 text-2xl opacity-15 select-none font-serif">
+                  <span className="absolute top-4 right-4 text-2xl opacity-15 select-none font-display">
                     "
                   </span>
                   <p className="text-neutral-700 text-sm italic font-medium leading-relaxed">
@@ -1560,29 +1605,51 @@ function PublicMemoryPage() {
 
         {/* ── GUEST CONTRIBUTIONS & WISHLIST FEED ── */}
         <section className="mt-14">
-          <div className="flex flex-col sm:flex-row items-center justify-between border-b border-[#5c3d2e]/10 pb-4 mb-6 gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between border-b border-[#241621]/10 pb-4 mb-6 gap-3">
             <h2
               className="font-display text-3xl font-bold text-neutral-800 text-center sm:text-left flex items-center gap-2"
-              style={{ fontFamily: "'Cormorant Garamond', serif" }}
+              style={{ fontFamily: "'Baloo 2', serif" }}
             >
               Messages from the Heart ✨
             </h2>
 
-            {/* Pill toggles */}
-            <div className="flex rounded-full bg-white border border-[#5c3d2e]/10 p-0.5 shadow-sm">
-              {(["all", "photos", "videos"] as const).map((filterOpt) => (
-                <button
-                  key={filterOpt}
-                  onClick={() => setTab(filterOpt)}
-                  className={`rounded-full px-4 py-1.5 text-xs font-bold transition-all capitalize cursor-pointer ${
-                    tab === filterOpt
-                      ? "bg-[#2C5F2E] text-white"
-                      : "text-[#6B6159] hover:text-neutral-800"
-                  }`}
-                >
-                  {filterOpt === "all" ? "All Feed" : filterOpt}
-                </button>
-              ))}
+            {/* Organized Feed Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar bg-white border border-[#241621]/10 p-1 rounded-2xl shadow-xs max-w-full">
+              {[
+                { id: "all", label: "All Feed", icon: "✨" },
+                { id: "wishes", label: "Wishes", icon: "💌" },
+                { id: "photos", label: "Photos", icon: "📸" },
+                { id: "audios", label: "Voice Notes", icon: "🎙️" },
+                { id: "videos", label: "Videos", icon: "🎥" },
+              ].map((opt) => {
+                const count =
+                  opt.id === "all"
+                    ? approvedContributions.length
+                    : approvedContributions.filter((c) => c.type === opt.id).length;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setTab(opt.id as any)}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                      tab === opt.id
+                        ? "bg-[#E4603C] text-white shadow-xs"
+                        : "text-[#594855] hover:bg-[#FAF6F0] hover:text-[#241621]"
+                    }`}
+                  >
+                    <span>{opt.icon}</span>
+                    <span>{opt.label}</span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                        tab === opt.id
+                          ? "bg-white/20 text-white"
+                          : "bg-[#F4ECE0] text-[#241621]"
+                      }`}
+                    >
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -1615,7 +1682,7 @@ function PublicMemoryPage() {
                       {photo.caption &&
                         photo.caption !== "Original memory card photo" &&
                         photo.caption !== "A beautiful memory card" && (
-                          <span className="text-[10px] text-[#6B6159] block mt-1.5 truncate max-w-full">
+                          <span className="text-[10px] text-[#594855] block mt-1.5 truncate max-w-full">
                             {photo.caption}
                           </span>
                         )}
@@ -1660,7 +1727,7 @@ function PublicMemoryPage() {
                       transform: `rotate(${angle}deg)`,
                       borderLeft: `4px solid ${pageTheme.accent}`,
                     }}
-                    className="bg-[#FFFDF9] rounded-2xl border border-[#5c3d2e]/8 p-5.5 shadow-[0_4px_20px_rgba(92,61,46,0.02)] hover:shadow-md hover:rotate-0 transition-all duration-300 relative animate-fade-in group"
+                    className="bg-[#FFFDF9] rounded-2xl border border-[#241621]/8 p-5.5 shadow-[0_4px_20px_rgba(92,61,46,0.02)] hover:shadow-md hover:rotate-0 transition-all duration-300 relative animate-fade-in group"
                   >
                     {/* Awaiting Approval Badge */}
                     {c.status === "pending" && (
@@ -1689,13 +1756,21 @@ function PublicMemoryPage() {
                           <h4 className="text-xs font-bold text-neutral-800 leading-none">
                             {c.contributor_name}
                           </h4>
-                          <span className="text-[9px] text-[#6B6159] inline-flex items-center gap-1 mt-1 font-semibold">
-                            <Clock className="h-2.5 w-2.5" />
-                            {new Date(c.created_at).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E4603C]/10 text-[#E4603C] border border-[#E4603C]/20">
+                              {c.type === "wish" && "💌 Wish"}
+                              {c.type === "photo" && "📸 Photo"}
+                              {c.type === "audio" && "🎙️ Voice Note"}
+                              {c.type === "video" && "🎥 Video"}
+                            </span>
+                            <span className="text-[9px] text-[#594855] inline-flex items-center gap-1 font-semibold">
+                              <Clock className="h-2.5 w-2.5" />
+                              {new Date(c.created_at).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </span>
+                          </div>
                         </div>
                       </div>
 
@@ -1773,7 +1848,7 @@ function PublicMemoryPage() {
                             onChange={(e) => setEditingContribText(e.target.value)}
                             maxLength={500}
                             rows={3}
-                            className="w-full rounded-xl border border-neutral-200 p-2.5 text-xs outline-none focus:border-[#2C5F2E] resize-none"
+                            className="w-full rounded-xl border border-neutral-200 p-2.5 text-xs outline-none focus:border-[#E4603C] resize-none"
                           />
                           <div className="flex gap-2 justify-end">
                             <button
@@ -1792,7 +1867,7 @@ function PublicMemoryPage() {
                                 setEditingContribId(null);
                                 toast.success("Wish edited!");
                               }}
-                              className="rounded-full bg-[#2C5F2E] px-4 py-1 text-[10px] font-semibold text-white hover:bg-[#4A8A4C]"
+                              className="rounded-full bg-[#E4603C] px-4 py-1 text-[10px] font-semibold text-white hover:bg-[#c94b29]"
                             >
                               Save
                             </button>
@@ -1853,13 +1928,13 @@ function PublicMemoryPage() {
                           onClick={() => handleReactionToggle(c.id, "heart")}
                           className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1 border cursor-pointer ${
                             myReactions.heart
-                              ? "bg-[#2C5F2E]/15 text-[#2C5F2E] border-transparent"
+                              ? "bg-[#E4603C]/15 text-[#E4603C] border-transparent"
                               : "bg-white border-neutral-100 text-[#9ca3af] hover:bg-neutral-50"
                           }`}
                         >
                           <Heart
                             size={14}
-                            className={myReactions.heart ? "fill-[#2C5F2E] text-transparent" : ""}
+                            className={myReactions.heart ? "fill-[#E4603C] text-transparent" : ""}
                           />
                           <span>{counts.heart}</span>
                         </button>
@@ -1869,7 +1944,7 @@ function PublicMemoryPage() {
                           onClick={() => handleReactionToggle(c.id, "clap")}
                           className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1 border cursor-pointer ${
                             myReactions.clap
-                              ? "bg-[#2C5F2E]/15 text-[#2C5F2E] border-transparent"
+                              ? "bg-[#E4603C]/15 text-[#E4603C] border-transparent"
                               : "bg-white border-neutral-100 text-[#9ca3af] hover:bg-neutral-50"
                           }`}
                         >
@@ -1882,7 +1957,7 @@ function PublicMemoryPage() {
                           onClick={() => handleReactionToggle(c.id, "hug")}
                           className={`rounded-full px-3 py-1.5 text-xs font-bold transition-all flex items-center gap-1 border cursor-pointer ${
                             myReactions.hug
-                              ? "bg-[#2C5F2E]/15 text-[#2C5F2E] border-transparent"
+                              ? "bg-[#E4603C]/15 text-[#E4603C] border-transparent"
                               : "bg-white border-neutral-100 text-[#9ca3af] hover:bg-neutral-50"
                           }`}
                         >
@@ -1895,9 +1970,9 @@ function PublicMemoryPage() {
                         onClick={() => {
                           setActiveReplyId(activeReplyId === c.id ? null : c.id);
                         }}
-                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#6B6159] hover:text-neutral-800 transition cursor-pointer"
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-[#594855] hover:text-neutral-800 transition cursor-pointer"
                       >
-                        <MessageSquare className="h-3.5 w-3.5 text-[#2C5F2E]" />
+                        <MessageSquare className="h-3.5 w-3.5 text-[#E4603C]" />
                         Reply ({replies.length})
                       </button>
                     </div>
@@ -1910,11 +1985,11 @@ function PublicMemoryPage() {
                           value={replyText}
                           onChange={(e) => setReplyText(e.target.value)}
                           placeholder="Write a reply..."
-                          className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-[#2C5F2E]"
+                          className="flex-1 rounded-lg border border-neutral-200 bg-white px-3 py-2 text-xs outline-none focus:border-[#E4603C]"
                         />
                         <button
                           onClick={() => handlePostReply(c.id)}
-                          className="rounded-lg bg-[#2C5F2E] hover:bg-[#4A8A4C] text-white px-3.5 text-xs font-bold cursor-pointer"
+                          className="rounded-lg bg-[#E4603C] hover:bg-[#c94b29] text-white px-3.5 text-xs font-bold cursor-pointer"
                         >
                           Send
                         </button>
@@ -1981,7 +2056,7 @@ function PublicMemoryPage() {
                     {approvedContributions.slice(2, 5).map((c, i) => (
                       <div
                         key={i}
-                        className="bg-white rounded-2xl border border-[#5c3d2e]/10 p-5 shadow-sm"
+                        className="bg-white rounded-2xl border border-[#241621]/10 p-5 shadow-sm"
                       >
                         <div className="flex items-center gap-3">
                           <span className="h-9 w-9 rounded-full bg-neutral-200" />
@@ -1994,7 +2069,7 @@ function PublicMemoryPage() {
 
                   {/* Lock Overlay Card */}
                   <div className="absolute inset-0 bg-gradient-to-t from-transparent via-[#F7F3EC]/60 to-transparent flex items-center justify-center p-6">
-                    <div className="bg-white border border-[#5c3d2e]/10 rounded-2xl p-6.5 text-center shadow-lg max-w-sm">
+                    <div className="bg-white border border-[#241621]/10 rounded-2xl p-6.5 text-center shadow-lg max-w-sm">
                       <Lock className="h-7 w-7 text-[#C17F5A] mx-auto mb-3" />
                       <h3 className="font-bold text-sm text-neutral-800">Explore more blessings</h3>
                       <p className="text-xs text-neutral-500 leading-normal mt-1 mb-4">
@@ -2003,7 +2078,7 @@ function PublicMemoryPage() {
                       </p>
                       <button
                         onClick={() => setShowAuthModal(true)}
-                        className="rounded-full bg-[#2C5F2E] hover:bg-[#4A8A4C] text-white px-6 py-2 text-xs font-bold cursor-pointer transition shadow-sm"
+                        className="rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white px-6 py-2 text-xs font-bold cursor-pointer transition shadow-sm"
                       >
                         Sign in to Unlock
                       </button>
@@ -2026,25 +2101,75 @@ function PublicMemoryPage() {
         </section>
 
         {/* ── FOOTER CREATOR BADGE ── */}
-        <footer className="mt-14 py-8 border-t border-[#5c3d2e]/10 text-center text-xs text-[#6B6159] flex items-center justify-center gap-1.5 select-none font-semibold">
-          <Sprout className="h-3.5 w-3.5 text-[#2C5F2E]" />
-          MADE WITH NANDI INVITES
+        {/* ── ELEGANT SOCIODEX FOOTER BRANDING ── */}
+        <footer className="mt-14 py-8 border-t border-[#241621]/10 text-center space-y-2.5 select-none flex flex-col items-center justify-center">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#594855]">
+            POWERED BY
+          </span>
+          <div className="flex items-center justify-center">
+            <SocioDexLogo size="xs" />
+          </div>
+          <p className="text-xs text-[#594855] max-w-sm mx-auto">
+            Give every birthday, wedding & milestone its living digital memory home.
+          </p>
+          <div>
+            <Link
+              to="/creator"
+              className="inline-flex items-center gap-1 text-xs font-bold text-[#E4603C] hover:underline"
+            >
+              <span>Create your own celebration page</span>
+              <span>→</span>
+            </Link>
+          </div>
         </footer>
       </div>
 
-      {/* ── FIXED STICKY ADD PANEL (Bottom Screen CTA) ── */}
-      {!isExpired && (
-        <div className="fixed bottom-5 inset-x-4 z-20 max-w-xs mx-auto select-none">
-          <div className="bg-white/80 backdrop-blur-md border border-[#5c3d2e]/10 shadow-xl px-4 py-2.5 rounded-full flex justify-center">
-            <button
-              onClick={() => {
-                if (!currentUser) setShowAuthModal(true);
-                else setShowContributeSheet(true);
-              }}
-              className="w-full rounded-full bg-[#2C5F2E] hover:bg-[#4A8A4C] text-white py-3 px-6 text-sm font-bold flex items-center justify-center gap-2 cursor-pointer shadow-md transition-all active:scale-95 hover:scale-[1.02]"
-            >
-              <Plus className="h-4 w-4" /> Add yours +
-            </button>
+      {/* ── MINIMAL SOCIODEX PROMOTIONAL BOTTOM RIBBON ── */}
+      {!isRibbonDismissed && (
+        <div className="fixed bottom-20 md:bottom-5 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-30 max-w-2xl w-full select-none animate-slide-up">
+          <div className="bg-[#FFFDF9]/95 backdrop-blur-xl border border-[#241621]/15 shadow-2xl p-2 sm:p-2.5 px-3.5 sm:px-5 rounded-full flex items-center justify-between gap-3">
+            {/* Branding & Logo */}
+            <div className="flex items-center gap-2.5 min-w-0">
+              <Link to="/" className="shrink-0 hover:opacity-90 transition-opacity">
+                <SocioDexLogo size="xs" />
+              </Link>
+              <div className="hidden md:block text-[11px] text-[#594855] font-semibold truncate border-l border-[#241621]/10 pl-2.5">
+                Every celebration deserves a home ✨
+              </div>
+            </div>
+
+            {/* Action Buttons: Add Post + Create Memory Page */}
+            <div className="flex items-center gap-2 shrink-0">
+              {!isExpired && (
+                <button
+                  onClick={() => {
+                    if (!currentUser) setShowAuthModal(true);
+                    else setShowContributeSheet(true);
+                  }}
+                  className="rounded-full bg-[#E4603C]/10 border border-[#E4603C]/30 text-[#E4603C] hover:bg-[#E4603C]/20 px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  <span>Add Post</span>
+                </button>
+              )}
+
+              <Link
+                to="/creator"
+                className="rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white px-4 py-1.5 text-xs font-bold transition-all cursor-pointer shadow-sm flex items-center gap-1.5 active:scale-95 hover:scale-[1.02]"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                <span>Create Page</span>
+              </Link>
+
+              {/* Minimal Dismiss button */}
+              <button
+                onClick={() => setIsRibbonDismissed(true)}
+                className="h-6 w-6 rounded-full hover:bg-[#241621]/10 flex items-center justify-center text-[#594855] font-bold text-xs cursor-pointer ml-0.5"
+                title="Dismiss ribbon"
+              >
+                ✕
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2053,7 +2178,7 @@ function PublicMemoryPage() {
       {isOwner && (
         <button
           onClick={() => setShowSettingsDrawer(true)}
-          className="fixed bottom-6 right-6 z-20 h-12 w-12 rounded-full bg-white border border-[#5c3d2e]/20 text-[#2C5F2E] shadow-lg flex items-center justify-center cursor-pointer transition hover:scale-105 active:scale-95 select-none"
+          className="fixed bottom-6 right-6 z-20 h-12 w-12 rounded-full bg-white border border-[#241621]/20 text-[#E4603C] shadow-lg flex items-center justify-center cursor-pointer transition hover:scale-105 active:scale-95 select-none"
           title="Host Control Panel"
         >
           <Settings className="h-5.5 w-5.5" />
@@ -2070,12 +2195,12 @@ function PublicMemoryPage() {
         <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-[#FFFDF9]/95 backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-[2.5rem] border border-[#5c3d2e]/8 max-w-lg w-full p-7 shadow-2xl flex flex-col gap-4.5 animate-slide-up max-h-[85vh] overflow-y-auto relative"
+            className="bg-[#FFFDF9]/95 backdrop-blur-2xl rounded-t-[2.5rem] sm:rounded-[2.5rem] border border-[#241621]/8 max-w-lg w-full p-7 shadow-2xl flex flex-col gap-4.5 animate-slide-up max-h-[85vh] overflow-y-auto relative"
           >
             {/* iOS style grab handle bar */}
             <div className="w-12 h-1.5 bg-neutral-300 rounded-full mx-auto mb-1.5 sm:hidden shrink-0" />
 
-            <div className="flex items-center justify-between border-b border-[#5c3d2e]/8 pb-3">
+            <div className="flex items-center justify-between border-b border-[#241621]/8 pb-3">
               <h3 className="font-display text-xl font-bold text-neutral-800 flex items-center gap-1.5">
                 <span>🌸</span> Add Your Blessing
               </h3>
@@ -2106,8 +2231,8 @@ function PublicMemoryPage() {
                   }}
                   className={`py-2 text-[11px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition ${
                     contribType === key
-                      ? "bg-white text-[#2C5F2E] shadow-xs"
-                      : "text-[#6B6159] hover:text-neutral-800"
+                      ? "bg-white text-[#E4603C] shadow-xs"
+                      : "text-[#594855] hover:text-neutral-800"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
@@ -2127,7 +2252,7 @@ function PublicMemoryPage() {
                   onChange={(e) => setContribText(e.target.value.slice(0, 500))}
                   placeholder="Write a wish, a memory, an inside joke..."
                   rows={4}
-                  className="w-full rounded-2xl border border-neutral-200 p-3.5 text-xs sm:text-sm outline-none focus:border-[#2C5F2E] resize-none"
+                  className="w-full rounded-2xl border border-neutral-200 p-3.5 text-xs sm:text-sm outline-none focus:border-[#E4603C] resize-none"
                 />
                 <span className="text-[10px] text-neutral-400 font-bold block text-right mt-1">
                   {contribText.length} / 500 characters
@@ -2137,7 +2262,7 @@ function PublicMemoryPage() {
               {/* Upload Media Previews */}
               {contribFiles.length > 0 && (
                 <div className="border border-neutral-100 bg-neutral-50/50 rounded-xl p-3.5 space-y-2.5">
-                  <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-wider">
+                  <span className="text-[10px] font-bold text-[#594855] uppercase tracking-wider">
                     Attachments:
                   </span>
                   <div className="flex flex-wrap gap-2.5">
@@ -2173,7 +2298,7 @@ function PublicMemoryPage() {
                     <button
                       type="button"
                       onClick={() => triggerMockFileUpload("photo")}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#EAF3DE]/60 text-[#27500A] px-4.5 py-2 text-xs font-bold hover:bg-[#EAF3DE] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#F4ECE0]/60 text-[#27500A] px-4.5 py-2 text-xs font-bold hover:bg-[#F4ECE0] cursor-pointer"
                     >
                       <Upload className="h-3.5 w-3.5" /> Attach Photo (Max 5MB)
                     </button>
@@ -2183,7 +2308,7 @@ function PublicMemoryPage() {
                     <button
                       type="button"
                       onClick={() => triggerMockFileUpload("video")}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-[#EAF3DE]/60 text-[#27500A] px-4.5 py-2 text-xs font-bold hover:bg-[#EAF3DE] cursor-pointer"
+                      className="inline-flex items-center gap-1.5 rounded-full bg-[#F4ECE0]/60 text-[#27500A] px-4.5 py-2 text-xs font-bold hover:bg-[#F4ECE0] cursor-pointer"
                     >
                       <Upload className="h-3.5 w-3.5" /> Attach Video (Max 100MB)
                     </button>
@@ -2229,7 +2354,7 @@ function PublicMemoryPage() {
                   </div>
                   <div className="w-full bg-neutral-100 h-1.5 rounded-full overflow-hidden">
                     <div
-                      className="bg-[#2C5F2E] h-full transition-all duration-300"
+                      className="bg-[#E4603C] h-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
@@ -2239,11 +2364,96 @@ function PublicMemoryPage() {
               <button
                 type="submit"
                 disabled={isUploading}
-                className="w-full rounded-full bg-[#2C5F2E] hover:bg-[#4A8A4C] text-white py-3.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-40"
+                className="w-full rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white py-3.5 text-xs font-bold shadow-md cursor-pointer disabled:opacity-40"
               >
                 Post to {activeMemory.recipient}'s Page
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4 PAGE ROLES & PERMISSION MATRIX MODAL ── */}
+      {showRolesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="w-full max-w-3xl rounded-3xl bg-white p-6 shadow-2xl border border-[#241621]/15 space-y-4 text-left my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-[#241621]/10 pb-3 shrink-0">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[#E4603C]">
+                  Security & Access System
+                </span>
+                <h3 className="font-display text-xl sm:text-2xl font-bold text-[#241621]">
+                  3. Permission Matrix
+                </h3>
+                <p className="text-xs text-[#594855] mt-0.5">
+                  The table below defines every action in the system and which roles can perform it.
+                </p>
+              </div>
+              <button
+                onClick={() => setShowRolesModal(false)}
+                className="h-8 w-8 rounded-full hover:bg-[#FAF6F0] flex items-center justify-center text-[#594855] font-bold cursor-pointer shrink-0"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Scrollable Table */}
+            <div className="overflow-x-auto overflow-y-auto flex-1 border border-[#241621]/10 rounded-2xl">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-[#126462] text-white font-bold font-display">
+                    <th className="p-3 border-b border-[#126462]/30 min-w-[200px]">Action</th>
+                    <th className="p-3 border-b border-[#126462]/30 text-center bg-[#126462]/90">Creator</th>
+                    <th className="p-3 border-b border-[#126462]/30 text-center">Admin</th>
+                    <th className="p-3 border-b border-[#126462]/30 text-center">Contributor</th>
+                    <th className="p-3 border-b border-[#126462]/30 text-center">Follower</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#241621]/10">
+                  {Object.entries(PERMISSION_MATRIX).map(([key, item], idx) => (
+                    <tr key={key} className={idx % 2 === 0 ? "bg-[#FFFDF9]" : "bg-white"}>
+                      <td className="p-3 font-semibold text-[#241621]">{item.label}</td>
+                      <td className="p-3 text-center bg-[#EAF5EC] text-emerald-700 font-bold text-base">
+                        {item.creator ? "✓" : <span className="text-neutral-300 font-normal text-xs">✕</span>}
+                      </td>
+                      <td className="p-3 text-center bg-[#F3F0FA]">
+                        {item.admin ? (
+                          <span className="text-emerald-700 font-bold text-base">✓</span>
+                        ) : (
+                          <span className="text-neutral-300 font-normal text-xs">✕</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center bg-[#FDF7E7]">
+                        {item.contributor ? (
+                          <span className="text-emerald-700 font-bold text-base">✓</span>
+                        ) : (
+                          <span className="text-neutral-300 font-normal text-xs">✕</span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        {item.follower ? (
+                          <span className="text-emerald-700 font-bold text-base">✓</span>
+                        ) : (
+                          <span className="text-neutral-300 font-normal text-xs">✕</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 shrink-0">
+              <span className="text-[11px] text-[#594855]">
+                Active Role: <strong className="text-[#E4603C] uppercase">{userRole}</strong>
+              </span>
+              <button
+                onClick={() => setShowRolesModal(false)}
+                className="rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-6 py-2.5 text-xs font-bold text-white shadow-md cursor-pointer"
+              >
+                Close Matrix
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -2256,7 +2466,7 @@ function PublicMemoryPage() {
             className="bg-white rounded-3xl border border-neutral-100 max-w-[390px] w-full p-6 shadow-2xl animate-scale-up"
           >
             <div className="text-center">
-              <div className="h-11 w-11 rounded-full bg-[#2C5F2E]/10 text-[#2C5F2E] flex items-center justify-center mx-auto mb-3">
+              <div className="h-11 w-11 rounded-full bg-[#E4603C]/10 text-[#E4603C] flex items-center justify-center mx-auto mb-3">
                 <Lock className="h-5.5 w-5.5" />
               </div>
               <h3 className="font-display text-xl font-bold text-neutral-800">
@@ -2278,7 +2488,7 @@ function PublicMemoryPage() {
                   value={authName}
                   onChange={(e) => setAuthName(e.target.value)}
                   placeholder="e.g. Rajan Mehta"
-                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#2C5F2E]"
+                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#E4603C]"
                 />
               </div>
 
@@ -2292,7 +2502,7 @@ function PublicMemoryPage() {
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   placeholder="e.g. rajan@example.com"
-                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#2C5F2E]"
+                  className="w-full rounded-xl border border-neutral-200 px-3.5 py-2.5 text-xs outline-none focus:border-[#E4603C]"
                 />
               </div>
 
@@ -2353,7 +2563,7 @@ function PublicMemoryPage() {
                     key={mode}
                     className={`flex items-center justify-between rounded-xl border p-3 cursor-pointer transition ${
                       activeMemory.contributionMode === mode
-                        ? "border-[#2C5F2E] bg-[#EAF3DE]/10 font-bold"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/10 font-bold"
                         : "border-neutral-100 hover:bg-neutral-50 text-neutral-500"
                     }`}
                   >
@@ -2365,13 +2575,13 @@ function PublicMemoryPage() {
                         onChange={() =>
                           updatePageSettings(activeMemory.slug, { contributionMode: mode })
                         }
-                        className="text-[#2C5F2E] focus:ring-[#2C5F2E] h-4 w-4"
+                        className="text-[#E4603C] focus:ring-[#E4603C] h-4 w-4"
                       />
                       <span className="capitalize text-xs leading-none">
                         {mode === "open"
                           ? "Open (anyone signed-in)"
                           : mode === "guests"
-                            ? "Guests only (e-mail matching)"
+                            ? "Invitees only"
                             : "Closed (host only)"}
                       </span>
                     </div>
@@ -2399,7 +2609,7 @@ function PublicMemoryPage() {
                   }
                   className="sr-only peer"
                 />
-                <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#2C5F2E]"></div>
+                <div className="w-9 h-5 bg-neutral-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-neutral-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#E4603C]"></div>
               </label>
             </div>
 
@@ -2414,7 +2624,7 @@ function PublicMemoryPage() {
                 onChange={(e) =>
                   updatePageSettings(activeMemory.slug, { expiresAt: e.target.value || null })
                 }
-                className="w-full rounded-xl border border-neutral-200 p-2 text-xs outline-none focus:border-[#2C5F2E]"
+                className="w-full rounded-xl border border-neutral-200 p-2 text-xs outline-none focus:border-[#E4603C]"
               />
             </div>
 

@@ -11,10 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as KeepsakesRouteImport } from './routes/keepsakes'
-import { Route as GuestsRouteImport } from './routes/guests'
 import { Route as CreatorRouteImport } from './routes/creator'
-import { Route as ComboRouteImport } from './routes/combo'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MSlugRouteImport } from './routes/m.$slug'
 
@@ -28,24 +25,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const KeepsakesRoute = KeepsakesRouteImport.update({
-  id: '/keepsakes',
-  path: '/keepsakes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const GuestsRoute = GuestsRouteImport.update({
-  id: '/guests',
-  path: '/guests',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CreatorRoute = CreatorRouteImport.update({
   id: '/creator',
   path: '/creator',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ComboRoute = ComboRouteImport.update({
-  id: '/combo',
-  path: '/combo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -61,20 +43,14 @@ const MSlugRoute = MSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
-  '/guests': typeof GuestsRoute
-  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
-  '/guests': typeof GuestsRoute
-  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
@@ -82,53 +58,22 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/combo': typeof ComboRoute
   '/creator': typeof CreatorRoute
-  '/guests': typeof GuestsRoute
-  '/keepsakes': typeof KeepsakesRoute
   '/login': typeof LoginRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/combo'
-    | '/creator'
-    | '/guests'
-    | '/keepsakes'
-    | '/login'
-    | '/tracker'
-    | '/m/$slug'
+  fullPaths: '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/combo'
-    | '/creator'
-    | '/guests'
-    | '/keepsakes'
-    | '/login'
-    | '/tracker'
-    | '/m/$slug'
-  id:
-    | '__root__'
-    | '/'
-    | '/combo'
-    | '/creator'
-    | '/guests'
-    | '/keepsakes'
-    | '/login'
-    | '/tracker'
-    | '/m/$slug'
+  to: '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
+  id: '__root__' | '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ComboRoute: typeof ComboRoute
   CreatorRoute: typeof CreatorRoute
-  GuestsRoute: typeof GuestsRoute
-  KeepsakesRoute: typeof KeepsakesRoute
   LoginRoute: typeof LoginRoute
   TrackerRoute: typeof TrackerRoute
   MSlugRoute: typeof MSlugRoute
@@ -150,32 +95,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/keepsakes': {
-      id: '/keepsakes'
-      path: '/keepsakes'
-      fullPath: '/keepsakes'
-      preLoaderRoute: typeof KeepsakesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/guests': {
-      id: '/guests'
-      path: '/guests'
-      fullPath: '/guests'
-      preLoaderRoute: typeof GuestsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/creator': {
       id: '/creator'
       path: '/creator'
       fullPath: '/creator'
       preLoaderRoute: typeof CreatorRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/combo': {
-      id: '/combo'
-      path: '/combo'
-      fullPath: '/combo'
-      preLoaderRoute: typeof ComboRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -197,10 +121,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ComboRoute: ComboRoute,
   CreatorRoute: CreatorRoute,
-  GuestsRoute: GuestsRoute,
-  KeepsakesRoute: KeepsakesRoute,
   LoginRoute: LoginRoute,
   TrackerRoute: TrackerRoute,
   MSlugRoute: MSlugRoute,

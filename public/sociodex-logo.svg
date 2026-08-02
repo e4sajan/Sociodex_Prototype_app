@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 90" fill="none">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&amp;display=swap');
+    .logo-text { font-family: 'Baloo 2', system-ui, sans-serif; font-weight: 800; font-size: 58px; fill: #241621; }
+  </style>
+  <text x="150" y="54" text-anchor="middle" class="logo-text">SocioDex</text>
+  <path d="M 85 64 C 120 90, 180 90, 215 64" stroke="#241621" stroke-width="8" stroke-linecap="round" fill="none" />
+</svg>

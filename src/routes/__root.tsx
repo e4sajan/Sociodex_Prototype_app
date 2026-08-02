@@ -1,23 +1,24 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import appCss from "../styles.css?url";
 import { TopNav } from "@/components/TopNav";
-import { CartDrawer } from "@/components/CartDrawer";
+import { SocioDexLogo } from "@/components/SocioDexLogo";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
-        <h1 className="font-display text-7xl">404</h1>
-        <h2 className="mt-4 font-display text-2xl">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
+    <div className="flex min-h-screen items-center justify-center bg-[#FBF6EC] px-4">
+      <div className="max-w-md text-center space-y-4">
+        <SocioDexLogo size="lg" />
+        <h1 className="font-display text-6xl text-[#241621]">404</h1>
+        <h2 className="font-display text-2xl text-[#241621]">Page not found</h2>
+        <p className="text-sm text-[#594855]">
           The page you're looking for doesn't exist or has been moved.
         </p>
-        <div className="mt-6">
+        <div className="pt-2">
           <Link
             to="/"
-            className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90"
+            className="inline-flex items-center justify-center rounded-full bg-[#E4603C] px-6 py-3 text-sm font-bold text-white hover:bg-[#c94b29] shadow-md transition-all"
           >
-            Go home
+            Return to Home
           </Link>
         </div>
       </div>
@@ -30,17 +31,17 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Nandi Invites — Plant Gifting & Memory Experiences" },
+      { title: "SocioDex — Every celebration deserves a home" },
       {
         name: "description",
         content:
-          "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs in one luxurious place.",
+          "SocioDex gives every celebration its own living digital memory page. Preserving birthdays, weddings, farewells, anniversaries, and life's moments forever.",
       },
-      { property: "og:title", content: "Nandi Invites — Plant Gifting & Memory Experiences" },
+      { property: "og:title", content: "SocioDex — Every celebration deserves a home" },
       {
         property: "og:description",
         content:
-          "Configure plant gifts, attach memory pages, manage guests, and track delivery & RSVPs.",
+          "Create interactive surprise pages, milestone wishbooks, voice notes, photos, and smart event invitations.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -50,7 +51,7 @@ export const Route = createRootRoute({
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap",
       },
       { rel: "stylesheet", href: appCss },
     ],
@@ -81,7 +82,6 @@ function RootComponent() {
       <main className="pb-24 md:pb-0">
         <Outlet />
       </main>
-      <CartDrawer />
     </>
   );
 }

@@ -1,4 +1,4 @@
--- --- Supabase Database Schema for Nandi Invites ---
+-- --- Supabase Database Schema & RLS Policies for SocioDex ---
 
 -- Enable UUID extension
 create extension if not exists "uuid-ossp";
@@ -11,6 +11,7 @@ create table if not exists public.memory_pages (
   occasion text not null,
   recipient text not null,
   from_name text not null,
+  creator_email text,
   date date not null,
   theme_id text not null,
   wishes text[] default '{}',
@@ -19,6 +20,37 @@ create table if not exists public.memory_pages (
   video_urls text[] default '{}',
   created_at timestamptz default now()
 );
+
+-- Table: page_roles
+create table if not exists public.page_roles (
+  id uuid primary key default gen_random_uuid(),
+  memory_page_id uuid references public.memory_pages(id) on delete cascade,
+  user_id uuid references auth.users(id) on delete cascade,
+  role text not null check (role in ('creator', 'admin', 'contributor', 'follower')),
+  created_at timestamptz default now(),
+  unique (memory_page_id, user_id)
+);
+
+-- Helper RLS function to check user role
+create or replace function public.get_page_role(p_memory_page_id uuid, p_user_id uuid)
+returns text language plpgsql security definer as $$
+declare
+  v_role text;
+begin
+  select role into v_role from public.page_roles
+  where memory_page_id = p_memory_page_id and user_id = p_user_id;
+  
+  if v_role is not null then
+    return v_role;
+  end if;
+
+  if exists (select 1 from public.memory_pages where id = p_memory_page_id and user_id = p_user_id) then
+    return 'creator';
+  end if;
+
+  return 'visitor';
+end;
+$$;
 
 -- Table: guests
 create table if not exists public.guests (
@@ -38,7 +70,7 @@ create table if not exists public.contributions (
   memory_page_id uuid references public.memory_pages(id) on delete cascade,
   contributor_id uuid references auth.users(id) on delete set null,
   contributor_name text not null,
-  contributor_avatar_color text not null, -- Hex color assigned at first contribution
+  contributor_avatar_color text not null,
   type text not null check (type in ('wish', 'photo', 'audio', 'video')),
   content_text text,
   media_urls text[] default '{}',
@@ -79,80 +111,56 @@ create table if not exists public.page_settings (
 
 -- --- Enable Row Level Security (RLS) ---
 alter table public.memory_pages enable row level security;
+alter table public.page_roles enable row level security;
 alter table public.guests enable row level security;
 alter table public.contributions enable row level security;
 alter table public.reactions enable row level security;
 alter table public.replies enable row level security;
 alter table public.page_settings enable row level security;
 
--- --- RLS Policies ---
+-- --- RLS Policies matching Official Permission Matrix ---
 
--- memory_pages policies
-create policy "Allow public read access to memory pages" on public.memory_pages
-  for select using (true);
-create policy "Allow authenticated user insert memory pages" on public.memory_pages
-  for insert with check (auth.uid() = user_id);
-create policy "Allow owner update/delete memory pages" on public.memory_pages
-  for all using (auth.uid() = user_id);
+-- 1. memory_pages: Only Creator can delete or update page title/theme/reveal date
+create policy "Allow public view pages" on public.memory_pages for select using (true);
+create policy "Allow auth insert page" on public.memory_pages for insert with check (auth.uid() = user_id);
+create policy "Allow Creator edit or delete page" on public.memory_pages for all using (
+  auth.uid() = user_id or public.get_page_role(id, auth.uid()) = 'creator'
+);
 
--- guests policies
-create policy "Allow public read access to guests" on public.guests
-  for select using (true);
-create policy "Allow public update guest rsvp (identified by gid)" on public.guests
-  for update using (true) with check (true);
-create policy "Allow memory page owner full access to guests" on public.guests
-  for all using (
-    auth.uid() in (select user_id from public.memory_pages where id = memory_page_id)
-  );
+-- 2. page_roles: Only Creator can assign or remove admins
+create policy "Allow view roles" on public.page_roles for select using (true);
+create policy "Allow Creator manage roles" on public.page_roles for all using (
+  public.get_page_role(memory_page_id, auth.uid()) = 'creator'
+);
 
--- contributions policies
-create policy "Allow public read access to approved contributions" on public.contributions
-  for select using (
-    status = 'approved' 
-    or auth.uid() = contributor_id 
-    or auth.uid() in (select user_id from public.memory_pages where id = memory_page_id)
-  );
-create policy "Allow authenticated user insert contributions" on public.contributions
-  for insert with check (auth.role() = 'authenticated');
-create policy "Allow contributor or owner update contributions" on public.contributions
-  for update using (
-    auth.uid() = contributor_id 
-    or auth.uid() in (select user_id from public.memory_pages where id = memory_page_id)
-  );
-create policy "Allow contributor or owner delete contributions" on public.contributions
-  for delete using (
-    auth.uid() = contributor_id 
-    or auth.uid() in (select user_id from public.memory_pages where id = memory_page_id)
-  );
+-- 3. contributions: Creator/Admin can remove any; Creator/Admin/Contributor can insert & edit own within 24h
+create policy "Allow public select contributions" on public.contributions for select using (true);
+create policy "Allow Creator, Admin, Contributor add contribution" on public.contributions for insert with check (
+  public.get_page_role(memory_page_id, auth.uid()) in ('creator', 'admin', 'contributor')
+);
+create policy "Allow Contributor edit own (within 24h) or Creator/Admin manage" on public.contributions for update using (
+  (auth.uid() = contributor_id and created_at >= (now() - interval '24 hours'))
+  or public.get_page_role(memory_page_id, auth.uid()) in ('creator', 'admin')
+);
+create policy "Allow Contributor delete own or Creator/Admin remove any contribution" on public.contributions for delete using (
+  auth.uid() = contributor_id
+  or public.get_page_role(memory_page_id, auth.uid()) in ('creator', 'admin')
+);
 
--- reactions policies
-create policy "Allow public select reactions" on public.reactions
-  for select using (true);
-create policy "Allow authenticated insert reactions" on public.reactions
-  for insert with check (auth.role() = 'authenticated');
-create policy "Allow users to delete own reactions" on public.reactions
-  for delete using (auth.uid() = user_id);
+-- 4. reactions: Creator, Admin, Contributor, & Follower can react
+create policy "Allow public view reactions" on public.reactions for select using (true);
+create policy "Allow Creator, Admin, Contributor, Follower react" on public.reactions for insert with check (
+  auth.role() = 'authenticated'
+);
+create policy "Allow delete own reaction" on public.reactions for delete using (auth.uid() = user_id);
 
--- replies policies
-create policy "Allow public select replies" on public.replies
-  for select using (true);
-create policy "Allow authenticated insert replies" on public.replies
-  for insert with check (auth.role() = 'authenticated');
-create policy "Allow author delete own replies" on public.replies
-  for delete using (auth.uid() = author_id);
-
--- page_settings policies
-create policy "Allow public select page_settings" on public.page_settings
-  for select using (true);
-create policy "Allow owner update page_settings" on public.page_settings
-  for all using (
-    auth.uid() in (select user_id from public.memory_pages where id = memory_page_id)
-  );
+-- 5. page_settings: Only Creator & Admin can edit settings/PIN
+create policy "Allow view settings" on public.page_settings for select using (true);
+create policy "Allow Creator and Admin update settings" on public.page_settings for all using (
+  public.get_page_role(memory_page_id, auth.uid()) in ('creator', 'admin')
+);
 
 -- --- Enable Realtime ---
--- This script enables realtime for contributions, reactions, and replies.
--- Note: Make sure to add these tables to the 'supabase_realtime' publication via the Supabase UI
--- or run the following to add them:
 alter publication supabase_realtime add table public.contributions;
 alter publication supabase_realtime add table public.reactions;
 alter publication supabase_realtime add table public.replies;

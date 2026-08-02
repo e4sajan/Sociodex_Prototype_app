@@ -24,7 +24,7 @@ import {
 export const Route = createFileRoute("/creator")({
   head: () => ({
     meta: [
-      { title: "Memory Creator — Nandi Invites" },
+      { title: "Memory Creator — SocioDex" },
       {
         name: "description",
         content:
@@ -36,8 +36,16 @@ export const Route = createFileRoute("/creator")({
 });
 
 function MemoryCreator() {
+  const currentUser = useStore((s) => s.currentUser);
   const setMemory = useStore((s) => s.setMemory);
   const navigate = useNavigate();
+
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!currentUser) {
+      navigate({ to: "/login", search: { redirect: "/creator" } });
+    }
+  }, [currentUser, navigate]);
 
   // Creator Mode State
   const [pageType, setPageType] = useState<"wish" | "invite">("wish");
@@ -170,6 +178,9 @@ function MemoryCreator() {
         occasion,
         recipient: displayName,
         from: from.trim(),
+        creatorName: currentUser?.name || from.trim(),
+        creatorEmail: currentUser?.email || "",
+        followers: [currentUser?.name || from.trim()],
         date,
         themeId,
         wishes: isInvitation ? [] : [hostWish.trim()].filter(Boolean),
@@ -209,7 +220,7 @@ function MemoryCreator() {
       const generatedQr = await QRCode.toDataURL(url, {
         margin: 1,
         width: 360,
-        color: { dark: "#2C5F2E", light: "#FFFDF9" },
+        color: { dark: "#E4603C", light: "#FFFDF9" },
       });
       console.log("[handleCreate] QR generated, setting state");
       setMemory(data);
@@ -228,7 +239,7 @@ function MemoryCreator() {
 
   if (created)
     return (
-      <CreatedPreview data={created} qrUrl={qrUrl} onNext={() => navigate({ to: "/keepsakes" })} />
+      <CreatedPreview data={created} qrUrl={qrUrl} onNext={() => navigate({ to: "/tracker" })} />
     );
 
   return (
@@ -242,9 +253,9 @@ function MemoryCreator() {
 
       <div className="space-y-6 fade-up">
         {/* Card 1: Page Type Selector */}
-        <div className="card-soft p-5 sm:p-6 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+        <div className="card-soft p-5 sm:p-6 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
           <div className="text-center mb-4">
-            <span className="text-[10px] font-bold text-[#6B6159] uppercase tracking-widest block mb-1">
+            <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-1">
               Creation Mode
             </span>
             <h2 className="font-display text-xl font-semibold text-neutral-800">
@@ -257,7 +268,7 @@ function MemoryCreator() {
               onClick={() => handlePageTypeSelect("wish")}
               className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all cursor-pointer select-none ${
                 pageType === "wish"
-                  ? "border-[#2C5F2E] bg-[#EAF3DE]/10 ring-2 ring-[#2C5F2E]/25"
+                  ? "border-[#E4603C] bg-[#F4ECE0]/10 ring-2 ring-[#E4603C]/25"
                   : "border-border bg-white hover:bg-neutral-50/50"
               }`}
             >
@@ -277,7 +288,7 @@ function MemoryCreator() {
               onClick={() => handlePageTypeSelect("invite")}
               className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all cursor-pointer select-none ${
                 pageType === "invite"
-                  ? "border-[#2C5F2E] bg-[#EAF3DE]/10 ring-2 ring-[#2C5F2E]/25"
+                  ? "border-[#E4603C] bg-[#F4ECE0]/10 ring-2 ring-[#E4603C]/25"
                   : "border-border bg-white hover:bg-neutral-50/50"
               }`}
             >
@@ -295,7 +306,7 @@ function MemoryCreator() {
         </div>
 
         {/* Corporate Mode Toggle & Logo Upload */}
-        <div className="card-soft p-5 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+        <div className="card-soft p-5 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
           <input
             ref={logoInput}
             type="file"
@@ -312,7 +323,7 @@ function MemoryCreator() {
               type="button"
               onClick={() => setIsCorporate(!isCorporate)}
               className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isCorporate ? "bg-[#2C5F2E]" : "bg-neutral-200"
+                isCorporate ? "bg-[#E4603C]" : "bg-neutral-200"
               }`}
             >
               <span
@@ -330,7 +341,7 @@ function MemoryCreator() {
               </div>
               <div className="w-full sm:w-auto flex-1 max-w-[280px]">
                 {corporateLogo ? (
-                  <div className="relative flex items-center justify-between gap-3 p-2.5 rounded-xl border border-[#2C5F2E]/30 bg-[#EAF3DE]/10 bg-white">
+                  <div className="relative flex items-center justify-between gap-3 p-2.5 rounded-xl border border-[#E4603C]/30 bg-[#F4ECE0]/10 bg-white">
                     <div className="h-8 flex items-center justify-center p-1 bg-white rounded border border-neutral-100 flex-1 max-w-[160px]">
                       <img src={corporateLogo} alt="Corporate Logo" className="max-h-full max-w-full object-contain" />
                     </div>
@@ -346,7 +357,7 @@ function MemoryCreator() {
                   <button
                     type="button"
                     onClick={() => logoInput.current?.click()}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50/50 px-4 py-3 text-xs font-bold text-neutral-700 hover:border-[#2C5F2E]/50 hover:bg-neutral-50 transition cursor-pointer"
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50/50 px-4 py-3 text-xs font-bold text-neutral-700 hover:border-[#E4603C]/50 hover:bg-neutral-50 transition cursor-pointer"
                   >
                     <Upload className="h-4 w-4 text-neutral-400" />
                     Upload Company Logo *
@@ -358,7 +369,7 @@ function MemoryCreator() {
         </div>
 
         {/* Card 2: Basics Info & Theme */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
           <h3 className="text-lg font-semibold text-neutral-800 mb-4 pb-2 border-b border-neutral-100 flex items-center gap-2">
             ✨ Basics & Theme
           </h3>
@@ -423,7 +434,7 @@ function MemoryCreator() {
                   <button
                     key={t.id}
                     onClick={() => setThemeId(t.id)}
-                    className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm transition cursor-pointer ${themeId === t.id ? "border-[#2C5F2E] ring-2 ring-[#2C5F2E]/20 bg-white" : "border-border bg-white hover:bg-neutral-50"}`}
+                    className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm transition cursor-pointer ${themeId === t.id ? "border-[#E4603C] ring-2 ring-[#E4603C]/20 bg-white" : "border-border bg-white hover:bg-neutral-50"}`}
                   >
                     <span className="flex">
                       <span className="h-5 w-5 rounded-full" style={{ background: t.bg }} />
@@ -441,7 +452,7 @@ function MemoryCreator() {
         </div>
 
         {/* Card 3: Mode-Specific Details */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
           {!isInvitation ? (
             <div>
               <h3 className="text-lg font-semibold text-neutral-800 mb-3 flex items-center gap-2">
@@ -515,7 +526,7 @@ function MemoryCreator() {
 
                 <div className="sm:col-span-2 border-t border-neutral-100 pt-4 mt-2">
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs font-bold text-[#1A1714] uppercase tracking-wider">
+                    <span className="text-xs font-bold text-[#241621] uppercase tracking-wider">
                       🗓️ Event Schedule / Timeline
                     </span>
                     <button
@@ -554,7 +565,7 @@ function MemoryCreator() {
                           <button
                             type="button"
                             onClick={() => setTimeline(timeline.filter((_, tIdx) => tIdx !== idx))}
-                            className="p-2 text-[#6B6159] hover:text-red-500 cursor-pointer"
+                            className="p-2 text-[#594855] hover:text-red-500 cursor-pointer"
                           >
                             ✕
                           </button>
@@ -569,7 +580,7 @@ function MemoryCreator() {
         </div>
 
         {/* Card 4: Media Attachments (Photos, Voice Notes, Videos) */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
+        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
           <h3 className="text-lg font-semibold text-neutral-800 mb-4 pb-2 border-b border-neutral-100 flex items-center gap-2">
             🖼️ Upload Media Attachments{" "}
             <span className="text-xs text-neutral-400 font-medium">(Optional)</span>
@@ -718,7 +729,7 @@ function MemoryCreator() {
         </div>
 
         {/* Card 5: Submission & Info Validation */}
-        <div className="card-soft p-5 bg-white border border-[#5c3d2e]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)] flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="card-soft p-5 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
             <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
               Selected Settings
@@ -744,7 +755,7 @@ function MemoryCreator() {
             <button
               onClick={handleCreate}
               disabled={creating || !isValid()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#2C5F2E] px-8 py-3 text-sm font-bold text-white disabled:opacity-40 hover:bg-[#4A8A4C] cursor-pointer transition-all shadow-md select-none animate-pulse-ring"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#E4603C] px-8 py-3 text-sm font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] cursor-pointer transition-all shadow-md select-none animate-pulse-ring"
             >
               {creating ? (
                 <>
@@ -874,10 +885,10 @@ function CreatedPreview({
               </span>
               <h3
                 style={{
-                  fontFamily: '"Cormorant Garamond", serif',
+                  fontFamily: "'Baloo 2', 'Inter', system-ui, sans-serif",
                   fontSize: "1.8rem",
                   margin: 0,
-                  color: "#1A1714",
+                  color: "#241621",
                 }}
               >
                 Contribution Privacy
@@ -885,13 +896,13 @@ function CreatedPreview({
               <p
                 style={{
                   fontSize: "0.82rem",
-                  color: "#6B6159",
+                  color: "#594855",
                   marginTop: "0.5rem",
                   lineHeight: 1.5,
                 }}
               >
                 Choose who can add wishes, photos, and voice notes to this memory page. You can
-                always change this later in the Activity Tracker page.
+                always change this later in the Dashboard page.
               </p>
             </div>
 
@@ -922,14 +933,14 @@ function CreatedPreview({
               >
                 <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>🌐</span>
                 <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#1A1714" }}>
+                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
                     Public (Open)
                   </strong>
                   <span
                     style={{
                       display: "block",
                       fontSize: "0.75rem",
-                      color: "#6B6159",
+                      color: "#594855",
                       marginTop: "0.2rem",
                       lineHeight: 1.4,
                     }}
@@ -958,14 +969,14 @@ function CreatedPreview({
               >
                 <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>👥</span>
                 <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#1A1714" }}>
+                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
                     Guests Only
                   </strong>
                   <span
                     style={{
                       display: "block",
                       fontSize: "0.75rem",
-                      color: "#6B6159",
+                      color: "#594855",
                       marginTop: "0.2rem",
                       lineHeight: 1.4,
                     }}
@@ -994,14 +1005,14 @@ function CreatedPreview({
               >
                 <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>🔒</span>
                 <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#1A1714" }}>
+                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
                     Host Only (Read-Only)
                   </strong>
                   <span
                     style={{
                       display: "block",
                       fontSize: "0.75rem",
-                      color: "#6B6159",
+                      color: "#594855",
                       marginTop: "0.2rem",
                       lineHeight: 1.4,
                     }}
@@ -1122,7 +1133,7 @@ function CreatedPreview({
             </p>
             <h1
               style={{
-                fontFamily: '"Cormorant Garamond", serif',
+                fontFamily: "'Baloo 2', 'Inter', system-ui, sans-serif",
                 fontSize: "clamp(1.6rem, 5vw, 2.4rem)",
                 margin: 0,
               }}
@@ -1131,6 +1142,17 @@ function CreatedPreview({
             </h1>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            <button
+              onClick={copyUrl}
+              style={{
+                ...actionBtn(accent),
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+            >
+              {copied ? "Link Copied! ✓" : "Copy Page Link"} <Copy size={13} />
+            </button>
             <Link
               to="/m/$slug"
               params={{ slug: data.slug }}
@@ -1154,7 +1176,7 @@ function CreatedPreview({
                 boxShadow: `0 4px 14px ${accent}55`,
               }}
             >
-              Choose your keepsake →
+              Go to Control Center →
             </button>
           </div>
         </div>
@@ -1217,7 +1239,7 @@ function CreatedPreview({
           </div>
         </div>
 
-        {/* keepsakes CTA strip - Responsive Stacked Mobile View */}
+        {/* Control Center CTA strip */}
         <div
           style={{
             marginTop: "1.5rem",
@@ -1237,7 +1259,7 @@ function CreatedPreview({
               style={{
                 fontWeight: 700,
                 fontSize: "1.05rem",
-                color: "#1A1714",
+                color: "#241621",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -1245,17 +1267,17 @@ function CreatedPreview({
               }}
               className="md:justify-start"
             >
-              🌱 Plant a Living Keepsake
+              ✨ Manage Wishes, Photos & RSVPs
             </div>
             <p
               style={{
                 fontSize: "0.82rem",
-                color: "#6B6159",
+                color: "#594855",
                 marginTop: "0.25rem",
                 lineHeight: 1.45,
               }}
             >
-              Attach your live memory page as a custom printed QR code on a premium plant pot!
+              Track comments, moderate photo & video contributions, and manage responses in your Control Center.
             </p>
           </div>
           <div className="shrink-0 w-full md:w-auto">
@@ -1281,7 +1303,7 @@ function CreatedPreview({
               onMouseEnter={(e) => (e.currentTarget.style.transform = "scale(1.03)")}
               onMouseLeave={(e) => (e.currentTarget.style.transform = "scale(1)")}
             >
-              Choose Your Keepsake →
+              Open Control Center →
             </button>
           </div>
         </div>

@@ -120,6 +120,11 @@ export type MemoryData = {
   reactions: SimulatedReaction[];
   replies: SimulatedReply[];
 
+  // 4 Page Roles & Access Rules: Creator, Admin, Contributor, Follower
+  creatorEmail?: string;
+  creatorName?: string;
+  followers?: string[];
+
   // Invitation fields
   pageType?: "wish" | "invite";
   isInvitation?: boolean;
@@ -214,6 +219,7 @@ type State = {
   removeGuest: (id: string) => void;
   setGuestRsvp: (id: string, rsvp: Guest["rsvp"]) => void;
   sendInvites: (ids: string[]) => void;
+  toggleFollowPage: (slug: string, userNameOrEmail: string) => void;
 };
 
 // Initial setup helper for newly created/mocked memories
@@ -245,6 +251,7 @@ const createDefaultMemoryData = (
   contributions: [],
   reactions: [],
   replies: [],
+  followers: [],
 });
 
 export const useStore = create<State>()(
@@ -617,6 +624,24 @@ export const useStore = create<State>()(
       removeGuest: (id) => set((s) => ({ guests: s.guests.filter((g) => g.id !== id) })),
       setGuestRsvp: (id, rsvp) =>
         set((s) => ({ guests: s.guests.map((g) => (g.id === id ? { ...g, rsvp } : g)) })),
+      toggleFollowPage: (slug, userNameOrEmail) =>
+        set((s) => {
+          const target = s.memories[slug];
+          if (!target) return s;
+          const currentFollowers = target.followers || [];
+          const isFollowing = currentFollowers.some(
+            (f) => f.toLowerCase() === userNameOrEmail.toLowerCase(),
+          );
+          const updatedFollowers = isFollowing
+            ? currentFollowers.filter((f) => f.toLowerCase() !== userNameOrEmail.toLowerCase())
+            : [...currentFollowers, userNameOrEmail];
+
+          const updatedTarget = { ...target, followers: updatedFollowers };
+          return {
+            memories: { ...s.memories, [slug]: updatedTarget },
+            memory: s.memory?.slug === slug ? updatedTarget : s.memory,
+          };
+        }),
       sendInvites: (ids) =>
         set((s) => ({
           guests: s.guests.map((g) =>
@@ -696,3 +721,92 @@ export const useStore = create<State>()(
 
 export const comboTotal = (c: Combo) => c.pot.price + c.plant.price + c.finish.price;
 export const cartTotal = (combos: Combo[]) => combos.reduce((sum, c) => sum + comboTotal(c), 0);
+
+
+export type PageRole = "creator" | "admin" | "contributor" | "follower" | "visitor";
+
+export function getPageRole(memory?: MemoryData | null, user?: UserSession | null): PageRole {
+  if (!memory || !user) return "visitor";
+  const userName = user.name.trim().toLowerCase();
+  const userEmail = (user.email || "").trim().toLowerCase();
+
+  // 1. Page Creator: matched via creatorEmail, creatorName, or from field
+  if (
+    (memory.creatorEmail && memory.creatorEmail.toLowerCase() === userEmail) ||
+    (memory.creatorName && memory.creatorName.toLowerCase() === userName) ||
+    (memory.from && memory.from.toLowerCase() === userName)
+  ) {
+    return "creator";
+  }
+
+  // 2. Page Admin: collaborator with admin role
+  const isAdmin = memory.collaborators?.some(
+    (c) =>
+      c.role === "admin" &&
+      (c.name.toLowerCase() === userName || (c.email && c.email.toLowerCase() === userEmail)),
+  );
+  if (isAdmin) return "admin";
+
+  // 3. Page Contributor: user who has submitted a wish, comment, photo, video, or audio
+  const hasContributed =
+    memory.contributions?.some((c) => c.contributor_name.toLowerCase() === userName) ||
+    memory.comments?.some((c) => c.author.toLowerCase() === userName) ||
+    memory.contributedMedia?.some((m) => m.contributorName.toLowerCase() === userName);
+  if (hasContributed) return "contributor";
+
+  // 4. Page Follower: user in followers list
+  const isFollowing = memory.followers?.some(
+    (f) => f.toLowerCase() === userName || (userEmail && f.toLowerCase() === userEmail),
+  );
+  if (isFollowing) return "follower";
+
+  return "visitor";
+}
+
+
+export type PermissionAction =
+  | "delete_page_permanently"
+  | "transfer_creator_ownership"
+  | "edit_page_title_theme_cover"
+  | "change_reveal_date_time"
+  | "assign_remove_admins"
+  | "view_page_analytics"
+  | "remove_any_contribution"
+  | "block_contributor"
+  | "change_page_pin"
+  | "share_copy_page_link"
+  | "add_contribution"
+  | "edit_own_contribution_24h"
+  | "delete_own_contribution"
+  | "react_heart_contribution"
+  | "view_page_all_contributions"
+  | "mute_unfollow_page";
+
+export const PERMISSION_MATRIX: Record<
+  PermissionAction,
+  { label: string; creator: boolean; admin: boolean; contributor: boolean; follower: boolean }
+> = {
+  delete_page_permanently: { label: "Delete the page permanently", creator: true, admin: false, contributor: false, follower: false },
+  transfer_creator_ownership: { label: "Transfer creator ownership", creator: true, admin: false, contributor: false, follower: false },
+  edit_page_title_theme_cover: { label: "Edit page title, theme, cover photo", creator: true, admin: false, contributor: false, follower: false },
+  change_reveal_date_time: { label: "Change reveal date / time", creator: true, admin: false, contributor: false, follower: false },
+  assign_remove_admins: { label: "Assign or remove admins", creator: true, admin: false, contributor: false, follower: false },
+  view_page_analytics: { label: "View page analytics", creator: true, admin: true, contributor: false, follower: false },
+  remove_any_contribution: { label: "Remove any contribution", creator: true, admin: true, contributor: false, follower: false },
+  block_contributor: { label: "Block a contributor", creator: true, admin: true, contributor: false, follower: false },
+  change_page_pin: { label: "Change page PIN (password)", creator: true, admin: true, contributor: false, follower: false },
+  share_copy_page_link: { label: "Share / copy page link", creator: true, admin: true, contributor: true, follower: true },
+  add_contribution: { label: "Add a contribution (post/photo)", creator: true, admin: true, contributor: true, follower: false },
+  edit_own_contribution_24h: { label: "Edit own contribution (within 24h)", creator: true, admin: true, contributor: true, follower: false },
+  delete_own_contribution: { label: "Delete own contribution", creator: true, admin: true, contributor: true, follower: false },
+  react_heart_contribution: { label: "React (heart) on contributions", creator: true, admin: true, contributor: true, follower: true },
+  view_page_all_contributions: { label: "View the page and all contributions", creator: true, admin: true, contributor: true, follower: true },
+  mute_unfollow_page: { label: "Mute / unfollow page", creator: true, admin: true, contributor: true, follower: true },
+};
+
+export function hasPermission(role: PageRole, action: PermissionAction): boolean {
+  if (role === "visitor") {
+    return action === "view_page_all_contributions" || action === "share_copy_page_link";
+  }
+  return PERMISSION_MATRIX[action]?.[role] ?? false;
+}

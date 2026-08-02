@@ -1,87 +1,149 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { ShoppingBag, Sprout, Heart, Users, BarChart3, LogOut, LogIn, Home } from "lucide-react";
-
-const TABS = [
-  { to: "/", label: "Home", icon: Home },
-  { to: "/creator", label: "Memory Creator", icon: Heart },
-  { to: "/keepsakes", label: "Choose Keepsake", icon: Sprout },
-  { to: "/guests", label: "Guest Manager", icon: Users },
-  { to: "/tracker", label: "Activity Tracker", icon: BarChart3 },
-] as const;
+import { Heart, BarChart3, LogOut, LogIn, Home, Sparkles, ArrowRight } from "lucide-react";
+import { SocioDexLogo } from "@/components/SocioDexLogo";
 
 export function TopNav() {
-  const combos = useStore((s) => s.combos);
-  const setCartOpen = useStore((s) => s.setCartOpen);
   const currentUser = useStore((s) => s.currentUser);
   const logout = useStore((s) => s.logout);
   const location = useLocation();
+  const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // Hide on public memory pages
+  // Hide only on public live keepsake memory pages (/m/$slug)
   if (location.pathname.startsWith("/m/")) return null;
+
+  const isLandingPage = location.pathname === "/";
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-border/70 bg-background/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
-          <Link to="/" className="flex items-center gap-2">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground">
-              <Sprout className="h-5 w-5" />
-            </span>
-            <span className="font-display text-2xl font-semibold tracking-tight">
-              Nandi Invites
-            </span>
+      <header className="sticky top-0 z-50 border-b border-[#241621]/10 bg-[#FFFDF9]/85 backdrop-blur-xl transition-all shadow-xs">
+        <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+          {/* Brand Logo - Links to Dashboard (/tracker) when logged in, else Home (/) */}
+          <Link
+            to={currentUser ? "/tracker" : "/"}
+            className="flex items-center gap-2 group hover:opacity-90 transition-opacity"
+          >
+            <SocioDexLogo size="md" />
           </Link>
 
+          {/* Desktop Navigation Links */}
           <nav className="hidden items-center gap-1 md:flex">
-            {TABS.map((t) => (
-              <Link
-                key={t.to}
-                to={t.to}
-                className="rounded-full px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                activeProps={{
-                  className:
-                    "rounded-full px-4 py-2 text-sm font-medium bg-primary/10 text-primary",
-                }}
-                activeOptions={{ exact: t.to === "/" }}
-              >
-                {t.label}
-              </Link>
-            ))}
+            {currentUser ? (
+              /* LOGGED-IN NAVBAR LINKS: NO HOME BUTTON */
+              <>
+                <Link
+                  to="/tracker"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                  activeProps={{
+                    className: "rounded-full px-4 py-2 text-sm font-bold bg-[#E4603C]/10 text-[#E4603C]",
+                  }}
+                >
+                  Dashboard
+                </Link>
+
+                <Link
+                  to="/creator"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                  activeProps={{
+                    className: "rounded-full px-4 py-2 text-sm font-bold bg-[#E4603C]/10 text-[#E4603C]",
+                  }}
+                >
+                  Memory Creator
+                </Link>
+              </>
+            ) : (
+              /* LOGGED-OUT LANDING NAVBAR LINKS */
+              <>
+                <Link
+                  to="/"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                  activeProps={{
+                    className: "rounded-full px-4 py-2 text-sm font-bold bg-[#E4603C]/10 text-[#E4603C]",
+                  }}
+                  activeOptions={{ exact: true }}
+                >
+                  Home
+                </Link>
+                <a
+                  href="#features"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                >
+                  Features
+                </a>
+                <a
+                  href="#how-it-works"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                >
+                  How it Works
+                </a>
+                <a
+                  href="#pricing"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                >
+                  Pricing
+                </a>
+                <a
+                  href="#faq"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
+                >
+                  FAQ
+                </a>
+              </>
+            )}
           </nav>
 
-          <div className="flex items-center gap-2.5">
-            {/* AUTH SECTION */}
+          {/* Right Action Buttons & Auth */}
+          <div className="flex items-center gap-3">
+
+
+            {/* AUTH / PROFILE */}
             {currentUser ? (
               <div className="relative">
                 <button
                   onClick={() => setProfileOpen(!profileOpen)}
-                  className="flex items-center gap-2 rounded-full border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-muted transition-all select-none"
+                  className="flex items-center gap-2 rounded-full border border-[#241621]/15 bg-white px-3.5 py-2 text-sm font-semibold hover:bg-[#FAF6F0] transition-all select-none cursor-pointer shadow-xs"
                 >
                   <span className="text-base">{currentUser.avatar || "👤"}</span>
-                  <span className="hidden md:inline max-w-[90px] truncate font-bold text-neutral-700">
+                  <span className="hidden md:inline max-w-[90px] truncate font-bold text-[#241621]">
                     {currentUser.name.split(" ")[0]}
                   </span>
                 </button>
 
                 {profileOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-48 rounded-2xl border border-border/80 bg-card p-3 shadow-xl z-50 animate-fade-in">
-                    <div className="px-2 pb-2 border-b border-border/60">
-                      <div className="text-xs font-bold truncate text-neutral-800">
+                  <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl border border-[#241621]/15 bg-white p-3 shadow-xl z-50 animate-fade-in text-left">
+                    <div className="px-2 pb-2 border-b border-[#241621]/10">
+                      <div className="text-xs font-bold truncate text-[#241621]">
                         {currentUser.name}
                       </div>
-                      <div className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mt-0.5">
+                      <div className="text-[9px] text-[#594855] font-semibold uppercase tracking-wider mt-0.5">
                         {currentUser.provider} session
                       </div>
                     </div>
+                    <Link
+                      to="/tracker"
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full text-left rounded-xl px-2 py-2 text-xs text-[#241621] font-bold hover:bg-[#FAF6F0] mt-1 transition-all flex items-center gap-2"
+                    >
+                      <BarChart3 className="h-3.5 w-3.5 text-[#E4603C]" />
+                      Dashboard
+                    </Link>
+                    <Link
+                      to="/creator"
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full text-left rounded-xl px-2 py-2 text-xs text-[#241621] font-bold hover:bg-[#FAF6F0] mt-1 transition-all flex items-center gap-2"
+                    >
+                      <Heart className="h-3.5 w-3.5 text-[#E4603C]" />
+                      Memory Creator
+                    </Link>
                     <button
                       onClick={() => {
                         logout();
                         setProfileOpen(false);
+                        navigate({ to: "/" });
                       }}
-                      className="w-full text-left rounded-xl px-2 py-2 text-xs text-red-500 font-bold hover:bg-red-500/10 mt-2 transition-all flex items-center gap-2"
+                      className="w-full text-left rounded-xl px-2 py-2 text-xs text-[#E4603C] font-bold hover:bg-[#E4603C]/10 mt-1 transition-all flex items-center gap-2 cursor-pointer"
                     >
                       <LogOut className="h-3.5 w-3.5" />
                       Sign Out
@@ -92,48 +154,67 @@ export function TopNav() {
             ) : (
               <Link
                 to="/login"
-                className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-muted transition-all"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#241621]/15 bg-[#E4603C] text-white px-5 py-2.5 text-xs sm:text-sm font-bold shadow-md hover:bg-[#c94b29] transition-all cursor-pointer"
               >
-                <LogIn className="h-4 w-4 text-muted-foreground" />
-                <span className="hidden sm:inline">Sign In</span>
+                <span>Sign In</span>
+                <ArrowRight className="h-4 w-4" />
               </Link>
             )}
-
-            <button
-              onClick={() => setCartOpen(true)}
-              className="relative inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium lift"
-            >
-              <ShoppingBag className="h-4 w-4" />
-              <span className="hidden sm:inline">Cart</span>
-              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground">
-                {combos.length}
-              </span>
-            </button>
           </div>
         </div>
       </header>
 
       {/* Mobile bottom tabs */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t shadow-lg border-[#241621]/10 bg-[#FFFDF9]/95 backdrop-blur-md md:hidden">
         <div className="mx-auto flex max-w-md items-stretch justify-around">
-          {TABS.map((t) => {
-            const Icon = t.icon;
-            return (
+          {currentUser ? (
+            <>
               <Link
-                key={t.to}
-                to={t.to}
-                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-muted-foreground"
+                to="/tracker"
+                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#594855] font-semibold"
                 activeProps={{
-                  className:
-                    "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-primary",
+                  className: "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#E4603C] font-bold",
                 }}
-                activeOptions={{ exact: t.to === "/" }}
               >
-                <Icon className="h-5 w-5" />
-                <span>{t.label.split(" ")[0]}</span>
+                <BarChart3 className="h-5 w-5" />
+                <span>Dashboard</span>
               </Link>
-            );
-          })}
+              <Link
+                to="/creator"
+                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#594855] font-semibold"
+                activeProps={{
+                  className: "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#E4603C] font-bold",
+                }}
+              >
+                <Heart className="h-5 w-5" />
+                <span>Creator</span>
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                to="/"
+                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#594855] font-semibold"
+                activeProps={{
+                  className: "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#E4603C] font-bold",
+                }}
+                activeOptions={{ exact: true }}
+              >
+                <Home className="h-5 w-5" />
+                <span>Home</span>
+              </Link>
+              <Link
+                to="/login"
+                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#594855] font-semibold"
+                activeProps={{
+                  className: "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#E4603C] font-bold",
+                }}
+              >
+                <LogIn className="h-5 w-5 text-[#E4603C]" />
+                <span>Sign In</span>
+              </Link>
+            </>
+          )}
         </div>
       </nav>
     </>
