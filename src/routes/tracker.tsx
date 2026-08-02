@@ -26,6 +26,7 @@ import {
   Eye,
   UserPlus,
 } from "lucide-react";
+import { fetchUserMemoriesFromSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 const toast = {
   success: (msg: string) => console.log("[Toast Success]", msg),
@@ -70,6 +71,15 @@ function DashboardPage() {
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
   }, [memories]);
+
+  // Fetch user memory pages from Supabase
+  useEffect(() => {
+    if (isSupabaseConfigured && currentUser?.email) {
+      fetchUserMemoriesFromSupabase(currentUser.email).then((remoteMemories) => {
+        remoteMemories.forEach((m) => addMemory(m));
+      });
+    }
+  }, [currentUser?.email, addMemory]);
 
   // Seed sample memories if store is empty
   useEffect(() => {

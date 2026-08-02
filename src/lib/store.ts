@@ -6,11 +6,12 @@ import { SAMPLE_GUESTS } from "./data";
 export type Combo = { id: string; pot: Pot; plant: Plant; finish: Finish };
 
 export type UserSession = {
+  id?: string;
   name: string;
   email?: string;
   phone?: string;
   avatar: string; // Emoji avatar
-  provider: "google" | "phone";
+  provider: "google" | "phone" | "email";
 };
 
 export type Collaborator = {

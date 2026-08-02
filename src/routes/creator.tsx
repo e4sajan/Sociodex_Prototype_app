@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from "react";
 import QRCode from "qrcode";
 import { OCCASIONS, THEMES } from "@/lib/data";
 import { useStore, type MemoryData } from "@/lib/store";
+import { saveMemoryToSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import {
   Check,
   Plus,
@@ -224,6 +225,11 @@ function MemoryCreator() {
       });
       console.log("[handleCreate] QR generated, setting state");
       setMemory(data);
+      if (isSupabaseConfigured) {
+        saveMemoryToSupabase(data).catch((err) =>
+          console.error("[Creator] Supabase sync error:", err)
+        );
+      }
       setQrUrl(generatedQr);
       setCreated(data);
       console.log("[handleCreate] done");

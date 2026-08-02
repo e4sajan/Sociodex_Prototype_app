@@ -75,7 +75,27 @@ function RootShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+import { useEffect } from "react";
+import { useStore } from "@/lib/store";
+import { initAuthListener } from "@/lib/supabase";
+
 function RootComponent() {
+  const login = useStore((s) => s.login);
+  const logout = useStore((s) => s.logout);
+
+  useEffect(() => {
+    const unsubscribe = initAuthListener((userSession) => {
+      if (userSession) {
+        login(userSession);
+      } else {
+        // If user logged out of Supabase
+        logout();
+      }
+    });
+
+    return () => unsubscribe();
+  }, [login, logout]);
+
   return (
     <>
       <TopNav />

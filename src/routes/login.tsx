@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
+import { signInWithGoogle, isSupabaseConfigured } from "@/lib/supabase";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -274,7 +275,18 @@ export function LoginPage() {
             {activeTab === "google" && (
               <div className="space-y-4">
                 <button
-                  onClick={() => setShowGoogleModal(true)}
+                  onClick={() => {
+                    if (isSupabaseConfigured) {
+                      setLoading(true);
+                      signInWithGoogle().catch((err) => {
+                        console.error("Supabase Google Auth Error:", err);
+                        setShowGoogleModal(true);
+                        setLoading(false);
+                      });
+                    } else {
+                      setShowGoogleModal(true);
+                    }
+                  }}
                   className="flex w-full items-center justify-center gap-3 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-4 py-3.5 text-sm font-bold text-[#241621] shadow-xs transition-all cursor-pointer"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24">

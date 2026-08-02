@@ -15,6 +15,12 @@ import {
 import { THEMES } from "@/lib/data";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
 import {
+  fetchMemoryFromSupabase,
+  saveContributionToSupabase,
+  subscribeToMemoryRealtime,
+  isSupabaseConfigured,
+} from "@/lib/supabase";
+import {
   Check,
   X,
   Sprout,
@@ -306,6 +312,7 @@ function PublicMemoryPage() {
   const guests = useStore((s) => s.guests || []);
 
   // Store actions
+  const setMemory = useStore((s) => s.setMemory);
   const updateMemory = useStore((s) => s.updateMemory);
   const addSimulatedContribution = useStore((s) => s.addSimulatedContribution);
   const updateSimulatedContributionStatus = useStore((s) => s.updateSimulatedContributionStatus);
@@ -316,6 +323,23 @@ function PublicMemoryPage() {
   const deleteSimulatedReply = useStore((s) => s.deleteSimulatedReply);
   const updatePageSettings = useStore((s) => s.updatePageSettings);
   const setGuestRsvp = useStore((s) => s.setGuestRsvp);
+
+  // Fetch memory from Supabase and subscribe to Realtime
+  useEffect(() => {
+    if (isSupabaseConfigured && slug) {
+      fetchMemoryFromSupabase(slug).then((remoteData) => {
+        if (remoteData && remoteData.slug) {
+          setMemory(remoteData as any);
+        }
+      });
+
+      const unsubscribe = subscribeToMemoryRealtime(slug, (newContrib) => {
+        addSimulatedContribution(slug, newContrib);
+      });
+
+      return () => unsubscribe();
+    }
+  }, [slug, setMemory, addSimulatedContribution]);
 
   // Local UI States
   const [tab, setTab] = useState<"all" | "wishes" | "photos" | "audios" | "videos">("all");
