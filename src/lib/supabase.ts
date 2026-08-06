@@ -133,21 +133,21 @@ export function formatSupabaseUserSession(user: any): UserSession {
 /**
  * Global listener for Supabase auth state changes
  */
-export function initAuthListener(onUserChanged: (session: UserSession | null) => void) {
+export function initAuthListener(onUserChanged: (session: UserSession | null, event?: string) => void) {
   if (!isSupabaseConfigured) return () => {};
 
   // Check current session on init
   supabase.auth.getSession().then(({ data: { session } }) => {
     if (session?.user) {
-      onUserChanged(formatSupabaseUserSession(session.user));
+      onUserChanged(formatSupabaseUserSession(session.user), "INITIAL_SESSION");
     }
   });
 
-  const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+  const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
     if (session?.user) {
-      onUserChanged(formatSupabaseUserSession(session.user));
-    } else {
-      onUserChanged(null);
+      onUserChanged(formatSupabaseUserSession(session.user), event);
+    } else if (event === "SIGNED_OUT") {
+      onUserChanged(null, event);
     }
   });
 

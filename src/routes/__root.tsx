@@ -84,11 +84,10 @@ function RootComponent() {
   const logout = useStore((s) => s.logout);
 
   useEffect(() => {
-    const unsubscribe = initAuthListener((userSession) => {
+    const unsubscribe = initAuthListener((userSession, event) => {
       if (userSession) {
         login(userSession);
-      } else {
-        // If user logged out of Supabase
+      } else if (event === "SIGNED_OUT") {
         logout();
       }
     });

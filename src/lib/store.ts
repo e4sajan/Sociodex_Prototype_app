@@ -262,7 +262,7 @@ export const useStore = create<State>()(
       cartOpen: false,
       memory: null,
       memories: {},
-      guests: SAMPLE_GUESTS,
+      guests: [],
       currentUser: null,
 
       login: (u) => set({ currentUser: u }),
