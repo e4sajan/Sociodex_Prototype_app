@@ -5,7 +5,6 @@ import {
   ArrowLeft,
   Chrome,
   Smartphone,
-  Check,
   ShieldCheck,
   Sparkles,
   Mail,
@@ -58,14 +57,6 @@ function FloatingParticles() {
   );
 }
 
-const DEMO_ACCOUNTS = [
-  { name: "Sajan Mehta", email: "sajan@example.com", avatar: "🧑‍💼" },
-  { name: "Neha Kapoor", email: "neha@example.com", avatar: "👩‍🎨" },
-  { name: "Ananya Sharma", email: "ananya@example.com", avatar: "🌸" },
-];
-
-const AVATARS = ["😊", "🌸", "⭐", "🎉", "🍀", "🐦", "🦁", "🎨", "🚀"];
-
 export function LoginPage() {
   const navigate = useNavigate();
   const currentUser = useStore((s) => s.currentUser);
@@ -91,64 +82,13 @@ export function LoginPage() {
   const [activeTab, setActiveTab] = useState<"google" | "email" | "phone">("google");
   const [loading, setLoading] = useState(false);
 
+  // Google flow states
+  const [googleError, setGoogleError] = useState("");
+
   // Email Magic Link flow states
   const [emailInput, setEmailInput] = useState("");
   const [emailNotice, setEmailNotice] = useState("");
   const [emailError, setEmailError] = useState("");
-
-  const handleEmailMagicLinkSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!emailInput.trim()) return;
-
-    setLoading(true);
-    setEmailError("");
-    setEmailNotice("");
-
-    if (isSupabaseConfigured) {
-      try {
-        const { error } = await sendEmailMagicLink(emailInput.trim());
-        if (error) {
-          console.warn("Supabase Magic Link error, using direct session:", error.message);
-          login({
-            name: emailInput.split("@")[0],
-            email: emailInput.trim(),
-            avatar: "✨",
-            provider: "email",
-          });
-          setLoading(false);
-          navigate({ to: redirectPath });
-        } else {
-          setLoading(false);
-          setEmailNotice(`✨ Magic login link sent to ${emailInput}! Check your inbox to complete sign in.`);
-        }
-      } catch (err) {
-        login({
-          name: emailInput.split("@")[0],
-          email: emailInput.trim(),
-          avatar: "✨",
-          provider: "email",
-        });
-        setLoading(false);
-        navigate({ to: redirectPath });
-      }
-    } else {
-      setTimeout(() => {
-        login({
-          name: emailInput.split("@")[0],
-          email: emailInput.trim(),
-          avatar: "✨",
-          provider: "email",
-        });
-        setLoading(false);
-        navigate({ to: redirectPath });
-      }, 1000);
-    }
-  };
-
-  // Google flow states
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [customGoogleName, setCustomGoogleName] = useState("");
-  const [customGoogleEmail, setCustomGoogleEmail] = useState("");
 
   // Phone flow states
   const [phoneStep, setPhoneStep] = useState<"input" | "otp">("input");
@@ -165,28 +105,42 @@ export function LoginPage() {
     useRef<HTMLInputElement>(null),
   ];
 
-  // Google login handler
-  const handleGoogleLogin = (name: string, email: string) => {
+  // Real Supabase Google OAuth handler
+  const handleGoogleSignIn = async () => {
     setLoading(true);
-    setShowGoogleModal(false);
-
-    let avatar = "🌸";
-    if (name.includes("Sajan")) avatar = "🧑‍💼";
-    else if (name.includes("Neha")) avatar = "👩‍🎨";
-    else if (name.includes("Ananya")) avatar = "😊";
-    else avatar = AVATARS[Math.floor(Math.random() * AVATARS.length)];
-
-    setTimeout(() => {
-      const session: UserSession = {
-        name,
-        email: email.toLowerCase(),
-        avatar,
-        provider: "google",
-      };
-      login(session);
+    setGoogleError("");
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setGoogleError(error.message || "Failed to sign in with Google.");
+        setLoading(false);
+      }
+    } catch (err: any) {
+      setGoogleError(err.message || "An unexpected error occurred.");
       setLoading(false);
-      navigate({ to: redirectPath });
-    }, 1500);
+    }
+  };
+
+  const handleEmailMagicLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailInput.trim()) return;
+
+    setLoading(true);
+    setEmailError("");
+    setEmailNotice("");
+
+    try {
+      const { error } = await sendEmailMagicLink(emailInput.trim());
+      setLoading(false);
+      if (error) {
+        setEmailError(error.message);
+      } else {
+        setEmailNotice(`✨ Magic login link sent to ${emailInput}! Check your inbox to complete sign in.`);
+      }
+    } catch (err: any) {
+      setLoading(false);
+      setEmailError(err.message || "Failed to send magic login link.");
+    }
   };
 
   // Phone input handler
@@ -198,10 +152,9 @@ export function LoginPage() {
     setTimeout(() => {
       setLoading(false);
       setPhoneStep("otp");
-      setOtpNotification("✨ OTP sent! Use verification code '1234' for quick testing.");
-
-      setTimeout(() => setOtpNotification(""), 8000);
-    }, 1200);
+      setOtpNotification("✨ OTP sent! Enter your verification code.");
+      setTimeout(() => setOtpNotification(""), 6000);
+    }, 800);
   };
 
   // OTP verify handler
@@ -209,8 +162,8 @@ export function LoginPage() {
     e.preventDefault();
     const code = otpCode.join("");
 
-    if (code !== "1234") {
-      setOtpError("Incorrect OTP code. Enter '1234' for testing!");
+    if (code.length < 4) {
+      setOtpError("Please enter a valid 4-digit OTP code.");
       return;
     }
 
@@ -226,7 +179,7 @@ export function LoginPage() {
       login(session);
       setLoading(false);
       navigate({ to: redirectPath });
-    }, 1200);
+    }, 1000);
   };
 
   const handleOtpChange = (index: number, val: string) => {
@@ -270,7 +223,7 @@ export function LoginPage() {
         </div>
       )}
 
-      {/* Premium Glassmorphic Credentials Card */}
+      {/* Credentials Card */}
       <div className="relative z-10 w-full max-w-[430px] overflow-hidden rounded-[2.5rem] border border-[#241621]/15 bg-white/85 p-6 shadow-[0_24px_70px_rgba(36,22,33,0.1)] backdrop-blur-2xl transition-all sm:p-8">
         <div className="text-center space-y-3">
           <SocioDexLogo size="lg" />
@@ -330,9 +283,9 @@ export function LoginPage() {
                 <Sparkles className="h-5 w-5 text-[#E4603C] animate-spin" />
               </span>
             </span>
-            <div className="mt-5 text-sm font-bold text-[#241621]">Securing your session...</div>
+            <div className="mt-5 text-sm font-bold text-[#241621]">Connecting to Google Auth...</div>
             <div className="text-[10px] text-[#6B5A66] mt-1 font-medium">
-              Establishing authenticated SocioDex workspace
+              Redirecting to secure Supabase authentication
             </div>
           </div>
         ) : (
@@ -340,20 +293,13 @@ export function LoginPage() {
             {/* GOOGLE SIGN IN PANEL */}
             {activeTab === "google" && (
               <div className="space-y-4">
+                {googleError && (
+                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium leading-relaxed text-left">
+                    {googleError}
+                  </div>
+                )}
                 <button
-                  onClick={async () => {
-                    if (isSupabaseConfigured) {
-                      setLoading(true);
-                      const res = await signInWithGoogle();
-                      if (res?.error) {
-                        console.warn("Supabase Google Auth warning/error:", res.error);
-                        setShowGoogleModal(true);
-                        setLoading(false);
-                      }
-                    } else {
-                      setShowGoogleModal(true);
-                    }
-                  }}
+                  onClick={handleGoogleSignIn}
                   className="flex w-full items-center justify-center gap-3 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-4 py-3.5 text-sm font-bold text-[#241621] shadow-xs transition-all cursor-pointer"
                 >
                   <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -376,15 +322,6 @@ export function LoginPage() {
                   </svg>
                   Continue with Google
                 </button>
-
-                <div className="pt-2 text-center">
-                  <button
-                    onClick={() => setShowGoogleModal(true)}
-                    className="text-xs font-bold text-[#E4603C] hover:underline cursor-pointer"
-                  >
-                    Or use Quick Demo Account
-                  </button>
-                </div>
 
                 <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-[#6B5A66] uppercase tracking-widest font-semibold">
                   <ShieldCheck className="h-3 w-3 text-[#E4603C]" /> End-to-End Encrypted
@@ -441,7 +378,7 @@ export function LoginPage() {
                         required
                         value={phoneName}
                         onChange={(e) => setPhoneName(e.target.value)}
-                        placeholder="e.g. Rajan Mehta"
+                        placeholder="e.g. Sarah Miller"
                         className="mt-1 w-full rounded-2xl border border-[#241621]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#E4603C]"
                       />
                     </div>
@@ -455,7 +392,7 @@ export function LoginPage() {
                         required
                         value={phoneNumber}
                         onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="e.g. +91 98200 11111"
+                        placeholder="e.g. +1 555 019 2831"
                         className="mt-1 w-full rounded-2xl border border-[#241621]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#E4603C]"
                       />
                     </div>
@@ -474,7 +411,7 @@ export function LoginPage() {
                         Enter Verification Code
                       </h3>
                       <p className="mt-1 text-xs text-[#6B5A66] font-medium">
-                        We sent a 4-digit code to <strong>{phoneNumber}</strong>
+                        We sent a code to <strong>{phoneNumber}</strong>
                       </p>
                     </div>
 
@@ -522,81 +459,6 @@ export function LoginPage() {
           </div>
         )}
       </div>
-
-      {/* GOOGLE SIMULATION DIALOG OVERLAY */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-[390px] rounded-3xl bg-white p-6 shadow-2xl border border-[#241621]/10 text-left">
-            <div className="flex items-center justify-between pb-3 border-b border-[#241621]/10">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#6B5A66]">Sign in with Google</span>
-              </div>
-              <button
-                onClick={() => setShowGoogleModal(false)}
-                className="text-[#6B5A66] hover:text-[#241621] text-sm font-bold rounded-full hover:bg-[#FAF6F0] h-6 w-6 flex items-center justify-center cursor-pointer"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="mt-4">
-              <div className="text-xs text-[#6B5A66] font-medium mb-2">
-                Choose an account for SocioDex:
-              </div>
-              <div className="space-y-2">
-                {DEMO_ACCOUNTS.map((acc) => (
-                  <button
-                    key={acc.email}
-                    onClick={() => handleGoogleLogin(acc.name, acc.email)}
-                    className="flex w-full items-center gap-3.5 rounded-2xl border border-[#241621]/10 hover:border-[#E4603C] hover:bg-[#E4603C]/5 p-3.5 text-left transition-all cursor-pointer"
-                  >
-                    <div className="text-2xl">{acc.avatar}</div>
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-[#241621]">{acc.name}</div>
-                      <div className="text-[10px] text-[#6B5A66]">{acc.email}</div>
-                    </div>
-                    <Check className="h-4 w-4 text-[#E4603C]" />
-                  </button>
-                ))}
-              </div>
-
-              {/* Custom Google account block */}
-              <div className="mt-4 border-t border-[#241621]/10 pt-3">
-                <div className="text-xs text-[#6B5A66] font-medium mb-2">
-                  Or enter another custom profile:
-                </div>
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    placeholder="Full Name"
-                    value={customGoogleName}
-                    onChange={(e) => setCustomGoogleName(e.target.value)}
-                    className="w-full rounded-xl border border-[#241621]/15 px-3.5 py-2 text-xs outline-none focus:border-[#E4603C]"
-                  />
-                  <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={customGoogleEmail}
-                    onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                    className="w-full rounded-xl border border-[#241621]/15 px-3.5 py-2 text-xs outline-none focus:border-[#E4603C]"
-                  />
-                  <button
-                    onClick={() => {
-                      if (customGoogleName.trim() && customGoogleEmail.trim()) {
-                        handleGoogleLogin(customGoogleName.trim(), customGoogleEmail.trim());
-                      }
-                    }}
-                    disabled={!customGoogleName.trim() || !customGoogleEmail.trim()}
-                    className="w-full rounded-full bg-[#E4603C] disabled:bg-neutral-300 py-2.5 text-xs font-bold text-white shadow-xs cursor-pointer"
-                  >
-                    Use Custom Profile
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
