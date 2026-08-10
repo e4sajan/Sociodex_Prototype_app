@@ -23,8 +23,6 @@ import {
   ThumbsUp,
   PartyPopper,
   Flame,
-  Phone,
-  Video,
   Info,
   Maximize2,
   Minimize2,
@@ -35,7 +33,7 @@ import { toast } from "sonner";
 
 const QUICK_SUGGESTIONS = [
   "Loved your memory photo! 📸",
-  "So excited for the party! 🎉",
+  "So excited for the celebration! 🎉",
   "Let's coordinate on the group gift! 🎁",
   "Thank you for the warm wish! 💖",
   "Can't wait to see everyone! ✨",
@@ -69,10 +67,12 @@ export function ChatDrawer() {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
 
-  // Voice note recording states
+  // Real voice note recording states
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
   const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Photo upload ref
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -151,19 +151,65 @@ export function ChatDrawer() {
     setShowEmojiPicker(false);
   };
 
-  const handleSendVoiceNote = () => {
-    if (!activeConversationId) return;
-    setIsRecordingVoice(false);
+  const startVoiceRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      audioChunksRef.current = [];
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+
+      recorder.start(200);
+      setIsRecordingVoice(true);
+    } catch (err) {
+      console.warn("Microphone access error:", err);
+      toast.error("Microphone permission denied or not supported.");
+    }
+  };
+
+  const stopAndSendVoiceRecording = () => {
+    if (!mediaRecorderRef.current || !activeConversationId) {
+      setIsRecordingVoice(false);
+      return;
+    }
 
     const duration = Math.max(1, voiceSeconds);
-    sendMessage({
-      conversationId: activeConversationId,
-      content: `🎙️ Voice Note (${duration}s)`,
-      mediaUrl: "https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg", // simulated audio waveform
-      mediaType: "audio",
-      audioDuration: duration,
-    });
-    toast.success("Voice note sent!");
+    const recorder = mediaRecorderRef.current;
+
+    recorder.onstop = () => {
+      const audioBlob = new Blob(audioChunksRef.current, { type: "audio/webm" });
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Audio = reader.result as string;
+        sendMessage({
+          conversationId: activeConversationId,
+          content: `🎙️ Voice Note (${duration}s)`,
+          mediaUrl: base64Audio,
+          mediaType: "audio",
+          audioDuration: duration,
+        });
+        toast.success("Voice note sent!");
+      };
+      reader.readAsDataURL(audioBlob);
+
+      recorder.stream.getTracks().forEach((track) => track.stop());
+    };
+
+    recorder.stop();
+    setIsRecordingVoice(false);
+  };
+
+  const cancelVoiceRecording = () => {
+    if (mediaRecorderRef.current) {
+      try {
+        mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
+        mediaRecorderRef.current.stop();
+      } catch (e) {}
+    }
+    setIsRecordingVoice(false);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -302,9 +348,9 @@ export function ChatDrawer() {
                   <div className="h-12 w-12 rounded-full bg-[#FAF6F0] mx-auto flex items-center justify-center text-xl text-neutral-400">
                     💬
                   </div>
-                  <h3 className="text-sm font-bold text-neutral-700">No conversations found</h3>
+                  <h3 className="text-sm font-bold text-neutral-700">No conversations yet</h3>
                   <p className="text-xs text-neutral-500 max-w-xs mx-auto">
-                    Click on any contributor's name or avatar on a memory page to start a live chat!
+                    Click on any contributor's name or avatar on a memory page to start a conversation!
                   </p>
                 </div>
               ) : (
@@ -434,26 +480,6 @@ export function ChatDrawer() {
 
               {/* Action icons */}
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.info(`Calling ${activeConv.title}... (Demo Feature)`);
-                  }}
-                  title="Audio Call"
-                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-[#E4603C] transition cursor-pointer"
-                >
-                  <Phone className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.info(`Starting video room with ${activeConv.title}... (Demo Feature)`);
-                  }}
-                  title="Video Call"
-                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-[#E4603C] transition cursor-pointer"
-                >
-                  <Video className="h-4 w-4" />
-                </button>
                 <button
                   type="button"
                   onClick={() => setIsMaximized(!isMaximized)}
@@ -789,14 +815,14 @@ export function ChatDrawer() {
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setIsRecordingVoice(false)}
+                      onClick={cancelVoiceRecording}
                       className="px-3 py-1 rounded-xl text-xs font-semibold text-neutral-600 hover:bg-neutral-200 cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="button"
-                      onClick={handleSendVoiceNote}
+                      onClick={stopAndSendVoiceRecording}
                       className="px-3 py-1 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 cursor-pointer flex items-center gap-1 shadow-xs"
                     >
                       <Send className="h-3 w-3" />
@@ -834,7 +860,7 @@ export function ChatDrawer() {
 
                     <button
                       type="button"
-                      onClick={() => setIsRecordingVoice(true)}
+                      onClick={startVoiceRecording}
                       title="Record voice note"
                       className="p-1.5 rounded-xl hover:bg-neutral-100 hover:text-[#E4603C] transition cursor-pointer"
                     >
