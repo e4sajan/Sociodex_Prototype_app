@@ -14,6 +14,11 @@ export function FloatingChatButton() {
 
   if (isDrawerOpen) return null;
 
+  // Do not show floating button on keepsake memory pages (/m/) since they have a dedicated top nav chat button
+  if (location.pathname.startsWith("/m/")) {
+    return null;
+  }
+
   // Do not show floating button on landing page (/) or login page (/login) if user is not signed in
   if (!currentUser && (location.pathname === "/" || location.pathname === "/login")) {
     return null;
