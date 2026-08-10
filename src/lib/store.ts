@@ -125,6 +125,7 @@ export type MemoryData = {
   creatorEmail?: string;
   creatorName?: string;
   followers?: string[];
+  blockedUsers?: string[];
 
   // Invitation fields
   pageType?: "wish" | "invite";
@@ -221,6 +222,9 @@ type State = {
   setGuestRsvp: (id: string, rsvp: Guest["rsvp"]) => void;
   sendInvites: (ids: string[]) => void;
   toggleFollowPage: (slug: string, userNameOrEmail: string) => void;
+  togglePageAdmin: (slug: string, collaborator: { name: string; id?: string; email?: string }) => void;
+  blockContributor: (slug: string, contributorNameOrId: string) => void;
+  unblockContributor: (slug: string, contributorNameOrId: string) => void;
 };
 
 // Initial setup helper for newly created/mocked memories
@@ -253,6 +257,7 @@ const createDefaultMemoryData = (
   reactions: [],
   replies: [],
   followers: [],
+  blockedUsers: [],
 });
 
 export const useStore = create<State>()(
@@ -669,6 +674,86 @@ export const useStore = create<State>()(
             : [...currentFollowers, userNameOrEmail];
 
           const updatedTarget = { ...target, followers: updatedFollowers };
+          return {
+            memories: { ...s.memories, [slug]: updatedTarget },
+            memory: s.memory?.slug === slug ? updatedTarget : s.memory,
+          };
+        }),
+      togglePageAdmin: (slug, collab) =>
+        set((s) => {
+          const target = s.memories[slug] || (s.memory?.slug === slug ? s.memory : null);
+          if (!target) return {};
+          const collabs = target.collaborators || [];
+          const targetName = collab.name.trim().toLowerCase();
+          const targetId = collab.id || collab.name.toLowerCase().replace(/[^a-z0-9]/g, "-");
+
+          const existingIdx = collabs.findIndex(
+            (c) => c.name.toLowerCase() === targetName || (c.id && c.id === targetId)
+          );
+
+          let updatedCollabs: Collaborator[];
+          if (existingIdx >= 0) {
+            const current = collabs[existingIdx];
+            const nextRole = current.role === "admin" ? "contributor" : "admin";
+            updatedCollabs = collabs.map((c, i) =>
+              i === existingIdx ? { ...c, role: nextRole } : c
+            );
+          } else {
+            const newAdmin: Collaborator = {
+              id: targetId,
+              name: collab.name,
+              email: collab.email || "",
+              role: "admin",
+              status: "accepted",
+              inviteSentVia: "link",
+            };
+            updatedCollabs = [...collabs, newAdmin];
+          }
+
+          const updatedTarget = { ...target, collaborators: updatedCollabs };
+          return {
+            memories: { ...s.memories, [slug]: updatedTarget },
+            memory: s.memory?.slug === slug ? updatedTarget : s.memory,
+          };
+        }),
+      blockContributor: (slug, contributorNameOrId) =>
+        set((s) => {
+          const target = s.memories[slug] || (s.memory?.slug === slug ? s.memory : null);
+          if (!target) return {};
+          const cleanName = contributorNameOrId.trim().toLowerCase();
+          const currentBlocked = target.blockedUsers || [];
+          if (currentBlocked.includes(cleanName)) return {};
+
+          const updatedBlocked = [...currentBlocked, cleanName];
+          // Mark any existing contributions as rejected
+          const updatedContribs = (target.contributions || []).map((c) =>
+            c.contributor_name.toLowerCase() === cleanName || c.contributor_id.toLowerCase() === cleanName
+              ? { ...c, status: "rejected" as const }
+              : c
+          );
+
+          const updatedTarget = {
+            ...target,
+            blockedUsers: updatedBlocked,
+            contributions: updatedContribs,
+          };
+          return {
+            memories: { ...s.memories, [slug]: updatedTarget },
+            memory: s.memory?.slug === slug ? updatedTarget : s.memory,
+          };
+        }),
+      unblockContributor: (slug, contributorNameOrId) =>
+        set((s) => {
+          const target = s.memories[slug] || (s.memory?.slug === slug ? s.memory : null);
+          if (!target) return {};
+          const cleanName = contributorNameOrId.trim().toLowerCase();
+          const currentBlocked = target.blockedUsers || [];
+          const updatedBlocked = currentBlocked.filter((b) => b !== cleanName);
+
+          const updatedTarget = {
+            ...target,
+            blockedUsers: updatedBlocked,
+          };
           return {
             memories: { ...s.memories, [slug]: updatedTarget },
             memory: s.memory?.slug === slug ? updatedTarget : s.memory,

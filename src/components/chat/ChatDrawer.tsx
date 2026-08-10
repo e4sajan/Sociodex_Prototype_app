@@ -14,6 +14,8 @@ import {
   Volume2,
   VolumeX,
   ArrowLeft,
+  ArrowRight,
+  Lock,
   Check,
   CheckCheck,
   MoreVertical,
@@ -137,6 +139,10 @@ export function ChatDrawer() {
   if (!isDrawerOpen) return null;
 
   const handleSendText = () => {
+    if (!currentUser) {
+      toast.error("Please sign in to send messages.");
+      return;
+    }
     if (!inputText.trim() || !activeConversationId) return;
 
     sendMessage({
@@ -152,6 +158,10 @@ export function ChatDrawer() {
   };
 
   const startVoiceRecording = async () => {
+    if (!currentUser) {
+      toast.error("Please sign in to record voice notes.");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -213,6 +223,10 @@ export function ChatDrawer() {
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!currentUser) {
+      toast.error("Please sign in to send photo attachments.");
+      return;
+    }
     const file = e.target.files?.[0];
     if (!file || !activeConversationId) return;
 
@@ -248,9 +262,50 @@ export function ChatDrawer() {
         }`}
       >
         {/* ==================================================================== */}
-        {/* INBOX LIST VIEW (When no active conversation selected)               */}
+        {/* AUTH REQUIREMENT VIEW (When user is NOT logged in)                   */}
         {/* ==================================================================== */}
-        {!activeConv ? (
+        {!currentUser ? (
+          <div className="flex flex-col items-center justify-center h-full p-8 text-center space-y-5">
+            <div className="relative">
+              <div className="h-16 w-16 rounded-3xl bg-[#E4603C]/10 flex items-center justify-center text-3xl text-[#E4603C] border border-[#E4603C]/20 shadow-xs">
+                💬
+              </div>
+              <span className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-[#EBC85A] text-[#241621] text-xs flex items-center justify-center font-bold border-2 border-white shadow-xs">
+                <Lock className="h-3 w-3" />
+              </span>
+            </div>
+
+            <div className="space-y-2 max-w-xs">
+              <h3 className="font-display text-xl font-bold text-[#241621]">
+                Sign in to Chat
+              </h3>
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                You need to be signed in to SocioDex to message contributors, participate in celebration rooms, and communicate with page admins.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 w-full max-w-xs pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setDrawerOpen(false);
+                  window.location.href = "/login";
+                }}
+                className="w-full rounded-full bg-[#E4603C] text-white py-3 text-xs font-bold shadow-md hover:bg-[#C94B29] transition cursor-pointer flex items-center justify-center gap-2 select-none"
+              >
+                <span>Sign In / Create Account</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(false)}
+                className="w-full rounded-full border border-[#241621]/15 py-2.5 text-xs font-semibold text-neutral-600 hover:bg-[#FAF6F0] transition cursor-pointer select-none"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : !activeConv ? (
           <div className="flex flex-col h-full">
             {/* Header */}
             <div className="p-4 sm:p-5 border-b border-[#241621]/10 bg-white/80 backdrop-blur-md">

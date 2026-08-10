@@ -53,7 +53,11 @@ import {
   Chrome,
   Mail,
   Smartphone,
+  Shield,
   ShieldCheck,
+  Ban,
+  Flag,
+  Copy,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -487,6 +491,9 @@ function PublicMemoryPage() {
   const updatePageSettings = useStore((s) => s.updatePageSettings);
   const setGuestRsvp = useStore((s) => s.setGuestRsvp);
   const toggleFollowPage = useStore((s) => s.toggleFollowPage);
+  const togglePageAdmin = useStore((s) => s.togglePageAdmin);
+  const blockContributor = useStore((s) => s.blockContributor);
+  const unblockContributor = useStore((s) => s.unblockContributor);
 
   // Loading & Network Error States
   const [isLoading, setIsLoading] = useState<boolean>(() => !activeMemory);
@@ -628,13 +635,19 @@ function PublicMemoryPage() {
     if (!activeMemory) return [];
     const all = activeMemory.contributions || [];
     
-    // Deduplicate by ID
+    // Deduplicate by ID and filter out blocked users
     const seenIds = new Set<string>();
     const uniqueList: SimulatedContribution[] = [];
+    const blockedList = (activeMemory.blockedUsers || []).map((b) => b.toLowerCase().trim());
 
     all.forEach((c) => {
       if (!seenIds.has(c.id)) {
         seenIds.add(c.id);
+        const isBlocked =
+          blockedList.includes(c.contributor_name.toLowerCase().trim()) ||
+          blockedList.includes(c.contributor_id.toLowerCase().trim());
+        if (isBlocked) return;
+
         const isApproved = c.status === "approved";
         const isMyPost = currentUser && c.contributor_id === (currentUser.email || currentUser.id);
         if (isApproved || isMyPost) {
@@ -1068,6 +1081,15 @@ function PublicMemoryPage() {
       return;
     }
 
+    const blockedList = (activeMemory.blockedUsers || []).map((b) => b.toLowerCase().trim());
+    const isBlocked =
+      blockedList.includes((currentUser.name || "").toLowerCase().trim()) ||
+      (currentUser.email && blockedList.includes(currentUser.email.toLowerCase().trim()));
+    if (isBlocked) {
+      toast.error("You have been blocked from posting on this memory page by the administrator.");
+      return;
+    }
+
     if (contribType === "wish" && !contribText.trim()) {
       toast.error("Please enter your wish or message.");
       return;
@@ -1421,6 +1443,11 @@ function PublicMemoryPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    if (!currentUser) {
+                      setShowAuthModal(true);
+                      toast.info("Please sign in to join the memory chat room.");
+                      return;
+                    }
                     useChatStore.getState().openMemoryGroupChat({
                       memorySlug: activeMemory.slug,
                       memoryTitle: activeMemory.occasion || activeMemory.recipient,
@@ -1961,6 +1988,24 @@ function PublicMemoryPage() {
               {filteredFeedContributions.map((c) => {
                 const isPinned = (activeMemory.pinnedContributionIds || []).includes(c.id);
                 const isMyOwn = currentUser && c.contributor_id === (currentUser.email || currentUser.id);
+                const isCreator = userRole === "creator";
+                const isAdmin = userRole === "admin";
+                const canModerate = isCreator || isAdmin;
+                const canDelete = isCreator || isAdmin || isMyOwn;
+
+                const isContributorAdmin = (activeMemory.collaborators || []).some(
+                  (collab) =>
+                    collab.role === "admin" &&
+                    (collab.name.toLowerCase() === c.contributor_name.toLowerCase() ||
+                      (c.contributor_id && collab.id === c.contributor_id))
+                );
+
+                const isContributorBlocked = (activeMemory.blockedUsers || []).some(
+                  (b) =>
+                    b.toLowerCase() === c.contributor_name.toLowerCase() ||
+                    (c.contributor_id && b.toLowerCase() === c.contributor_id.toLowerCase())
+                );
+
                 const style = getAvatarStyle(c.contributor_name);
                 const { counts, myReactions } = getContributionReactions(c.id);
                 const replies = getContributionReplies(c.id);
@@ -1976,6 +2021,11 @@ function PublicMemoryPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div
                         onClick={() => {
+                          if (!currentUser) {
+                            setShowAuthModal(true);
+                            toast.info("Please sign in to message contributors.");
+                            return;
+                          }
                           useChatStore.getState().openChatWithContributor({
                             name: c.contributor_name,
                             emailOrId: c.contributor_id,
@@ -1986,7 +2036,7 @@ function PublicMemoryPage() {
                           });
                         }}
                         className="flex items-center gap-3 cursor-pointer group/contributor select-none"
-                        title={`Click to chat with ${c.contributor_name}`}
+                        title={`Click to message ${c.contributor_name}`}
                       >
                         <span
                           className="h-9 w-9 rounded-full text-xs font-bold flex items-center justify-center border border-white shrink-0 shadow-xs group-hover/contributor:scale-105 group-hover/contributor:shadow-md transition-all"
@@ -1995,17 +2045,25 @@ function PublicMemoryPage() {
                           {c.contributor_name[0]}
                         </span>
                         <div>
-                          <div className="flex items-center gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             <h4 className="text-xs sm:text-sm font-bold text-neutral-900 leading-none group-hover/contributor:text-[#E4603C] transition-colors flex items-center gap-1">
                               <span>{c.contributor_name}</span>
                               <MessageSquare className="h-3 w-3 opacity-0 group-hover/contributor:opacity-100 transition-opacity text-[#E4603C]" />
                             </h4>
+
+                            {isContributorAdmin && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-extrabold uppercase tracking-wider text-purple-700 bg-purple-50 border border-purple-200/80 px-2 py-0.5 rounded-full shadow-2xs">
+                                <ShieldCheck className="h-2.5 w-2.5 text-purple-600" /> Admin
+                              </span>
+                            )}
+
                             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E4603C]/10 text-[#E4603C] border border-[#E4603C]/20">
                               {c.type === "wish" && "💌 Wish"}
                               {c.type === "photo" && "📸 Photo"}
                               {c.type === "audio" && "🎙️ Voice Note"}
                               {c.type === "video" && "🎥 Video"}
                             </span>
+
                             {isPinned && (
                               <span className="inline-flex items-center gap-1 text-[9px] font-bold uppercase tracking-wider text-[#C17F5A] bg-[#C17F5A]/10 px-2 py-0.5 rounded-full">
                                 <Pin className="h-2.5 w-2.5 fill-current" /> Pinned
@@ -2027,101 +2085,158 @@ function PublicMemoryPage() {
                         </div>
                       </div>
 
-                      {/* Right Action & Dropdown Menu */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <ContributorChatButton
-                          name={c.contributor_name}
-                          emailOrId={c.contributor_id}
-                          avatar={c.contributor_name[0]}
-                          avatarColor={style.bg}
-                          memorySlug={activeMemory.slug}
-                          memoryTitle={activeMemory.occasion || activeMemory.recipient}
-                          variant="badge"
-                        />
+                      {/* Right Three Dots Options Menu */}
+                      <div className="relative group/menu shrink-0">
+                        <button
+                          type="button"
+                          aria-label="More options"
+                          title="Post options"
+                          className="p-1.5 sm:p-2 rounded-full hover:bg-[#FAF6F0] text-neutral-400 hover:text-neutral-700 transition cursor-pointer border border-transparent hover:border-[#241621]/10 select-none"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
 
-                        {(isMyOwn || isOwner) && (
-                          <div className="relative group/menu">
+                        <div className="absolute right-0 top-full mt-1 w-48 sm:w-52 rounded-2xl border border-[#241621]/15 bg-white p-1.5 shadow-xl opacity-0 scale-95 group-hover/menu:opacity-100 group-hover/menu:scale-100 transition-all z-20 pointer-events-none group-hover/menu:pointer-events-auto text-left">
+                          {/* 1. Message Privately */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!currentUser) {
+                                setShowAuthModal(true);
+                                toast.info("Please sign in to message contributors.");
+                                return;
+                              }
+                              useChatStore.getState().openChatWithContributor({
+                                name: c.contributor_name,
+                                emailOrId: c.contributor_id,
+                                avatar: c.contributor_name[0],
+                                avatarColor: style.bg,
+                                memorySlug: activeMemory.slug,
+                                memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                              });
+                            }}
+                            className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-[#FAF6F0] hover:text-[#E4603C] flex items-center gap-2.5 cursor-pointer transition-colors"
+                          >
+                            <MessageSquare className="h-4 w-4 text-[#E4603C] shrink-0" />
+                            <span>Message Privately</span>
+                          </button>
+
+                          {/* 2. Create Page Admin / Remove Admin Role (Creator & Admin only, not self) */}
+                          {canModerate && !isMyOwn && (
                             <button
                               type="button"
-                              aria-label="Actions menu"
-                              className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition cursor-pointer"
+                              onClick={() => {
+                                togglePageAdmin(activeMemory.slug, {
+                                  name: c.contributor_name,
+                                  id: c.contributor_id,
+                                });
+                                if (isContributorAdmin) {
+                                  toast.success(`Removed admin privileges from ${c.contributor_name}.`);
+                                } else {
+                                  toast.success(`Promoted ${c.contributor_name} to Page Admin! 🛡️`);
+                                }
+                              }}
+                              className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2.5 cursor-pointer transition-colors"
                             >
-                              <MoreVertical className="h-4 w-4" />
+                              <ShieldCheck className="h-4 w-4 text-purple-600 shrink-0" />
+                              <span>{isContributorAdmin ? "Remove Admin Role" : "Make Page Admin"}</span>
                             </button>
+                          )}
 
-                            <div className="absolute right-0 top-full mt-1 w-38 rounded-xl border border-[#241621]/10 bg-white p-1.5 shadow-xl opacity-0 scale-95 group-hover/menu:opacity-100 group-hover/menu:scale-100 transition-all z-10 pointer-events-none group-hover/menu:pointer-events-auto">
+                          {/* 3. Block / Unblock Person from Posting (Creator & Admin only, not self) */}
+                          {canModerate && !isMyOwn && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isContributorBlocked) {
+                                  unblockContributor(activeMemory.slug, c.contributor_name);
+                                  toast.success(`Unblocked ${c.contributor_name}.`);
+                                } else {
+                                  blockContributor(activeMemory.slug, c.contributor_name);
+                                  toast.error(`Blocked ${c.contributor_name} from posting on this page.`);
+                                }
+                              }}
+                              className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-amber-50 hover:text-amber-800 flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <Ban className="h-4 w-4 text-amber-600 shrink-0" />
+                              <span>{isContributorBlocked ? "Unblock Person" : "Block from Posting"}</span>
+                            </button>
+                          )}
+
+                          {/* 4. Pin / Unpin Post (Creator & Admin only) */}
+                          {canModerate && (
+                            <button
+                              type="button"
+                              onClick={() => handlePinToggle(c.id)}
+                              className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-amber-50 hover:text-amber-700 flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <Pin className="h-4 w-4 text-[#C17F5A] shrink-0" />
+                              <span>{isPinned ? "Unpin Post" : "Pin to Top"}</span>
+                            </button>
+                          )}
+
+                          {/* 5. Edit Message (Author only) */}
+                          {isMyOwn && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingContribId(c.id);
+                                setEditingContribText(c.content_text || "");
+                              }}
+                              className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <FileText className="h-4 w-4 text-neutral-500 shrink-0" />
+                              <span>Edit Message</span>
+                            </button>
+                          )}
+
+                          {/* 6. Copy Link to Post */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const url = `${window.location.origin}${window.location.pathname}#contrib-${c.id}`;
+                              navigator.clipboard.writeText(url);
+                              toast.success("Link to memory post copied! 📋");
+                            }}
+                            className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                          >
+                            <Copy className="h-4 w-4 text-neutral-500 shrink-0" />
+                            <span>Copy Post Link</span>
+                          </button>
+
+                          {/* 7. Report Post (Guests / Visitors) */}
+                          {!isMyOwn && !canModerate && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toast.success("Thank you. Post flagged for moderator review.");
+                              }}
+                              className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 hover:text-neutral-700 flex items-center gap-2.5 cursor-pointer transition-colors"
+                            >
+                              <Flag className="h-4 w-4 text-neutral-400 shrink-0" />
+                              <span>Report Content</span>
+                            </button>
+                          )}
+
+                          {/* 8. Delete Post (Creator, Admin, or Author) */}
+                          {canDelete && (
+                            <>
+                              <div className="my-1 border-t border-[#241621]/10" />
                               <button
                                 type="button"
                                 onClick={() => {
-                                  useChatStore.getState().openChatWithContributor({
-                                    name: c.contributor_name,
-                                    emailOrId: c.contributor_id,
-                                    avatar: c.contributor_name[0],
-                                    avatarColor: style.bg,
-                                    memorySlug: activeMemory.slug,
-                                    memoryTitle: activeMemory.occasion || activeMemory.recipient,
-                                  });
+                                  deleteSimulatedContribution(activeMemory.slug, c.id);
+                                  updateSimulatedContributionStatus(activeMemory.slug, c.id, "rejected");
+                                  toast.success("Post deleted successfully.");
                                 }}
-                                className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                                className="w-full text-left rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2.5 cursor-pointer transition-colors"
                               >
-                                <MessageSquare className="h-3.5 w-3.5 text-[#E4603C]" />
-                                Direct Message
+                                <Trash2 className="h-4 w-4 shrink-0" />
+                                <span>Delete Post</span>
                               </button>
-
-                              {isOwner && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => handlePinToggle(c.id)}
-                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Pin className="h-3.5 w-3.5 text-[#C17F5A]" />
-                                    {isPinned ? "Unpin Post" : "Pin to Top"}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      updateSimulatedContributionStatus(
-                                        activeMemory.slug,
-                                        c.id,
-                                        "rejected"
-                                      );
-                                      toast.success("Post removed from feed.");
-                                    }}
-                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Remove Post
-                                  </button>
-                                </>
-                              )}
-
-                              {isMyOwn && !isOwner && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setEditingContribId(c.id);
-                                      setEditingContribText(c.content_text || "");
-                                    }}
-                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    Edit Message
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleDeleteContribution(c.id)}
-                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                    Delete Post
-                                  </button>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 
