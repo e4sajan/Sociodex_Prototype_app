@@ -1441,7 +1441,7 @@ function PublicMemoryPage() {
                 </button>
               )}
 
-              {/* Single Unified Memory Room Group Chat Button */}
+              {/* Single Unified Memory Chat Icon Button */}
               {activeMemory && (
                 <button
                   type="button"
@@ -1457,11 +1457,11 @@ function PublicMemoryPage() {
                       creatorName: activeMemory.creatorName || activeMemory.from,
                     });
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#241621]/15 px-3 py-1 text-xs font-bold text-[#241621] hover:bg-[#FAF6F0] hover:text-[#E4603C] hover:border-[#E4603C]/30 transition-all cursor-pointer shadow-xs select-none relative"
-                  title="Open Group Celebration Chat Room"
+                  className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white border border-[#241621]/15 flex items-center justify-center text-[#E4603C] hover:bg-[#FAF6F0] hover:border-[#E4603C]/40 transition-all cursor-pointer shadow-xs select-none relative active:scale-95"
+                  title="Open Celebration Chat Room"
+                  aria-label="Open Celebration Chat Room"
                 >
-                  <MessageSquare className="h-3.5 w-3.5 text-[#E4603C]" />
-                  <span>Memory Chat</span>
+                  <MessageSquare className="h-4 w-4" />
                 </button>
               )}
 
