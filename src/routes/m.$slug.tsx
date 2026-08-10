@@ -2569,52 +2569,21 @@ function PublicMemoryPage() {
         </footer>
       </div>
 
-      {/* ── FLOATING PROMOTIONAL BOTTOM RIBBON ── */}
-      {!isRibbonDismissed && (
-        <div className="fixed bottom-4 inset-x-3 sm:inset-x-auto sm:left-1/2 sm:-translate-x-1/2 z-30 max-w-xl w-full select-none">
-          <div className="bg-[#FFFDF9]/95 backdrop-blur-xl border border-[#241621]/15 shadow-2xl p-2 sm:p-2.5 px-4 sm:px-5 rounded-full flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Link to="/" className="shrink-0 hover:opacity-90">
-                <SocioDexLogo size="xs" />
-              </Link>
-              <span className="hidden sm:block text-[11px] text-[#594855] font-semibold truncate border-l border-[#241621]/10 pl-2.5">
-                Every celebration deserves a home ✨
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {!isExpired && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!currentUser) setShowAuthModal(true);
-                    else setShowContributeSheet(true);
-                  }}
-                  className="rounded-full bg-[#E4603C]/10 border border-[#E4603C]/30 text-[#E4603C] hover:bg-[#E4603C]/20 px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer flex items-center gap-1"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>Add Post</span>
-                </button>
-              )}
-
-              <Link
-                to="/creator"
-                className="rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white px-4 py-1.5 text-xs font-bold transition-all cursor-pointer shadow-xs flex items-center gap-1"
-              >
-                <Sparkles className="h-3.5 w-3.5" />
-                <span>Create Page</span>
-              </Link>
-
-              <button
-                type="button"
-                onClick={() => setIsRibbonDismissed(true)}
-                className="h-6 w-6 rounded-full hover:bg-[#241621]/10 flex items-center justify-center text-[#594855] font-bold text-xs cursor-pointer"
-                title="Dismiss ribbon"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
+      {/* ── SIMPLE FLOATING ADD POST BUTTON ── */}
+      {!isExpired && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 select-none">
+          <button
+            type="button"
+            onClick={() => {
+              if (!currentUser) setShowAuthModal(true);
+              else setShowContributeSheet(true);
+            }}
+            className="rounded-full bg-gradient-to-r from-[#E4603C] to-[#C94B29] text-white px-5 sm:px-6 py-2.5 sm:py-3 text-xs sm:text-sm font-bold shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 transition-all duration-200 cursor-pointer flex items-center gap-2 border-2 border-white/50 backdrop-blur-md"
+            title="Post a wish, photo, voice note, or video"
+          >
+            <Plus className="h-4 w-4 stroke-[3]" />
+            <span>Add Post</span>
+          </button>
         </div>
       )}
 
