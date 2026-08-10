@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useChatStore, type ChatMessage, type ChatConversation } from "@/lib/chatStore";
 import { useStore } from "@/lib/store";
+import { subscribeToChatRealtime } from "@/lib/supabase";
 import { toast } from "sonner";
 
 const QUICK_SUGGESTIONS = [
@@ -135,6 +136,23 @@ export function ChatDrawer() {
       if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
     };
   }, [isRecordingVoice]);
+
+  // Cross-device live chat synchronization
+  useEffect(() => {
+    const memorySlug = activeConv?.memorySlug;
+    const unsubscribe = subscribeToChatRealtime(
+      memorySlug,
+      (msg, conv) => {
+        useChatStore.getState().receiveRemoteMessage(msg, conv);
+      },
+      (convId, msgId, reactions) => {
+        useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
+      }
+    );
+    return () => {
+      unsubscribe();
+    };
+  }, [activeConv?.memorySlug]);
 
   if (!isDrawerOpen) return null;
 

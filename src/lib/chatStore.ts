@@ -1,7 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { useStore } from "./store";
-import { isSupabaseConfigured, supabase } from "./supabase";
+import {
+  isSupabaseConfigured,
+  supabase,
+  broadcastChatMessage,
+  broadcastChatReaction,
+} from "./supabase";
+import { toast } from "sonner";
 
 export type MessageReaction = {
   emoji: string;
@@ -95,17 +101,40 @@ type ChatStore = {
     replyToSnippet?: string;
   }) => void;
 
+  receiveRemoteMessage: (
+    msg: ChatMessage,
+    convMeta?: Partial<ChatConversation>
+  ) => void;
+
   toggleReaction: (params: {
     conversationId: string;
     messageId: string;
     emoji: string;
   }) => void;
 
+  receiveRemoteReaction: (
+    conversationId: string,
+    messageId: string,
+    reactions: Record<string, string[]>
+  ) => void;
+
   markAsRead: (conversationId: string) => void;
   deleteMessage: (conversationId: string, messageId: string) => void;
   clearAllConversations: () => void;
   getTotalUnreadCount: () => number;
 };
+
+// Deterministic conversation ID for direct messaging between two participants
+export function getDirectConversationId(
+  userA: string,
+  userB: string,
+  memorySlug?: string
+): string {
+  const cleanA = (userA || "user-a").toLowerCase().trim().replace(/[^a-z0-9]/g, "-");
+  const cleanB = (userB || "user-b").toLowerCase().trim().replace(/[^a-z0-9]/g, "-");
+  const sorted = [cleanA, cleanB].sort();
+  return `conv-dm-${sorted[0]}__${sorted[1]}-${memorySlug || "global"}`;
+}
 
 // Play subtle notification chime
 function playNotificationSound() {
@@ -187,12 +216,14 @@ export const useChatStore = create<ChatStore>()(
         memorySlug,
         memoryTitle,
       }) => {
-        const cleanId = (emailOrId || name).toLowerCase().replace(/[^a-z0-9]/g, "-");
-        const convId = `conv-dm-${cleanId}-${memorySlug || "global"}`;
         const currentUser = useStore.getState().currentUser;
         const myName = currentUser?.name || "Guest";
         const myAvatar = currentUser?.avatar || "👤";
-        const myId = currentUser?.email || currentUser?.id || "guest-me";
+        const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
+        const targetId = emailOrId || name;
+
+        // Symmetric deterministic ID so both sender and recipient share the exact same room
+        const convId = getDirectConversationId(myId, targetId, memorySlug);
 
         set((state) => {
           const existingConv = state.conversations[convId];
@@ -210,9 +241,9 @@ export const useChatStore = create<ChatStore>()(
               title: name,
               avatar,
               avatarColor,
-              participantIds: [cleanId, myId],
+              participantIds: [targetId, myId],
               participants: [
-                { id: cleanId, name, avatar, color: avatarColor, role, isOnline: true },
+                { id: targetId, name, avatar, color: avatarColor, role, isOnline: true },
                 { id: myId, name: myName, avatar: myAvatar, role: "contributor", isOnline: true },
               ],
               unreadCount: 0,
@@ -243,7 +274,7 @@ export const useChatStore = create<ChatStore>()(
         const currentUser = useStore.getState().currentUser;
         const myName = currentUser?.name || "Guest";
         const myAvatar = currentUser?.avatar || "👤";
-        const myId = currentUser?.email || currentUser?.id || "guest-me";
+        const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
 
         set((state) => {
           const existing = state.conversations[convId];
@@ -301,7 +332,7 @@ export const useChatStore = create<ChatStore>()(
         const currentUser = useStore.getState().currentUser;
         const myName = currentUser?.name || "Guest";
         const myAvatar = currentUser?.avatar || "👤";
-        const myId = currentUser?.email || currentUser?.id || "guest-me";
+        const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
 
         const newMsg: ChatMessage = {
           id: `msg-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -321,6 +352,8 @@ export const useChatStore = create<ChatStore>()(
           status: "delivered",
           createdAt: new Date().toISOString(),
         };
+
+        const currentConv = get().conversations[conversationId];
 
         set((state) => {
           const convMessages = state.messages[conversationId] || [];
@@ -350,7 +383,11 @@ export const useChatStore = create<ChatStore>()(
           };
         });
 
-        // If Supabase is configured, also persist message to Supabase database
+        // Broadcast immediately to Supabase Realtime WebSocket channel for cross-device live delivery
+        const memorySlug = currentConv?.memorySlug;
+        broadcastChatMessage(memorySlug, newMsg, currentConv);
+
+        // If Supabase database table exists, also persist
         if (isSupabaseConfigured && currentUser?.id) {
           supabase
             .from("messages")
@@ -361,13 +398,120 @@ export const useChatStore = create<ChatStore>()(
               media_url: mediaUrl || null,
             })
             .then(() => {})
-            .catch((err) => console.warn("[Supabase Chat] Sync error:", err));
+            .catch(() => {});
         }
+      },
+
+      receiveRemoteMessage: (msg, convMeta) => {
+        const currentUser = useStore.getState().currentUser;
+        const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
+        const myName = (currentUser?.name || "").toLowerCase().trim();
+
+        // Ignore messages sent by ourselves
+        if (
+          msg.senderId === myId ||
+          (myName && msg.senderName.toLowerCase().trim() === myName)
+        ) {
+          return;
+        }
+
+        set((state) => {
+          const convId = msg.conversationId;
+          const convMessages = state.messages[convId] || [];
+
+          // Prevent duplicates
+          if (convMessages.some((m) => m.id === msg.id)) {
+            return state;
+          }
+
+          const isCurrentActive =
+            state.isDrawerOpen && state.activeConversationId === convId;
+          const existingConv = state.conversations[convId];
+
+          const updatedConv: ChatConversation = existingConv
+            ? {
+                ...existingConv,
+                lastMessage: msg,
+                updatedAt: msg.createdAt,
+                unreadCount: isCurrentActive ? 0 : (existingConv.unreadCount || 0) + 1,
+              }
+            : {
+                id: convId,
+                type:
+                  convMeta?.type ||
+                  (convId.startsWith("conv-group-") ? "memory_group" : "direct"),
+                memorySlug: convMeta?.memorySlug,
+                memoryTitle: convMeta?.memoryTitle,
+                title:
+                  convMeta?.type === "memory_group"
+                    ? `${convMeta.memoryTitle || "Memory"} — Celebration Lounge`
+                    : msg.senderName,
+                avatar:
+                  convMeta?.type === "memory_group"
+                    ? "🎉"
+                    : msg.senderAvatar || "👤",
+                avatarColor:
+                  convMeta?.type === "memory_group"
+                    ? "#EBC85A"
+                    : msg.senderColor || "#E4603C",
+                participantIds: [msg.senderId, myId],
+                participants: [
+                  {
+                    id: msg.senderId,
+                    name: msg.senderName,
+                    avatar: msg.senderAvatar,
+                    color: msg.senderColor,
+                    role: msg.senderRole,
+                    isOnline: true,
+                  },
+                  {
+                    id: myId,
+                    name: currentUser?.name || "Me",
+                    avatar: currentUser?.avatar || "👤",
+                    role: "contributor",
+                    isOnline: true,
+                  },
+                ],
+                lastMessage: msg,
+                unreadCount: isCurrentActive ? 0 : 1,
+                updatedAt: msg.createdAt,
+              };
+
+          // Play audio notification chime
+          if (state.soundEnabled) {
+            playNotificationSound();
+          }
+
+          // Show floating toast alert if user isn't currently looking at this conversation
+          if (!isCurrentActive) {
+            toast.info(`💬 ${msg.senderName}: ${msg.content || (msg.mediaType ? `[${msg.mediaType}]` : "sent a message")}`, {
+              description: convMeta?.memoryTitle ? `in ${convMeta.memoryTitle}` : undefined,
+              action: {
+                label: "Reply",
+                onClick: () => {
+                  get().setDrawerOpen(true, convId);
+                },
+              },
+            });
+          }
+
+          return {
+            messages: {
+              ...state.messages,
+              [convId]: [...convMessages, msg],
+            },
+            conversations: {
+              ...state.conversations,
+              [convId]: updatedConv,
+            },
+          };
+        });
       },
 
       toggleReaction: ({ conversationId, messageId, emoji }) => {
         const currentUser = useStore.getState().currentUser;
         const myName = currentUser?.name || "Guest";
+        let updatedReactions: Record<string, string[]> = {};
 
         set((state) => {
           const convMessages = state.messages[conversationId] || [];
@@ -388,6 +532,28 @@ export const useChatStore = create<ChatStore>()(
               reactions[emoji] = [...users, myName];
             }
 
+            updatedReactions = reactions;
+            return { ...msg, reactions };
+          });
+
+          return {
+            messages: {
+              ...state.messages,
+              [conversationId]: updated,
+            },
+          };
+        });
+
+        // Broadcast reaction across devices
+        const conv = get().conversations[conversationId];
+        broadcastChatReaction(conv?.memorySlug, conversationId, messageId, updatedReactions);
+      },
+
+      receiveRemoteReaction: (conversationId, messageId, reactions) => {
+        set((state) => {
+          const convMessages = state.messages[conversationId] || [];
+          const updated = convMessages.map((msg) => {
+            if (msg.id !== messageId) return msg;
             return { ...msg, reactions };
           });
 
@@ -462,3 +628,4 @@ export const useChatStore = create<ChatStore>()(
     }
   )
 );
+

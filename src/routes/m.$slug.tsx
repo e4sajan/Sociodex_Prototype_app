@@ -17,6 +17,7 @@ import {
   fetchMemoryFromSupabase,
   saveContributionToSupabase,
   subscribeToMemoryRealtime,
+  subscribeToChatRealtime,
   signInWithGoogle,
   sendEmailMagicLink,
   isSupabaseConfigured,
@@ -535,13 +536,24 @@ function PublicMemoryPage() {
           }
         });
 
-      const unsubscribe = subscribeToMemoryRealtime(slug, (newContrib) => {
+      const unsubscribeMemory = subscribeToMemoryRealtime(slug, (newContrib) => {
         addSimulatedContribution(slug, newContrib);
       });
 
+      const unsubscribeChat = subscribeToChatRealtime(
+        slug,
+        (msg, conv) => {
+          useChatStore.getState().receiveRemoteMessage(msg, conv);
+        },
+        (convId, msgId, reactions) => {
+          useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
+        }
+      );
+
       return () => {
         isMounted = false;
-        unsubscribe();
+        unsubscribeMemory();
+        unsubscribeChat();
       };
     } else {
       setIsLoading(false);
