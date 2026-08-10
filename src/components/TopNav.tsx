@@ -11,8 +11,8 @@ export function TopNav() {
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // Hide only on public live keepsake memory pages (/m/$slug)
-  if (location.pathname.startsWith("/m/")) return null;
+  // Hide on public live keepsake memory pages (/m/$slug) and standalone login page (/login)
+  if (location.pathname.startsWith("/m/") || location.pathname === "/login") return null;
 
   const isLandingPage = location.pathname === "/";
 

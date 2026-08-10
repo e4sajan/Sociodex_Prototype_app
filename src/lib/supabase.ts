@@ -292,6 +292,8 @@ export async function saveMemoryToSupabase(memory: MemoryData): Promise<boolean>
       theme_id: memory.themeId,
       wishes: memory.wishes || [],
       image_urls: memory.photos || [],
+      audio_urls: (memory.audios || []).map((a) => a.url).filter(Boolean),
+      video_urls: (memory.videos || []).map((v) => v.url).filter(Boolean),
     }, { onConflict: "slug" });
 
     if (error) {

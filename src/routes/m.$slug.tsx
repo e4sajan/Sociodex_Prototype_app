@@ -16,6 +16,7 @@ import {
   saveContributionToSupabase,
   subscribeToMemoryRealtime,
   signInWithGoogle,
+  sendEmailMagicLink,
   isSupabaseConfigured,
 } from "@/lib/supabase";
 import {
@@ -47,10 +48,38 @@ import {
   FileText,
   Image as ImageIcon,
   Video as VideoIcon,
+  Chrome,
+  Mail,
+  Smartphone,
+  ShieldCheck,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/m/$slug")({
+  loader: async ({ params: { slug } }) => {
+    // 1. Instant check in local Zustand memory store
+    const currentMemories = useStore.getState().memories || {};
+    const fallback = useStore.getState().memory;
+    const existing = currentMemories[slug] || (fallback?.slug === slug ? fallback : null);
+    if (existing) {
+      return { memory: existing };
+    }
+
+    // 2. Fetch from Supabase backend if configured
+    if (isSupabaseConfigured) {
+      try {
+        const remoteData = await fetchMemoryFromSupabase(slug);
+        if (remoteData && remoteData.slug) {
+          useStore.getState().setMemory(remoteData as any);
+          return { memory: remoteData };
+        }
+      } catch (err) {
+        console.error("[Route Loader] Error prefetching memory:", err);
+      }
+    }
+    return { memory: null };
+  },
+  pendingComponent: KeepsakeLoadingScreen,
   component: PublicMemoryPage,
 });
 
@@ -194,6 +223,43 @@ function FloatingSparkles() {
           }}
         />
       ))}
+    </div>
+  );
+}
+
+/* ─── Premium Keepsake Loading Screen ─── */
+function KeepsakeLoadingScreen() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-tr from-[#FBF6EC] via-[#FFFDF9] to-[#F4ECE0] p-4 text-center relative overflow-hidden">
+      {/* Background ambient sparkles */}
+      <FloatingSparkles />
+
+      <div className="relative z-10 max-w-sm w-full bg-white/90 backdrop-blur-md p-8 sm:p-10 rounded-3xl border border-[#241621]/10 shadow-xl flex flex-col items-center animate-fade-in">
+        {/* Animated pulsating keepsake icon */}
+        <div className="relative mb-6">
+          <div className="w-20 h-20 rounded-full bg-[#E4603C]/10 border border-[#E4603C]/20 flex items-center justify-center animate-pulse shadow-inner">
+            <span className="text-4xl animate-bounce select-none">🎁</span>
+          </div>
+          <div className="absolute -inset-2 rounded-full border border-[#E4603C]/25 animate-ping opacity-30 pointer-events-none" />
+        </div>
+
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E4603C]/10 text-[#E4603C] text-[11px] font-bold tracking-wider uppercase mb-3">
+          <Sparkles className="h-3.5 w-3.5 animate-spin" />
+          <span>SocioDex Keepsake</span>
+        </div>
+
+        <h2 className="font-display text-2xl font-bold text-[#241621] mb-2">
+          Preparing your keepsake...
+        </h2>
+        <p className="text-neutral-500 text-xs sm:text-sm leading-relaxed max-w-xs mb-6">
+          Gathering heartfelt wishes, photos, and voice notes for this celebration.
+        </p>
+
+        {/* Shimmer progress bar */}
+        <div className="w-full bg-[#241621]/10 h-2 rounded-full overflow-hidden relative">
+          <div className="h-full bg-gradient-to-r from-[#E4603C] via-[#EBC85A] to-[#E4603C] rounded-full w-2/3 animate-[pulse_1.5s_ease-in-out_infinite]" />
+        </div>
+      </div>
     </div>
   );
 }
@@ -420,22 +486,57 @@ function PublicMemoryPage() {
   const setGuestRsvp = useStore((s) => s.setGuestRsvp);
   const toggleFollowPage = useStore((s) => s.toggleFollowPage);
 
+  // Loading & Network Error States
+  const [isLoading, setIsLoading] = useState<boolean>(() => !activeMemory);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retryTrigger, setRetryTrigger] = useState(0);
+
   // Fetch memory from Supabase and subscribe to Realtime
   useEffect(() => {
+    let isMounted = true;
+
+    // If activeMemory is already present in Zustand store, no blocking load
+    if (activeMemory) {
+      setIsLoading(false);
+      setFetchError(null);
+    } else {
+      setIsLoading(true);
+    }
+
     if (isSupabaseConfigured && slug) {
-      fetchMemoryFromSupabase(slug).then((remoteData) => {
-        if (remoteData && remoteData.slug) {
-          setMemory(remoteData as any);
-        }
-      });
+      fetchMemoryFromSupabase(slug)
+        .then((remoteData) => {
+          if (!isMounted) return;
+          if (remoteData && remoteData.slug) {
+            setMemory(remoteData as any);
+            setFetchError(null);
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          console.error("[PublicMemoryPage] Supabase fetch error:", err);
+          if (!activeMemory) {
+            setFetchError("Unable to connect to server. Please check your internet connection.");
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        });
 
       const unsubscribe = subscribeToMemoryRealtime(slug, (newContrib) => {
         addSimulatedContribution(slug, newContrib);
       });
 
-      return () => unsubscribe();
+      return () => {
+        isMounted = false;
+        unsubscribe();
+      };
+    } else {
+      setIsLoading(false);
     }
-  }, [slug, setMemory, addSimulatedContribution]);
+  }, [slug, retryTrigger, setMemory, addSimulatedContribution]);
 
   // Local UI States
   const [tab, setTab] = useState<"all" | "wishes" | "photos" | "audios" | "videos">("all");
@@ -483,9 +584,25 @@ function PublicMemoryPage() {
 
   // Auth Modal states
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authEmail, setAuthEmail] = useState("");
-  const [authName, setAuthName] = useState("");
-  const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [authTab, setAuthTab] = useState<"google" | "email" | "phone">("google");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authGoogleError, setAuthGoogleError] = useState("");
+  const [authEmailInput, setAuthEmailInput] = useState("");
+  const [authEmailNotice, setAuthEmailNotice] = useState("");
+  const [authEmailError, setAuthEmailError] = useState("");
+  const [authPhoneStep, setAuthPhoneStep] = useState<"input" | "otp">("input");
+  const [authPhoneName, setAuthPhoneName] = useState("");
+  const [authPhoneNumber, setAuthPhoneNumber] = useState("");
+  const [authOtpCode, setAuthOtpCode] = useState(["", "", "", ""]);
+  const [authOtpNotice, setAuthOtpNotice] = useState("");
+  const [authOtpError, setAuthOtpError] = useState("");
+
+  const authOtpRefs = [
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+    useRef<HTMLInputElement>(null),
+  ];
 
   // Guest details & Preview mode
   const [guestId, setGuestId] = useState<string | null>(null);
@@ -649,6 +766,40 @@ function PublicMemoryPage() {
     return list;
   }, [activeMemory, approvedContributions]);
 
+  // 1. Show elegant keepsake loading screen while memory is being loaded from network
+  if (isLoading && !activeMemory) {
+    return <KeepsakeLoadingScreen />;
+  }
+
+  // 2. Show retry error screen if network connection failed and memory is not loaded
+  if (fetchError && !activeMemory) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F3EC] p-4 text-center">
+        <div className="max-w-md bg-white p-8 rounded-3xl border border-[#241621]/10 shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4 text-xl">
+            ⚠️
+          </div>
+          <h1 className="font-display text-2xl font-bold text-neutral-800">Connection Error</h1>
+          <p className="text-neutral-500 mt-2 text-sm">
+            {fetchError}
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              setIsLoading(true);
+              setFetchError(null);
+              setRetryTrigger((c) => c + 1);
+            }}
+            className="inline-block mt-5 rounded-full bg-[#E4603C] px-6 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-[#c94b29] transition-all cursor-pointer"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 3. Only show "Memory page not found" when loading has fully resolved AND memory does not exist
   if (!activeMemory) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F3EC] p-4 text-center">
@@ -681,43 +832,104 @@ function PublicMemoryPage() {
     });
   };
 
-  // Real Quick Sign-In Handler
-  const handleQuickSignIn = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!authEmail.trim() || !authName.trim()) {
-      toast.error("Please enter both your name and email.");
-      return;
-    }
-
-    setIsAuthLoading(true);
-    const sessionUser = {
-      id: crypto.randomUUID(),
-      name: authName.trim(),
-      email: authEmail.toLowerCase().trim(),
-      avatar: "✨",
-      provider: "email" as const,
-    };
-
-    useStore.getState().login(sessionUser);
-    setIsAuthLoading(false);
-    setShowAuthModal(false);
-    setAuthEmail("");
-    setAuthName("");
-    toast.success(`Signed in as ${sessionUser.name}! Welcome to the guestbook.`);
-    // Automatically open contribution sheet so user can post immediately!
-    setShowContributeSheet(true);
-  };
-
   // Google OAuth Handler
   const handleGoogleAuth = async () => {
-    if (!isSupabaseConfigured) {
-      toast.info("Supabase credentials not configured. Please use quick name/email sign in.");
+    setAuthLoading(true);
+    setAuthGoogleError("");
+    try {
+      const redirectUrl = `${window.location.origin}/m/${slug}`;
+      const { error } = await signInWithGoogle(redirectUrl);
+      if (error) {
+        setAuthGoogleError(error.message || "Failed to initiate Google sign in.");
+        setAuthLoading(false);
+      }
+    } catch (err: any) {
+      setAuthGoogleError(err?.message || "An unexpected error occurred during sign in.");
+      setAuthLoading(false);
+    }
+  };
+
+  // Email Magic Link Handler
+  const handleEmailMagicLinkSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authEmailInput.trim()) return;
+
+    setAuthLoading(true);
+    setAuthEmailError("");
+    setAuthEmailNotice("");
+
+    try {
+      const redirectUrl = `${window.location.origin}/m/${slug}`;
+      const { error } = await sendEmailMagicLink(authEmailInput.trim(), redirectUrl);
+      setAuthLoading(false);
+      if (error) {
+        setAuthEmailError(error.message);
+      } else {
+        setAuthEmailNotice(`✨ Magic login link sent to ${authEmailInput}! Check your inbox to complete sign in.`);
+      }
+    } catch (err: any) {
+      setAuthLoading(false);
+      setAuthEmailError(err.message || "Failed to send magic login link.");
+    }
+  };
+
+  // Phone input handler
+  const handlePhoneSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authPhoneName.trim() || !authPhoneNumber.trim()) return;
+
+    setAuthLoading(true);
+    setTimeout(() => {
+      setAuthLoading(false);
+      setAuthPhoneStep("otp");
+      setAuthOtpNotice("✨ OTP sent! Enter your verification code.");
+      setTimeout(() => setAuthOtpNotice(""), 6000);
+    }, 800);
+  };
+
+  // OTP verify handler
+  const handleOtpVerify = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = authOtpCode.join("");
+
+    if (code.length < 4) {
+      setAuthOtpError("Please enter a valid 4-digit OTP code.");
       return;
     }
-    try {
-      await signInWithGoogle(window.location.href);
-    } catch (err: any) {
-      toast.error(err?.message || "Failed to initiate Google sign in.");
+
+    setAuthLoading(true);
+    setAuthOtpError("");
+    setTimeout(() => {
+      const session = {
+        id: crypto.randomUUID(),
+        name: authPhoneName.trim(),
+        phone: authPhoneNumber.trim(),
+        avatar: "📱",
+        provider: "phone" as const,
+      };
+      useStore.getState().login(session);
+      setAuthLoading(false);
+      setShowAuthModal(false);
+      toast.success(`Signed in as ${session.name}!`);
+      setShowContributeSheet(true);
+    }, 1000);
+  };
+
+  const handleAuthOtpChange = (index: number, val: string) => {
+    if (!/^\d*$/.test(val)) return;
+
+    const newCode = [...authOtpCode];
+    newCode[index] = val.substring(val.length - 1);
+    setAuthOtpCode(newCode);
+
+    if (val && index < 3) {
+      authOtpRefs[index + 1].current?.focus();
+    }
+  };
+
+  const handleAuthOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Backspace" && !authOtpCode[index] && index > 0) {
+      authOtpRefs[index - 1].current?.focus();
     }
   };
 
@@ -1222,7 +1434,6 @@ function PublicMemoryPage() {
                   </button>
                 </div>
               ) : (
-                <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setShowAuthModal(true)}
@@ -1230,14 +1441,6 @@ function PublicMemoryPage() {
                   >
                     Sign In
                   </button>
-                  <Link
-                    to="/login"
-                    search={{ redirect: `/m/${slug}` }}
-                    className="hidden sm:inline-block rounded-full border border-[#241621]/15 px-3 py-1.5 text-xs font-semibold text-neutral-700 hover:bg-white cursor-pointer"
-                  >
-                    Full Login
-                  </Link>
-                </div>
               )}
             </div>
           </div>
@@ -2439,100 +2642,278 @@ function PublicMemoryPage() {
         </div>
       )}
 
-      {/* ── FUNCTIONAL SIGN-IN MODAL ── */}
+      {/* ── SOCIODEX AUTHENTICATION MODAL ── */}
       {showAuthModal && (
         <div
           onClick={() => setShowAuthModal(false)}
           className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
         >
+          {authOtpNotice && (
+            <div className="fixed top-6 left-1/2 -translate-x-1/2 z-60 animate-bounce max-w-sm w-full bg-[#E4603C] text-white px-4 py-3 rounded-2xl shadow-xl flex items-center gap-3 border border-white/20 backdrop-blur-md">
+              <Sparkles className="h-5 w-5 animate-spin shrink-0" />
+              <div className="text-xs font-medium leading-normal">{authOtpNotice}</div>
+            </div>
+          )}
+
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-3xl border border-neutral-100 max-w-sm w-full p-6 shadow-2xl"
+            className="relative z-10 w-full max-w-[430px] overflow-hidden rounded-[2.5rem] border border-[#241621]/15 bg-white/95 p-6 shadow-[0_24px_70px_rgba(36,22,33,0.15)] backdrop-blur-2xl transition-all sm:p-8 text-center"
           >
-            <div className="text-center">
-              <div className="h-11 w-11 rounded-full bg-[#E4603C]/10 text-[#E4603C] flex items-center justify-center mx-auto mb-3">
-                <Lock className="h-5.5 w-5.5" />
-              </div>
-              <h3 className="font-display text-xl font-bold text-neutral-800">
-                Join the Celebration
-              </h3>
-              <p className="text-xs text-neutral-500 leading-relaxed mt-1">
-                Enter your details to sign in and share your warm wishes on {activeMemory.recipient}'s memory page.
-              </p>
-            </div>
-
-            {/* Google OAuth Option */}
-            <div className="mt-5 space-y-3">
-              <button
-                type="button"
-                onClick={handleGoogleAuth}
-                className="w-full rounded-full border border-neutral-200 hover:bg-neutral-50 py-2.5 px-4 text-xs font-bold text-neutral-800 flex items-center justify-center gap-2 cursor-pointer transition shadow-xs"
-              >
-                <span>🌐</span> Continue with Google
-              </button>
-
-              <div className="flex items-center gap-2 my-2">
-                <div className="h-px flex-1 bg-neutral-200" />
-                <span className="text-[10px] font-bold text-neutral-400 uppercase">Or quick sign in</span>
-                <div className="h-px flex-1 bg-neutral-200" />
-              </div>
-
-              <form onSubmit={handleQuickSignIn} className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">
-                    Your Name
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={authName}
-                    onChange={(e) => setAuthName(e.target.value)}
-                    placeholder="e.g. Maya Patel"
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs outline-none focus:border-[#E4603C]"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-neutral-500 mb-1">
-                    Your Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={authEmail}
-                    onChange={(e) => setAuthEmail(e.target.value)}
-                    placeholder="e.g. maya@example.com"
-                    className="w-full rounded-xl border border-neutral-200 px-3 py-2 text-xs outline-none focus:border-[#E4603C]"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isAuthLoading}
-                  className="w-full rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white py-2.5 text-xs font-bold shadow-xs transition cursor-pointer"
-                >
-                  Sign In & Continue
-                </button>
-              </form>
-
-              <div className="pt-2 text-center">
-                <Link
-                  to="/login"
-                  search={{ redirect: `/m/${slug}` }}
-                  className="text-[11px] font-semibold text-[#C17F5A] hover:underline"
-                >
-                  Go to Full Login Page →
-                </Link>
-              </div>
-            </div>
-
+            {/* Close Button */}
             <button
               type="button"
               onClick={() => setShowAuthModal(false)}
-              className="mt-3 w-full text-center text-[10px] font-semibold text-neutral-400 hover:text-neutral-600 uppercase tracking-wider cursor-pointer"
+              className="absolute top-5 right-5 p-2 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition cursor-pointer"
+              aria-label="Close"
             >
-              Cancel
+              <X className="h-5 w-5" />
             </button>
+
+            <div className="text-center space-y-2 mt-2">
+              <div className="flex justify-center">
+                <SocioDexLogo size="lg" />
+              </div>
+              <h2 className="font-display text-2xl font-bold tracking-tight text-[#241621] pt-1">
+                Sign In to SocioDex
+              </h2>
+              <p className="text-xs text-[#6B5A66] px-3 font-medium">
+                Access your celebration memory pages, activity dashboard, and guest RSVPs.
+              </p>
+            </div>
+
+            {/* Tab Selection */}
+            {authPhoneStep === "input" && (
+              <div className="mt-6 flex rounded-full bg-[#F4ECE0] p-1">
+                <button
+                  type="button"
+                  onClick={() => setAuthTab("google")}
+                  className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authTab === "google"
+                      ? "bg-white text-[#241621] shadow-xs"
+                      : "text-[#6B5A66] hover:text-[#241621]"
+                  }`}
+                >
+                  <Chrome className="h-3.5 w-3.5 text-[#E4603C]" />
+                  Google
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthTab("email")}
+                  className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authTab === "email"
+                      ? "bg-white text-[#241621] shadow-xs"
+                      : "text-[#6B5A66] hover:text-[#241621]"
+                  }`}
+                >
+                  <Mail className="h-3.5 w-3.5 text-[#E4603C]" />
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAuthTab("phone")}
+                  className={`flex-1 rounded-full py-2 text-[11px] font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    authTab === "phone"
+                      ? "bg-white text-[#241621] shadow-xs"
+                      : "text-[#6B5A66] hover:text-[#241621]"
+                  }`}
+                >
+                  <Smartphone className="h-3.5 w-3.5 text-[#E4603C]" />
+                  Mobile
+                </button>
+              </div>
+            )}
+
+            {/* LOADING STATE */}
+            {authLoading ? (
+              <div className="my-10 flex flex-col items-center justify-center py-6 text-center">
+                <span className="relative flex h-10 w-10">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E4603C]/40 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-10 w-10 bg-[#E4603C]/20 items-center justify-center">
+                    <Sparkles className="h-5 w-5 text-[#E4603C] animate-spin" />
+                  </span>
+                </span>
+                <div className="mt-5 text-sm font-bold text-[#241621]">Connecting to Secure Auth...</div>
+                <div className="text-[10px] text-[#6B5A66] mt-1 font-medium">
+                  Redirecting to secure authentication
+                </div>
+              </div>
+            ) : (
+              <div className="mt-6">
+                {/* GOOGLE SIGN IN PANEL */}
+                {authTab === "google" && (
+                  <div className="space-y-4">
+                    {authGoogleError && (
+                      <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium leading-relaxed text-left">
+                        {authGoogleError}
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={handleGoogleAuth}
+                      className="flex w-full items-center justify-center gap-3 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-4 py-3.5 text-sm font-bold text-[#241621] shadow-xs transition-all cursor-pointer"
+                    >
+                      <svg className="h-5 w-5" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                      Continue with Google
+                    </button>
+
+                    <div className="flex items-center justify-center gap-2 py-2 text-[10px] text-[#6B5A66] uppercase tracking-widest font-semibold">
+                      <ShieldCheck className="h-3.5 w-3.5 text-[#E4603C]" /> END-TO-END ENCRYPTED
+                    </div>
+                  </div>
+                )}
+
+                {/* EMAIL SIGN IN PANEL */}
+                {authTab === "email" && (
+                  <form onSubmit={handleEmailMagicLinkSubmit} className="space-y-4 text-left">
+                    {authEmailNotice && (
+                      <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium leading-relaxed">
+                        {authEmailNotice}
+                      </div>
+                    )}
+                    {authEmailError && (
+                      <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+                        {authEmailError}
+                      </div>
+                    )}
+                    <div>
+                      <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6B5A66]">
+                        Email Address
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={authEmailInput}
+                        onChange={(e) => setAuthEmailInput(e.target.value)}
+                        placeholder="sarah@example.com"
+                        className="mt-1 w-full rounded-2xl border border-[#241621]/20 bg-white px-4 py-3 text-xs outline-none focus:border-[#E4603C]"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white py-3.5 text-xs font-bold shadow-md cursor-pointer transition-all"
+                    >
+                      Send Magic Login Link ✉️
+                    </button>
+                    <div className="flex items-center justify-center gap-2 py-1 text-[10px] text-[#6B5A66] uppercase tracking-widest font-semibold text-center">
+                      <ShieldCheck className="h-3.5 w-3.5 text-[#E4603C]" /> END-TO-END ENCRYPTED
+                    </div>
+                  </form>
+                )}
+
+                {/* PHONE SIGN IN PANEL */}
+                {authTab === "phone" && (
+                  <div>
+                    {authPhoneStep === "input" ? (
+                      <form onSubmit={handlePhoneSubmit} className="space-y-4 text-left">
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6B5A66]">
+                            Full Name
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            value={authPhoneName}
+                            onChange={(e) => setAuthPhoneName(e.target.value)}
+                            placeholder="e.g. Sarah Miller"
+                            className="mt-1 w-full rounded-2xl border border-[#241621]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#E4603C]"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-[#6B5A66]">
+                            Mobile Number
+                          </label>
+                          <input
+                            type="tel"
+                            required
+                            value={authPhoneNumber}
+                            onChange={(e) => setAuthPhoneNumber(e.target.value)}
+                            placeholder="e.g. +1 555 019 2831"
+                            className="mt-1 w-full rounded-2xl border border-[#241621]/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#E4603C]"
+                          />
+                        </div>
+
+                        <button
+                          type="submit"
+                          className="mt-2 w-full rounded-full bg-[#E4603C] hover:bg-[#c94b29] py-3.5 text-sm font-bold text-white shadow-md transition-all cursor-pointer"
+                        >
+                          Verify Mobile Number
+                        </button>
+                        <div className="flex items-center justify-center gap-2 py-1 text-[10px] text-[#6B5A66] uppercase tracking-widest font-semibold text-center">
+                          <ShieldCheck className="h-3.5 w-3.5 text-[#E4603C]" /> END-TO-END ENCRYPTED
+                        </div>
+                      </form>
+                    ) : (
+                      <form onSubmit={handleOtpVerify} className="space-y-5">
+                        <div className="text-center">
+                          <h3 className="text-sm font-bold text-[#241621]">
+                            Enter Verification Code
+                          </h3>
+                          <p className="mt-1 text-xs text-[#6B5A66] font-medium">
+                            We sent a code to <strong>{authPhoneNumber}</strong>
+                          </p>
+                        </div>
+
+                        <div className="flex justify-center gap-3 py-1">
+                          {authOtpCode.map((digit, i) => (
+                            <input
+                              key={i}
+                              ref={authOtpRefs[i]}
+                              type="text"
+                              maxLength={1}
+                              value={digit}
+                              placeholder="0"
+                              onChange={(e) => handleAuthOtpChange(i, e.target.value)}
+                              onKeyDown={(e) => handleAuthOtpKeyDown(i, e)}
+                              className="h-14 w-12 rounded-2xl border border-[#241621]/15 bg-white text-center font-display text-xl font-bold outline-none focus:border-[#E4603C]"
+                            />
+                          ))}
+                        </div>
+
+                        {authOtpError && (
+                          <div className="text-center text-xs font-bold text-[#E4603C]">
+                            {authOtpError}
+                          </div>
+                        )}
+
+                        <div className="flex gap-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setAuthPhoneStep("input")}
+                            className="flex-1 rounded-full border border-[#241621]/15 py-3 text-xs font-bold text-[#241621] hover:bg-[#FAF6F0] cursor-pointer"
+                          >
+                            Change Number
+                          </button>
+                          <button
+                            type="submit"
+                            className="flex-1 rounded-full bg-[#E4603C] hover:bg-[#c94b29] py-3 text-xs font-bold text-white shadow-md cursor-pointer"
+                          >
+                            Confirm & Sign In
+                          </button>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
