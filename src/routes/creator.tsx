@@ -206,7 +206,7 @@ function MemoryCreator() {
         collaborationRequests: [],
         // Community defaults
         contributionMode: "open",
-        autoApprove: false,
+        autoApprove: true,
         pinnedContributionIds: [],
         expiresAt: null,
         contributions: [],

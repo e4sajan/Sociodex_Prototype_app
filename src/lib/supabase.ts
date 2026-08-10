@@ -312,6 +312,7 @@ export async function saveContributionToSupabase(
     const { data: userData } = await supabase.auth.getUser();
 
     const { error } = await supabase.from("contributions").insert({
+      id: contribution.id,
       memory_page_id: page.id,
       contributor_id: userData?.user?.id || null,
       contributor_name: contribution.contributor_name,

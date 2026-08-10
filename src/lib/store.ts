@@ -246,7 +246,7 @@ const createDefaultMemoryData = (
   contributedMedia: [],
   collaborationRequests: [],
   contributionMode: "open",
-  autoApprove: false,
+  autoApprove: true,
   pinnedContributionIds: [],
   expiresAt: null,
   contributions: [],
@@ -477,6 +477,37 @@ export const useStore = create<State>()(
           const existing = s.memories[slug] || (s.memory?.slug === slug ? s.memory : null);
           if (!existing) return {};
           const list = existing.contributions || [];
+          // Deduplicate strictly by ID
+          if (list.some((c) => c.id === contribution.id)) {
+            return {};
+          }
+          // Check for duplicate echo from realtime broadcast
+          const isDuplicate = list.some((c) => {
+            const sameAuthor = c.contributor_name === contribution.contributor_name;
+            const sameType = c.type === contribution.type;
+            if (!sameAuthor || !sameType) return false;
+
+            // If it has media URLs, check if the media URL matches
+            if (contribution.media_urls && contribution.media_urls.length > 0) {
+              const cMedia = (c.media_urls || []).join(",");
+              const newMedia = contribution.media_urls.join(",");
+              return cMedia === newMedia;
+            }
+
+            // If it is text-only wish
+            if (contribution.content_text && contribution.content_text.trim().length > 0) {
+              return (
+                c.content_text === contribution.content_text &&
+                Math.abs(new Date(c.created_at).getTime() - new Date(contribution.created_at).getTime()) < 10000
+              );
+            }
+
+            return false;
+          });
+
+          if (isDuplicate) {
+            return {};
+          }
           const updated = {
             ...existing,
             contributions: [...list, contribution],
