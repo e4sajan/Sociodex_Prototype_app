@@ -1,12 +1,17 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
-import { Heart, BarChart3, LogOut, LogIn, Home, Sparkles, ArrowRight } from "lucide-react";
+import { useChatStore } from "@/lib/chatStore";
+import { Heart, BarChart3, LogOut, LogIn, Home, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
 
 export function TopNav() {
   const currentUser = useStore((s) => s.currentUser);
   const logout = useStore((s) => s.logout);
+  const setDrawerOpen = useChatStore((s) => s.setDrawerOpen);
+  const getTotalUnreadCount = useChatStore((s) => s.getTotalUnreadCount);
+  const totalUnread = getTotalUnreadCount();
+
   const location = useLocation();
   const navigate = useNavigate();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -95,10 +100,27 @@ export function TopNav() {
           </nav>
 
           {/* Right Action Buttons & Auth */}
-          <div className="flex items-center gap-3">
-
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            {/* Global Chat Launcher Button - only visible when logged in */}
+            {currentUser && (
+              <button
+                type="button"
+                onClick={() => setDrawerOpen(true)}
+                title="Open Chat & Messages"
+                aria-label="Open Chat"
+                className="relative p-2.5 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] text-[#241621] transition-all cursor-pointer shadow-xs select-none hover:border-[#E4603C]/40 hover:text-[#E4603C]"
+              >
+                <MessageSquare className="h-4 w-4" />
+                {totalUnread > 0 && (
+                  <span className="absolute -top-1 -right-1 h-4 min-w-4 px-1 rounded-full bg-[#E4603C] text-white text-[9px] font-extrabold flex items-center justify-center shadow-xs">
+                    {totalUnread}
+                  </span>
+                )}
+              </button>
+            )}
 
             {/* AUTH / PROFILE */}
+
             {currentUser ? (
               <div className="relative">
                 <button

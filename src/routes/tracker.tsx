@@ -1,6 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { useStore, getPageRole, type PageRole, type MemoryData } from "@/lib/store";
+import { useChatStore } from "@/lib/chatStore";
 import {
   Users,
   MessageSquare,
@@ -679,9 +680,22 @@ function DashboardPage() {
                         </span>
                         <span className="font-bold text-[#241621]">{c.name}</span>
                       </div>
-                      <span className="text-[10px] font-semibold text-[#594855] bg-[#F4ECE0] px-2 py-0.5 rounded-full">
-                        Contributor
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          useChatStore.getState().openChatWithContributor({
+                            name: c.name,
+                            avatar: c.name[0],
+                            avatarColor: "#E4603C",
+                            memorySlug: activeMemory.slug,
+                            memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#E4603C]/10 hover:bg-[#E4603C]/20 border border-[#E4603C]/20 px-2.5 py-0.5 text-[11px] font-bold text-[#E4603C] transition cursor-pointer select-none"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Message</span>
+                      </button>
                     </div>
                   ))}
                   {uniqueContributors.length === 0 && (
@@ -709,9 +723,23 @@ function DashboardPage() {
                         </span>
                         <span className="font-bold text-[#241621]">{followerName}</span>
                       </div>
-                      <span className="text-[10px] font-semibold text-[#594855] bg-[#F4ECE0] px-2 py-0.5 rounded-full">
-                        Following
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          useChatStore.getState().openChatWithContributor({
+                            name: followerName,
+                            avatar: "⭐",
+                            avatarColor: "#EBC85A",
+                            role: "follower",
+                            memorySlug: activeMemory.slug,
+                            memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full bg-neutral-100 hover:bg-[#FAF6F0] border border-neutral-200 px-2.5 py-0.5 text-[11px] font-semibold text-neutral-700 hover:text-[#E4603C] transition cursor-pointer select-none"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Chat</span>
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -732,9 +760,23 @@ function DashboardPage() {
                       </div>
                       <div className="text-[9px] text-[#594855]">Creator (Owner)</div>
                     </div>
-                    <span className="text-[9px] font-bold bg-[#E4603C] text-white px-2 py-0.5 rounded-full">
-                      Owner
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        useChatStore.getState().openChatWithContributor({
+                          name: activeMemory.creatorName || activeMemory.from,
+                          avatar: "👑",
+                          avatarColor: "#E4603C",
+                          role: "creator",
+                          memorySlug: activeMemory.slug,
+                          memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                        });
+                      }}
+                      className="inline-flex items-center gap-1 rounded-full bg-[#E4603C] hover:bg-[#c94b29] text-white px-2.5 py-0.5 text-[11px] font-bold shadow-xs transition cursor-pointer select-none"
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      <span>Message</span>
+                    </button>
                   </div>
 
                   {activeMemory.collaborators?.map((collab) => (
@@ -746,9 +788,24 @@ function DashboardPage() {
                         <div className="font-bold text-[#241621]">{collab.name}</div>
                         <div className="text-[9px] text-[#594855]">{collab.email}</div>
                       </div>
-                      <span className="text-[9px] font-bold bg-[#241621] text-white px-2 py-0.5 rounded-full">
-                        Co-Admin
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          useChatStore.getState().openChatWithContributor({
+                            name: collab.name,
+                            emailOrId: collab.email,
+                            avatar: collab.name[0],
+                            avatarColor: "#3E4A75",
+                            role: "admin",
+                            memorySlug: activeMemory.slug,
+                            memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                          });
+                        }}
+                        className="inline-flex items-center gap-1 rounded-full bg-[#3E4A75]/10 hover:bg-[#3E4A75]/20 border border-[#3E4A75]/20 px-2.5 py-0.5 text-[11px] font-bold text-[#3E4A75] transition cursor-pointer select-none"
+                      >
+                        <MessageSquare className="h-3 w-3" />
+                        <span>Chat</span>
+                      </button>
                     </div>
                   ))}
                 </div>

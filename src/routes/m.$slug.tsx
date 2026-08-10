@@ -10,6 +10,8 @@ import {
   type SimulatedReaction,
   type SimulatedReply,
 } from "@/lib/store";
+import { useChatStore } from "@/lib/chatStore";
+import { ContributorChatButton } from "@/components/chat/ContributorChatButton";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
 import {
   fetchMemoryFromSupabase,
@@ -1414,6 +1416,25 @@ function PublicMemoryPage() {
                 </button>
               )}
 
+              {/* Memory Room Group Chat Button */}
+              {activeMemory && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    useChatStore.getState().openMemoryGroupChat({
+                      memorySlug: activeMemory.slug,
+                      memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                      creatorName: activeMemory.creatorName || activeMemory.from,
+                    });
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white border border-[#241621]/15 px-3 py-1 text-xs font-bold text-[#241621] hover:bg-[#FAF6F0] hover:text-[#E4603C] hover:border-[#E4603C]/30 transition-all cursor-pointer shadow-xs select-none"
+                  title="Open Group Celebration Chat Room"
+                >
+                  <MessageSquare className="h-3.5 w-3.5 text-[#E4603C]" />
+                  <span className="hidden sm:inline">Memory Chat</span>
+                </button>
+              )}
+
               {currentUser ? (
                 <div className="flex items-center gap-2.5">
                   <span className="h-8 w-8 rounded-full bg-[#E4603C]/10 text-xs font-bold flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C]">
@@ -1953,17 +1974,31 @@ function PublicMemoryPage() {
                   >
                     {/* Header Row */}
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div
+                        onClick={() => {
+                          useChatStore.getState().openChatWithContributor({
+                            name: c.contributor_name,
+                            emailOrId: c.contributor_id,
+                            avatar: c.contributor_name[0],
+                            avatarColor: style.bg,
+                            memorySlug: activeMemory.slug,
+                            memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                          });
+                        }}
+                        className="flex items-center gap-3 cursor-pointer group/contributor select-none"
+                        title={`Click to chat with ${c.contributor_name}`}
+                      >
                         <span
-                          className="h-9 w-9 rounded-full text-xs font-bold flex items-center justify-center border border-white shrink-0 shadow-xs"
+                          className="h-9 w-9 rounded-full text-xs font-bold flex items-center justify-center border border-white shrink-0 shadow-xs group-hover/contributor:scale-105 group-hover/contributor:shadow-md transition-all"
                           style={{ backgroundColor: style.bg, color: style.text }}
                         >
                           {c.contributor_name[0]}
                         </span>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-xs sm:text-sm font-bold text-neutral-900 leading-none">
-                              {c.contributor_name}
+                            <h4 className="text-xs sm:text-sm font-bold text-neutral-900 leading-none group-hover/contributor:text-[#E4603C] transition-colors flex items-center gap-1">
+                              <span>{c.contributor_name}</span>
+                              <MessageSquare className="h-3 w-3 opacity-0 group-hover/contributor:opacity-100 transition-opacity text-[#E4603C]" />
                             </h4>
                             <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E4603C]/10 text-[#E4603C] border border-[#E4603C]/20">
                               {c.type === "wish" && "💌 Wish"}
@@ -1992,72 +2027,102 @@ function PublicMemoryPage() {
                         </div>
                       </div>
 
-                      {/* Dropdown Menu for Post Actions */}
-                      {(isMyOwn || isOwner) && (
-                        <div className="relative group/menu">
-                          <button
-                            type="button"
-                            aria-label="Actions menu"
-                            className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition cursor-pointer"
-                          >
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
+                      {/* Right Action & Dropdown Menu */}
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <ContributorChatButton
+                          name={c.contributor_name}
+                          emailOrId={c.contributor_id}
+                          avatar={c.contributor_name[0]}
+                          avatarColor={style.bg}
+                          memorySlug={activeMemory.slug}
+                          memoryTitle={activeMemory.occasion || activeMemory.recipient}
+                          variant="badge"
+                        />
 
-                          <div className="absolute right-0 top-full mt-1 w-36 rounded-xl border border-[#241621]/10 bg-white p-1.5 shadow-xl opacity-0 scale-95 group-hover/menu:opacity-100 group-hover/menu:scale-100 transition-all z-10 pointer-events-none group-hover/menu:pointer-events-auto">
-                            {isOwner && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => handlePinToggle(c.id)}
-                                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Pin className="h-3.5 w-3.5 text-[#C17F5A]" />
-                                  {isPinned ? "Unpin Post" : "Pin to Top"}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    updateSimulatedContributionStatus(
-                                      activeMemory.slug,
-                                      c.id,
-                                      "rejected"
-                                    );
-                                    toast.success("Post removed from feed.");
-                                  }}
-                                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  Remove Post
-                                </button>
-                              </>
-                            )}
+                        {(isMyOwn || isOwner) && (
+                          <div className="relative group/menu">
+                            <button
+                              type="button"
+                              aria-label="Actions menu"
+                              className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition cursor-pointer"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
 
-                            {isMyOwn && !isOwner && (
-                              <>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingContribId(c.id);
-                                    setEditingContribText(c.content_text || "");
-                                  }}
-                                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <FileText className="h-3.5 w-3.5" />
-                                  Edit Message
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteContribution(c.id)}
-                                  className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                  Delete Post
-                                </button>
-                              </>
-                            )}
+                            <div className="absolute right-0 top-full mt-1 w-38 rounded-xl border border-[#241621]/10 bg-white p-1.5 shadow-xl opacity-0 scale-95 group-hover/menu:opacity-100 group-hover/menu:scale-100 transition-all z-10 pointer-events-none group-hover/menu:pointer-events-auto">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  useChatStore.getState().openChatWithContributor({
+                                    name: c.contributor_name,
+                                    emailOrId: c.contributor_id,
+                                    avatar: c.contributor_name[0],
+                                    avatarColor: style.bg,
+                                    memorySlug: activeMemory.slug,
+                                    memoryTitle: activeMemory.occasion || activeMemory.recipient,
+                                  });
+                                }}
+                                className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5 text-[#E4603C]" />
+                                Direct Message
+                              </button>
+
+                              {isOwner && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handlePinToggle(c.id)}
+                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Pin className="h-3.5 w-3.5 text-[#C17F5A]" />
+                                    {isPinned ? "Unpin Post" : "Pin to Top"}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      updateSimulatedContributionStatus(
+                                        activeMemory.slug,
+                                        c.id,
+                                        "rejected"
+                                      );
+                                      toast.success("Post removed from feed.");
+                                    }}
+                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Remove Post
+                                  </button>
+                                </>
+                              )}
+
+                              {isMyOwn && !isOwner && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingContribId(c.id);
+                                      setEditingContribText(c.content_text || "");
+                                    }}
+                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-semibold text-neutral-700 hover:bg-neutral-50 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <FileText className="h-3.5 w-3.5" />
+                                    Edit Message
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteContribution(c.id)}
+                                    className="w-full text-left rounded-lg px-2.5 py-1.5 text-[11px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-2 cursor-pointer"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                    Delete Post
+                                  </button>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                      )}
+                        )}
+                      </div>
                     </div>
 
                     {/* Content Section */}

@@ -1,0 +1,885 @@
+import { useState, useRef, useEffect, useMemo } from "react";
+import {
+  X,
+  Send,
+  MessageSquare,
+  Search,
+  Users,
+  User,
+  Sparkles,
+  Smile,
+  Image as ImageIcon,
+  Mic,
+  Square,
+  Volume2,
+  VolumeX,
+  ArrowLeft,
+  Check,
+  CheckCheck,
+  MoreVertical,
+  Trash2,
+  Reply,
+  Heart,
+  ThumbsUp,
+  PartyPopper,
+  Flame,
+  Phone,
+  Video,
+  Info,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
+import { useChatStore, type ChatMessage, type ChatConversation } from "@/lib/chatStore";
+import { useStore } from "@/lib/store";
+import { toast } from "sonner";
+
+const QUICK_SUGGESTIONS = [
+  "Loved your memory photo! 📸",
+  "So excited for the party! 🎉",
+  "Let's coordinate on the group gift! 🎁",
+  "Thank you for the warm wish! 💖",
+  "Can't wait to see everyone! ✨",
+];
+
+const EMOJI_LIST = ["❤️", "👍", "👏", "🎉", "😂", "✨", "🙏", "💖", "🌸", "🥂", "🎂", "💐"];
+
+export function ChatDrawer() {
+  const isDrawerOpen = useChatStore((s) => s.isDrawerOpen);
+  const activeConversationId = useChatStore((s) => s.activeConversationId);
+  const conversations = useChatStore((s) => s.conversations);
+  const messages = useChatStore((s) => s.messages);
+  const filterTab = useChatStore((s) => s.filterTab);
+  const soundEnabled = useChatStore((s) => s.soundEnabled);
+
+  const setDrawerOpen = useChatStore((s) => s.setDrawerOpen);
+  const setActiveConversation = useChatStore((s) => s.setActiveConversation);
+  const setFilterTab = useChatStore((s) => s.setFilterTab);
+  const toggleSoundEnabled = useChatStore((s) => s.toggleSoundEnabled);
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const toggleReaction = useChatStore((s) => s.toggleReaction);
+  const markAsRead = useChatStore((s) => s.markAsRead);
+  const deleteMessage = useChatStore((s) => s.deleteMessage);
+
+  const currentUser = useStore((s) => s.currentUser);
+
+  // Local component states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inputText, setInputText] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  // Voice note recording states
+  const [isRecordingVoice, setIsRecordingVoice] = useState(false);
+  const [voiceSeconds, setVoiceSeconds] = useState(0);
+  const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Photo upload ref
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Scroll to bottom anchor
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
+
+  const activeConv: ChatConversation | undefined = activeConversationId
+    ? conversations[activeConversationId]
+    : undefined;
+  const activeMessages: ChatMessage[] = activeConversationId
+    ? messages[activeConversationId] || []
+    : [];
+
+  // Filtered conversations list
+  const filteredConversations = useMemo(() => {
+    const list = Object.values(conversations).sort(
+      (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    );
+
+    return list.filter((conv) => {
+      // Tab filter
+      if (filterTab === "direct" && conv.type !== "direct") return false;
+      if (filterTab === "memory_group" && conv.type !== "memory_group") return false;
+
+      // Search query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTitle = conv.title.toLowerCase().includes(q);
+        const matchMemory = conv.memoryTitle?.toLowerCase().includes(q);
+        const matchLast = conv.lastMessage?.content.toLowerCase().includes(q);
+        return matchTitle || matchMemory || matchLast;
+      }
+      return true;
+    });
+  }, [conversations, filterTab, searchQuery]);
+
+  // Auto-scroll on new message
+  useEffect(() => {
+    if (activeConversationId) {
+      markAsRead(activeConversationId);
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [activeConversationId, activeMessages.length, markAsRead]);
+
+  // Voice note timer
+  useEffect(() => {
+    if (isRecordingVoice) {
+      setVoiceSeconds(0);
+      voiceTimerRef.current = setInterval(() => {
+        setVoiceSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    }
+    return () => {
+      if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
+    };
+  }, [isRecordingVoice]);
+
+  if (!isDrawerOpen) return null;
+
+  const handleSendText = () => {
+    if (!inputText.trim() || !activeConversationId) return;
+
+    sendMessage({
+      conversationId: activeConversationId,
+      content: inputText.trim(),
+      replyToId: replyTo?.id,
+      replyToSnippet: replyTo?.content.slice(0, 50),
+    });
+
+    setInputText("");
+    setReplyTo(null);
+    setShowEmojiPicker(false);
+  };
+
+  const handleSendVoiceNote = () => {
+    if (!activeConversationId) return;
+    setIsRecordingVoice(false);
+
+    const duration = Math.max(1, voiceSeconds);
+    sendMessage({
+      conversationId: activeConversationId,
+      content: `🎙️ Voice Note (${duration}s)`,
+      mediaUrl: "https://actions.google.com/sounds/v1/ambiences/coffee_shop.ogg", // simulated audio waveform
+      mediaType: "audio",
+      audioDuration: duration,
+    });
+    toast.success("Voice note sent!");
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeConversationId) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      sendMessage({
+        conversationId: activeConversationId,
+        content: "📸 Sent a photo attachment",
+        mediaUrl: base64,
+        mediaType: "photo",
+      });
+      toast.success("Photo attachment shared!");
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex justify-end pointer-events-none">
+      {/* Backdrop overlay */}
+      <div
+        onClick={() => setDrawerOpen(false)}
+        className="fixed inset-0 bg-[#241621]/40 backdrop-blur-xs transition-opacity duration-300 pointer-events-auto"
+      />
+
+      {/* Slide-over Drawer Panel */}
+      <div
+        className={`relative flex flex-col bg-[#FFFDF9] text-[#241621] shadow-2xl border-l border-[#241621]/15 transition-all duration-300 ease-in-out pointer-events-auto h-full ${
+          isMaximized
+            ? "w-full max-w-4xl"
+            : "w-full max-w-md sm:max-w-lg"
+        }`}
+      >
+        {/* ==================================================================== */}
+        {/* INBOX LIST VIEW (When no active conversation selected)               */}
+        {/* ==================================================================== */}
+        {!activeConv ? (
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <div className="p-4 sm:p-5 border-b border-[#241621]/10 bg-white/80 backdrop-blur-md">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-2xl bg-[#E4603C]/10 flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C]">
+                    <MessageSquare className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="font-display text-lg sm:text-xl font-bold leading-tight text-[#241621]">
+                      SocioDex Messages
+                    </h2>
+                    <p className="text-[11px] text-[#594855] font-medium">
+                      Chat with memory contributors & guests
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={toggleSoundEnabled}
+                    title={soundEnabled ? "Mute notification sounds" : "Enable notification sounds"}
+                    className="p-2 rounded-full hover:bg-neutral-100 text-neutral-500 transition cursor-pointer"
+                  >
+                    {soundEnabled ? <Volume2 className="h-4 w-4 text-[#E4603C]" /> : <VolumeX className="h-4 w-4" />}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDrawerOpen(false)}
+                    aria-label="Close Chat"
+                    className="p-2 rounded-full hover:bg-neutral-100 text-neutral-500 transition cursor-pointer"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Search Bar */}
+              <div className="mt-3.5 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-neutral-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search contributors, memory rooms..."
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#241621]/10 outline-none focus:border-[#E4603C] transition"
+                />
+              </div>
+
+              {/* Filter Tabs */}
+              <div className="flex items-center gap-1.5 mt-3">
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("all")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    filterTab === "all"
+                      ? "bg-[#E4603C] text-white shadow-xs"
+                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
+                  }`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("direct")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    filterTab === "direct"
+                      ? "bg-[#E4603C] text-white shadow-xs"
+                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
+                  }`}
+                >
+                  <User className="h-3 w-3" />
+                  Direct
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFilterTab("memory_group")}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    filterTab === "memory_group"
+                      ? "bg-[#E4603C] text-white shadow-xs"
+                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
+                  }`}
+                >
+                  <Users className="h-3 w-3" />
+                  Rooms
+                </button>
+              </div>
+            </div>
+
+            {/* Conversation Threads List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+              {filteredConversations.length === 0 ? (
+                <div className="text-center py-12 px-4 space-y-3">
+                  <div className="h-12 w-12 rounded-full bg-[#FAF6F0] mx-auto flex items-center justify-center text-xl text-neutral-400">
+                    💬
+                  </div>
+                  <h3 className="text-sm font-bold text-neutral-700">No conversations found</h3>
+                  <p className="text-xs text-neutral-500 max-w-xs mx-auto">
+                    Click on any contributor's name or avatar on a memory page to start a live chat!
+                  </p>
+                </div>
+              ) : (
+                filteredConversations.map((conv) => {
+                  const hasUnread = (conv.unreadCount || 0) > 0;
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => setActiveConversation(conv.id)}
+                      className={`group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
+                        hasUnread
+                          ? "bg-white border-[#E4603C]/30 shadow-xs hover:border-[#E4603C]"
+                          : "bg-white/60 hover:bg-white border-[#241621]/10 hover:border-[#241621]/20 hover:shadow-xs"
+                      }`}
+                    >
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        <div
+                          className="h-11 w-11 rounded-2xl flex items-center justify-center text-lg font-bold shadow-xs border border-white"
+                          style={{
+                            backgroundColor: conv.avatarColor || (conv.type === "memory_group" ? "#EBC85A" : "#E4603C"),
+                            color: "#FFFFFF",
+                          }}
+                        >
+                          {conv.avatar || (conv.type === "memory_group" ? "🎉" : conv.title[0])}
+                        </div>
+                        {conv.type === "direct" && (
+                          <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                        )}
+                      </div>
+
+                      {/* Info & Snippet */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <h4 className="text-xs sm:text-sm font-bold text-[#241621] truncate">
+                            {conv.title}
+                          </h4>
+                          <span className="text-[10px] text-neutral-400 font-semibold shrink-0">
+                            {new Date(conv.updatedAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+
+                        {conv.memoryTitle && (
+                          <div className="text-[10px] font-semibold text-[#E4603C] truncate mb-1">
+                            ✨ {conv.memoryTitle}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs text-neutral-500 truncate leading-snug">
+                            {conv.isTyping ? (
+                              <span className="text-[#E4603C] font-semibold animate-pulse">
+                                {conv.typingUser || "Contributor"} is typing...
+                              </span>
+                            ) : (
+                              conv.lastMessage?.content || "Tap to start conversation"
+                            )}
+                          </p>
+
+                          {hasUnread && (
+                            <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#E4603C] text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-xs animate-bounce">
+                              {conv.unreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        ) : (
+          /* ==================================================================== */
+          /* ACTIVE CONVERSATION CHAT VIEW                                        */
+          /* ==================================================================== */
+          <div className="flex flex-col h-full">
+            {/* Top Bar */}
+            <div className="p-3.5 sm:p-4 border-b border-[#241621]/10 bg-white/90 backdrop-blur-md flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setActiveConversation(null)}
+                  title="Back to inbox"
+                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-600 transition cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                </button>
+
+                <div className="relative shrink-0">
+                  <div
+                    className="h-10 w-10 rounded-2xl flex items-center justify-center text-base font-bold shadow-xs text-white"
+                    style={{
+                      backgroundColor: activeConv.avatarColor || "#E4603C",
+                    }}
+                  >
+                    {activeConv.avatar || (activeConv.type === "memory_group" ? "🎉" : activeConv.title[0])}
+                  </div>
+                  {activeConv.type === "direct" && (
+                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-xs sm:text-sm font-bold text-[#241621] truncate">
+                      {activeConv.title}
+                    </h3>
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E4603C]/10 text-[#E4603C] border border-[#E4603C]/20 shrink-0">
+                      {activeConv.type === "memory_group" ? "Group Room" : "Contributor"}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-neutral-500 truncate">
+                    {activeConv.isTyping ? (
+                      <span className="text-[#E4603C] font-semibold animate-pulse">typing a message...</span>
+                    ) : activeConv.memoryTitle ? (
+                      `Memory: ${activeConv.memoryTitle}`
+                    ) : (
+                      "Active on SocioDex"
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action icons */}
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info(`Calling ${activeConv.title}... (Demo Feature)`);
+                  }}
+                  title="Audio Call"
+                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-[#E4603C] transition cursor-pointer"
+                >
+                  <Phone className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toast.info(`Starting video room with ${activeConv.title}... (Demo Feature)`);
+                  }}
+                  title="Video Call"
+                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 hover:text-[#E4603C] transition cursor-pointer"
+                >
+                  <Video className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsMaximized(!isMaximized)}
+                  title={isMaximized ? "Restore view" : "Maximize view"}
+                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 transition cursor-pointer"
+                >
+                  {isMaximized ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  title="Close Chat"
+                  className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-500 transition cursor-pointer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Messages Stream */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#FAF6F0]/50">
+              {/* Memory context callout card */}
+              {activeConv.memoryTitle && (
+                <div className="bg-white/80 border border-[#241621]/10 rounded-2xl p-3 text-center space-y-1 shadow-2xs">
+                  <span className="text-[10px] font-bold text-[#E4603C] uppercase tracking-wider">
+                    ✨ Memory Page Thread
+                  </span>
+                  <p className="text-xs font-bold text-neutral-800">
+                    {activeConv.memoryTitle}
+                  </p>
+                  <p className="text-[10px] text-neutral-500">
+                    All messages in this chat are linked with this keepsake celebration.
+                  </p>
+                </div>
+              )}
+
+              {/* Empty state when no messages yet */}
+              {activeMessages.length === 0 && (
+                <div className="text-center py-10 px-4 space-y-2">
+                  <div className="h-12 w-12 rounded-2xl bg-white border border-[#241621]/10 mx-auto flex items-center justify-center text-xl shadow-xs">
+                    👋
+                  </div>
+                  <h4 className="text-xs sm:text-sm font-bold text-neutral-800">
+                    Start a conversation with {activeConv.title}
+                  </h4>
+                  <p className="text-[11px] text-neutral-500 max-w-xs mx-auto">
+                    Send a message, share memories, or coordinate for {activeConv.memoryTitle || "this page"}.
+                  </p>
+                </div>
+              )}
+
+              {/* Message bubbles */}
+              {activeMessages.map((msg) => {
+                const isMe = msg.senderId === "me";
+                const reactions = Object.entries(msg.reactions || {});
+
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col group ${isMe ? "items-end" : "items-start"}`}
+                  >
+                    {/* Contributor name label in group chat */}
+                    {!isMe && activeConv.type === "memory_group" && (
+                      <span className="text-[10px] font-bold text-neutral-500 mb-1 ml-1">
+                        {msg.senderName} {msg.senderRole && `(${msg.senderRole})`}
+                      </span>
+                    )}
+
+                    <div className="flex items-end gap-1.5 max-w-[85%] sm:max-w-[78%]">
+                      {/* Non-user Avatar */}
+                      {!isMe && (
+                        <div
+                          className="h-7 w-7 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-2xs shrink-0 mb-1"
+                          style={{ backgroundColor: msg.senderColor || "#E4603C" }}
+                        >
+                          {msg.senderAvatar || msg.senderName[0]}
+                        </div>
+                      )}
+
+                      {/* Bubble Content */}
+                      <div
+                        className={`relative rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed shadow-2xs ${
+                          isMe
+                            ? "bg-gradient-to-br from-[#E4603C] to-[#C94B29] text-white rounded-br-xs"
+                            : "bg-white border border-[#241621]/10 text-[#241621] rounded-bl-xs"
+                        }`}
+                      >
+                        {/* Reply quote snippet */}
+                        {msg.replyToSnippet && (
+                          <div
+                            className={`mb-2 p-2 rounded-xl text-[11px] border-l-2 ${
+                              isMe
+                                ? "bg-black/15 border-white/60 text-white/90"
+                                : "bg-neutral-100 border-[#E4603C] text-neutral-700"
+                            }`}
+                          >
+                            <span className="block font-bold text-[9px] uppercase tracking-wider opacity-75">
+                              Replying to message
+                            </span>
+                            <span className="truncate block">{msg.replyToSnippet}</span>
+                          </div>
+                        )}
+
+                        {/* Text Content */}
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+
+                        {/* Media Attachment (Photo) */}
+                        {msg.mediaType === "photo" && msg.mediaUrl && (
+                          <div className="mt-2.5 rounded-xl overflow-hidden border border-white/20">
+                            <img
+                              src={msg.mediaUrl}
+                              alt="Attachment"
+                              className="max-h-48 w-full object-cover rounded-xl"
+                            />
+                          </div>
+                        )}
+
+                        {/* Media Attachment (Voice Note) */}
+                        {msg.mediaType === "audio" && (
+                          <div
+                            className={`mt-2 flex items-center gap-2 p-2 rounded-xl ${
+                              isMe ? "bg-white/20 text-white" : "bg-neutral-100 text-neutral-800"
+                            }`}
+                          >
+                            <Mic className="h-4 w-4 text-[#EBC85A] animate-pulse" />
+                            <div className="flex-1">
+                              <div className="h-1.5 bg-current opacity-30 rounded-full w-full overflow-hidden">
+                                <div className="h-full bg-current w-3/4 rounded-full" />
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-bold">
+                              {msg.audioDuration || 3}s
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Timestamp & Status */}
+                        <div
+                          className={`mt-1 flex items-center justify-end gap-1 text-[9px] font-semibold ${
+                            isMe ? "text-white/70" : "text-neutral-400"
+                          }`}
+                        >
+                          <span>
+                            {new Date(msg.createdAt).toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                          {isMe && (
+                            <span>
+                              {msg.status === "sending" ? (
+                                <span className="opacity-60">⏳</span>
+                              ) : msg.status === "sent" ? (
+                                <Check className="h-2.5 w-2.5" />
+                              ) : (
+                                <CheckCheck className="h-2.5 w-2.5 text-[#EBC85A]" />
+                              )}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Hover Action Pill for Quick Reaction & Reply */}
+                        <div
+                          className={`absolute top-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 z-10 ${
+                            isMe ? "right-full mr-1.5" : "left-full ml-1.5"
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleReaction({
+                                conversationId: activeConv.id,
+                                messageId: msg.id,
+                                emoji: "❤️",
+                              })
+                            }
+                            title="React with Heart"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer"
+                          >
+                            ❤️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              toggleReaction({
+                                conversationId: activeConv.id,
+                                messageId: msg.id,
+                                emoji: "👍",
+                              })
+                            }
+                            title="React with Thumbs Up"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer"
+                          >
+                            👍
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setReplyTo(msg)}
+                            title="Reply to message"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-600 hover:text-[#E4603C] hover:scale-110 transition cursor-pointer"
+                          >
+                            <Reply className="h-3 w-3" />
+                          </button>
+                          {isMe && (
+                            <button
+                              type="button"
+                              onClick={() => deleteMessage(activeConv.id, msg.id)}
+                              title="Delete message"
+                              className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-red-500 hover:scale-110 transition cursor-pointer"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Reaction Badges List under message */}
+                    {reactions.length > 0 && (
+                      <div className={`flex items-center gap-1 mt-1 ${isMe ? "mr-1" : "ml-9"}`}>
+                        {reactions.map(([emoji, userList]) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() =>
+                              toggleReaction({
+                                conversationId: activeConv.id,
+                                messageId: msg.id,
+                                emoji,
+                              })
+                            }
+                            title={`Reacted by: ${userList.join(", ")}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-white border border-[#241621]/15 px-2 py-0.5 text-[10px] font-bold shadow-2xs hover:scale-105 transition cursor-pointer"
+                          >
+                            <span>{emoji}</span>
+                            <span>{userList.length}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Typing Indicator */}
+              {activeConv.isTyping && (
+                <div className="flex items-center gap-2 text-neutral-500 text-xs py-1">
+                  <div className="h-6 w-6 rounded-xl bg-white border border-[#241621]/15 flex items-center justify-center text-xs shadow-2xs">
+                    💬
+                  </div>
+                  <div className="flex items-center gap-1 bg-white border border-[#241621]/10 px-3 py-1.5 rounded-full shadow-2xs">
+                    <span className="text-[11px] font-medium">
+                      {activeConv.typingUser || "Contributor"} is typing
+                    </span>
+                    <span className="flex gap-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#E4603C] animate-bounce" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#E4603C] animate-bounce [animation-delay:0.15s]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-[#E4603C] animate-bounce [animation-delay:0.3s]" />
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Quick Suggestions Chips */}
+            <div className="px-3 pt-2 pb-1 bg-white border-t border-[#241621]/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
+              {QUICK_SUGGESTIONS.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setInputText(suggestion);
+                    chatInputRef.current?.focus();
+                  }}
+                  className="rounded-full bg-[#FAF6F0] hover:bg-[#F4ECE0] border border-[#241621]/10 px-2.5 py-1 text-[11px] font-semibold text-neutral-700 whitespace-nowrap transition cursor-pointer select-none"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+
+            {/* Replying banner */}
+            {replyTo && (
+              <div className="px-3 py-1.5 bg-[#FAF6F0] border-t border-[#241621]/10 flex items-center justify-between text-xs shrink-0">
+                <div className="flex items-center gap-2 truncate">
+                  <Reply className="h-3.5 w-3.5 text-[#E4603C]" />
+                  <span className="font-bold text-neutral-700">
+                    Replying to {replyTo.senderName}:
+                  </span>
+                  <span className="text-neutral-500 truncate">
+                    {replyTo.content}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReplyTo(null)}
+                  className="p-1 text-neutral-400 hover:text-neutral-600 cursor-pointer"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Emoji picker tray */}
+            {showEmojiPicker && (
+              <div className="p-2 bg-white border-t border-[#241621]/10 flex items-center gap-2 flex-wrap shrink-0">
+                {EMOJI_LIST.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => {
+                      setInputText((prev) => prev + emoji);
+                      chatInputRef.current?.focus();
+                    }}
+                    className="h-8 w-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-lg transition cursor-pointer"
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Input Composer */}
+            <div className="p-3 bg-white border-t border-[#241621]/10 shrink-0">
+              {isRecordingVoice ? (
+                <div className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-2xl p-2.5">
+                  <div className="flex items-center gap-2 text-red-600 font-bold text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full bg-red-600 animate-ping" />
+                    Recording voice message... ({voiceSeconds}s)
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setIsRecordingVoice(false)}
+                      className="px-3 py-1 rounded-xl text-xs font-semibold text-neutral-600 hover:bg-neutral-200 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleSendVoiceNote}
+                      className="px-3 py-1 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 cursor-pointer flex items-center gap-1 shadow-xs"
+                    >
+                      <Send className="h-3 w-3" />
+                      Send Note
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-end gap-2">
+                  <div className="flex items-center gap-0.5 pb-1 text-neutral-400">
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      title="Insert emoji"
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 hover:text-[#E4603C] transition cursor-pointer"
+                    >
+                      <Smile className="h-4 w-4" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      title="Attach photo"
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 hover:text-[#E4603C] transition cursor-pointer"
+                    >
+                      <ImageIcon className="h-4 w-4" />
+                    </button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="hidden"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => setIsRecordingVoice(true)}
+                      title="Record voice note"
+                      className="p-1.5 rounded-xl hover:bg-neutral-100 hover:text-[#E4603C] transition cursor-pointer"
+                    >
+                      <Mic className="h-4 w-4" />
+                    </button>
+                  </div>
+
+                  {/* Textarea */}
+                  <div className="flex-1 relative">
+                    <textarea
+                      ref={chatInputRef}
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendText();
+                        }
+                      }}
+                      placeholder={`Message ${activeConv.title}...`}
+                      rows={1}
+                      className="w-full max-h-24 py-2.5 px-3.5 text-xs sm:text-sm rounded-2xl bg-[#FAF6F0] border border-[#241621]/15 outline-none focus:border-[#E4603C] resize-none transition"
+                    />
+                  </div>
+
+                  {/* Send Button */}
+                  <button
+                    type="button"
+                    onClick={handleSendText}
+                    disabled={!inputText.trim()}
+                    title="Send message"
+                    className={`h-10 w-10 rounded-2xl flex items-center justify-center text-white transition-all cursor-pointer select-none active:scale-95 shrink-0 ${
+                      inputText.trim()
+                        ? "bg-[#E4603C] hover:bg-[#C94B29] shadow-md"
+                        : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+                    }`}
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -78,6 +78,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
 import { initAuthListener } from "@/lib/supabase";
+import { ChatDrawer } from "@/components/chat/ChatDrawer";
+import { FloatingChatButton } from "@/components/chat/FloatingChatButton";
+import { Toaster } from "sonner";
 
 function RootComponent() {
   const login = useStore((s) => s.login);
@@ -101,6 +104,10 @@ function RootComponent() {
       <main className="pb-24 md:pb-0">
         <Outlet />
       </main>
+      <ChatDrawer />
+      <FloatingChatButton />
+      <Toaster position="top-right" richColors />
     </>
   );
 }
+
