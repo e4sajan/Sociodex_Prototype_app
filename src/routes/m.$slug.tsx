@@ -704,6 +704,8 @@ function PublicMemoryPage() {
     setAuthEmail("");
     setAuthName("");
     toast.success(`Signed in as ${sessionUser.name}! Welcome to the guestbook.`);
+    // Automatically open contribution sheet so user can post immediately!
+    setShowContributeSheet(true);
   };
 
   // Google OAuth Handler
@@ -713,7 +715,7 @@ function PublicMemoryPage() {
       return;
     }
     try {
-      await signInWithGoogle();
+      await signInWithGoogle(window.location.href);
     } catch (err: any) {
       toast.error(err?.message || "Failed to initiate Google sign in.");
     }

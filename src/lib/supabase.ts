@@ -31,15 +31,21 @@ export const supabase = createClient(
 /**
  * Sign in with Google OAuth using Supabase Auth
  */
-export async function signInWithGoogle() {
+export async function signInWithGoogle(redirectTo?: string) {
   if (!isSupabaseConfigured) {
     console.warn("[Supabase Auth] Supabase is not fully configured.");
     return { data: null, error: new Error("Supabase credentials not configured in .env") };
   }
+  const targetRedirect =
+    redirectTo ||
+    (typeof window !== "undefined"
+      ? window.location.href
+      : undefined);
+
   return await supabase.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: window.location.origin,
+      redirectTo: targetRedirect,
     },
   });
 }
@@ -79,14 +85,20 @@ export async function signInWithEmailPassword(email: string, password: string) {
 /**
  * Send Magic Link / OTP to user email
  */
-export async function sendEmailMagicLink(email: string) {
+export async function sendEmailMagicLink(email: string, redirectTo?: string) {
   if (!isSupabaseConfigured) {
     return { data: null, error: new Error("Supabase credentials not configured") };
   }
+  const targetRedirect =
+    redirectTo ||
+    (typeof window !== "undefined"
+      ? window.location.href
+      : undefined);
+
   return await supabase.auth.signInWithOtp({
     email,
     options: {
-      emailRedirectTo: window.location.origin,
+      emailRedirectTo: targetRedirect,
     },
   });
 }

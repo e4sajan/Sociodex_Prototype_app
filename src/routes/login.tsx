@@ -110,7 +110,8 @@ export function LoginPage() {
     setLoading(true);
     setGoogleError("");
     try {
-      const { error } = await signInWithGoogle();
+      const redirectUrl = window.location.origin + (redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`);
+      const { error } = await signInWithGoogle(redirectUrl);
       if (error) {
         setGoogleError(error.message || "Failed to sign in with Google.");
         setLoading(false);
@@ -130,7 +131,8 @@ export function LoginPage() {
     setEmailNotice("");
 
     try {
-      const { error } = await sendEmailMagicLink(emailInput.trim());
+      const redirectUrl = window.location.origin + (redirectPath.startsWith("/") ? redirectPath : `/${redirectPath}`);
+      const { error } = await sendEmailMagicLink(emailInput.trim(), redirectUrl);
       setLoading(false);
       if (error) {
         setEmailError(error.message);
