@@ -58,6 +58,7 @@ import {
   Ban,
   Flag,
   Copy,
+  LogOut,
 } from "lucide-react";
 import { toast, Toaster } from "sonner";
 
@@ -555,6 +556,7 @@ function PublicMemoryPage() {
   const [isRibbonDismissed, setIsRibbonDismissed] = useState(false);
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [activeCardMenuId, setActiveCardMenuId] = useState<string | null>(null);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
   const userRole: PageRole = getPageRole(activeMemory, currentUser);
   const isFollowing = activeMemory?.followers?.some(
@@ -1464,32 +1466,117 @@ function PublicMemoryPage() {
               )}
 
               {currentUser ? (
-                <div className="flex items-center gap-2.5">
-                  <span className="h-8 w-8 rounded-full bg-[#E4603C]/10 text-xs font-bold flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C]">
-                    {currentUser.name[0]}
-                  </span>
-                  <span className="hidden md:inline text-xs font-bold text-neutral-800 truncate max-w-[120px]">
-                    {currentUser.name.split(" ")[0]}
-                  </span>
+                <div className="relative">
                   <button
                     type="button"
-                    onClick={() => {
-                      useStore.getState().logout();
-                      toast.success("Signed out successfully.");
-                    }}
-                    className="rounded-full border border-[#241621]/15 px-3 py-1 text-[11px] font-semibold text-neutral-600 hover:bg-neutral-50 cursor-pointer"
+                    onClick={() => setShowProfileMenu((prev) => !prev)}
+                    className="flex items-center gap-2 p-1 pl-1.5 pr-2.5 rounded-full border border-[#241621]/15 hover:border-[#E4603C]/40 hover:bg-[#FAF6F0] bg-white transition-all cursor-pointer select-none"
+                    title="Account & Settings menu"
                   >
-                    Sign Out
+                    <span className="h-7 w-7 rounded-full bg-[#E4603C]/10 text-xs font-bold flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C]">
+                      {currentUser.name[0]}
+                    </span>
+                    <span className="text-xs font-bold text-neutral-800 truncate max-w-[100px] sm:max-w-[130px]">
+                      {currentUser.name.split(" ")[0]}
+                    </span>
+                    {/* If host has pending contributions, show badge on avatar button */}
+                    {isOwner && pendingContributions.length > 0 && (
+                      <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                    )}
                   </button>
+
+                  {/* Backdrop to dismiss menu */}
+                  {showProfileMenu && (
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowProfileMenu(false)}
+                    />
+                  )}
+
+                  {/* Profile Dropdown */}
+                  {showProfileMenu && (
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="absolute right-0 top-full mt-2 w-60 rounded-2xl border border-[#241621]/15 bg-white p-2 shadow-2xl z-50 text-left animate-fade-in"
+                    >
+                      {/* User Info Header */}
+                      <div className="px-3 py-2 border-b border-[#241621]/8 flex items-center gap-2.5">
+                        <span className="h-9 w-9 rounded-full bg-[#E4603C]/10 text-sm font-bold flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C] shrink-0">
+                          {currentUser.name[0]}
+                        </span>
+                        <div className="min-w-0">
+                          <h4 className="text-xs font-bold text-neutral-900 truncate">
+                            {currentUser.name}
+                          </h4>
+                          <p className="text-[10px] text-neutral-500 truncate">
+                            {currentUser.email || currentUser.phone || "Signed in"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="py-1 space-y-0.5">
+                        {/* Host / Page Settings (if creator or admin) */}
+                        {isOwner && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowProfileMenu(false);
+                              setShowSettingsDrawer(true);
+                            }}
+                            className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-[#FAF6F0] hover:text-[#E4603C] flex items-center justify-between cursor-pointer transition-colors"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <Settings className="h-4 w-4 text-[#E4603C]" />
+                              <span>Host Settings</span>
+                            </div>
+                            {pendingContributions.length > 0 && (
+                              <span className="bg-red-500 text-white rounded-full px-1.5 py-0.5 text-[9px] font-bold">
+                                {pendingContributions.length} pending
+                              </span>
+                            )}
+                          </button>
+                        )}
+
+                        {/* Page Roles & Permissions */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowRolesModal(true);
+                          }}
+                          className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-[#FAF6F0] hover:text-[#E4603C] flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <ShieldCheck className="h-4 w-4 text-purple-600" />
+                          <span>Roles & Permissions</span>
+                        </button>
+                      </div>
+
+                      {/* Sign Out Action */}
+                      <div className="border-t border-[#241621]/8 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            useStore.getState().logout();
+                            toast.success("Signed out successfully.");
+                          }}
+                          className="w-full text-left rounded-xl px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          <span>Sign Out</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
-                  <button
-                    type="button"
-                    onClick={() => setShowAuthModal(true)}
-                    className="rounded-full bg-[#E4603C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#c94b29] transition-all cursor-pointer shadow-xs"
-                  >
-                    Sign In
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAuthModal(true)}
+                  className="rounded-full bg-[#E4603C] px-4 py-1.5 text-xs font-bold text-white hover:bg-[#c94b29] transition-all cursor-pointer shadow-xs"
+                >
+                  Sign In
+                </button>
               )}
             </div>
           </div>
@@ -2587,22 +2674,7 @@ function PublicMemoryPage() {
         </div>
       )}
 
-      {/* ── FLOATING HOST SETTINGS BUTTON ── */}
-      {isOwner && (
-        <button
-          type="button"
-          onClick={() => setShowSettingsDrawer(true)}
-          className="fixed bottom-20 right-5 z-20 h-12 w-12 rounded-full bg-white border border-[#241621]/20 text-[#E4603C] shadow-lg flex items-center justify-center cursor-pointer transition hover:scale-105 active:scale-95 select-none"
-          title="Host Control Panel"
-        >
-          <Settings className="h-5.5 w-5.5" />
-          {pendingContributions.length > 0 && (
-            <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full h-5 w-5 text-[9px] font-bold flex items-center justify-center shadow-xs">
-              {pendingContributions.length}
-            </span>
-          )}
-        </button>
-      )}
+
 
       {/* ── REAL CONTRIBUTION MODAL ── */}
       {showContributeSheet && (
