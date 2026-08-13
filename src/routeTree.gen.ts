@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TrackerRouteImport } from './routes/tracker'
+import { Route as SchedulerRouteImport } from './routes/scheduler'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as CreatorRouteImport } from './routes/creator'
 import { Route as IndexRouteImport } from './routes/index'
@@ -18,6 +19,11 @@ import { Route as MSlugRouteImport } from './routes/m.$slug'
 const TrackerRoute = TrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SchedulerRoute = SchedulerRouteImport.update({
+  id: '/scheduler',
+  path: '/scheduler',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -45,6 +51,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/creator': typeof CreatorRoute
   '/login': typeof LoginRoute
+  '/scheduler': typeof SchedulerRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -52,6 +59,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/creator': typeof CreatorRoute
   '/login': typeof LoginRoute
+  '/scheduler': typeof SchedulerRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
@@ -60,21 +68,36 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/creator': typeof CreatorRoute
   '/login': typeof LoginRoute
+  '/scheduler': typeof SchedulerRoute
   '/tracker': typeof TrackerRoute
   '/m/$slug': typeof MSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
+  fullPaths:
+    | '/'
+    | '/creator'
+    | '/login'
+    | '/scheduler'
+    | '/tracker'
+    | '/m/$slug'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
-  id: '__root__' | '/' | '/creator' | '/login' | '/tracker' | '/m/$slug'
+  to: '/' | '/creator' | '/login' | '/scheduler' | '/tracker' | '/m/$slug'
+  id:
+    | '__root__'
+    | '/'
+    | '/creator'
+    | '/login'
+    | '/scheduler'
+    | '/tracker'
+    | '/m/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CreatorRoute: typeof CreatorRoute
   LoginRoute: typeof LoginRoute
+  SchedulerRoute: typeof SchedulerRoute
   TrackerRoute: typeof TrackerRoute
   MSlugRoute: typeof MSlugRoute
 }
@@ -86,6 +109,13 @@ declare module '@tanstack/react-router' {
       path: '/tracker'
       fullPath: '/tracker'
       preLoaderRoute: typeof TrackerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scheduler': {
+      id: '/scheduler'
+      path: '/scheduler'
+      fullPath: '/scheduler'
+      preLoaderRoute: typeof SchedulerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -123,6 +153,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CreatorRoute: CreatorRoute,
   LoginRoute: LoginRoute,
+  SchedulerRoute: SchedulerRoute,
   TrackerRoute: TrackerRoute,
   MSlugRoute: MSlugRoute,
 }

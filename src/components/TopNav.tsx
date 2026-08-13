@@ -2,7 +2,7 @@ import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useStore } from "@/lib/store";
 import { useChatStore } from "@/lib/chatStore";
-import { Heart, BarChart3, LogOut, LogIn, Home, Sparkles, ArrowRight, MessageSquare } from "lucide-react";
+import { Heart, BarChart3, LogOut, LogIn, Home, Sparkles, ArrowRight, MessageSquare, Calendar } from "lucide-react";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
 
 export function TopNav() {
@@ -56,6 +56,19 @@ export function TopNav() {
                   }}
                 >
                   Memory Creator
+                </Link>
+
+                <Link
+                  to="/scheduler"
+                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621] flex items-center gap-1.5"
+                  activeProps={{
+                    className: "rounded-full px-4 py-2 text-sm font-bold bg-[#E4603C]/10 text-[#E4603C]",
+                  }}
+                >
+                  <span>Auto-Scheduler</span>
+                  <span className="bg-[#E4603C] text-white text-[9px] font-bold px-1.5 py-0.2 rounded-full">
+                    Auto-Send
+                  </span>
                 </Link>
               </>
             ) : (
@@ -159,6 +172,14 @@ export function TopNav() {
                       <Heart className="h-3.5 w-3.5 text-[#E4603C]" />
                       Memory Creator
                     </Link>
+                    <Link
+                      to="/scheduler"
+                      onClick={() => setProfileOpen(false)}
+                      className="w-full text-left rounded-xl px-2 py-2 text-xs text-[#241621] font-bold hover:bg-[#FAF6F0] mt-1 transition-all flex items-center gap-2"
+                    >
+                      <Calendar className="h-3.5 w-3.5 text-[#E4603C]" />
+                      Auto-Scheduler
+                    </Link>
                     <button
                       onClick={() => {
                         logout();
@@ -210,6 +231,16 @@ export function TopNav() {
               >
                 <Heart className="h-5 w-5" />
                 <span>Creator</span>
+              </Link>
+              <Link
+                to="/scheduler"
+                className="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#594855] font-semibold"
+                activeProps={{
+                  className: "flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] text-[#E4603C] font-bold",
+                }}
+              >
+                <Calendar className="h-5 w-5" />
+                <span>Scheduler</span>
               </Link>
             </>
           ) : (

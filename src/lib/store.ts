@@ -141,6 +141,27 @@ export type MemoryData = {
   corporateLogo?: string;
 };
 
+export type ScheduledMemoryJob = {
+  id: string;
+  occasion: string;
+  recipient: string;
+  whatsapp?: string;
+  email?: string;
+  department?: string;
+  organizerName?: string;
+  eventDate: string; // YYYY-MM-DD
+  scheduledTime?: string; // HH:mm
+  themeId: string;
+  customNote?: string;
+  notifyOneDayBefore: boolean;
+  autoDispatchOnDate: boolean;
+  status: "scheduled" | "reminder_sent" | "created" | "cancelled";
+  createdMemorySlug?: string;
+  createdAt: string;
+  isCorporate?: boolean;
+  corporateLogo?: string;
+};
+
 type State = {
   combos: Combo[];
   cartOpen: boolean;
@@ -148,6 +169,7 @@ type State = {
   memories: Record<string, MemoryData>; // Dynamic multi-memory map
   guests: Guest[];
   currentUser: UserSession | null;
+  scheduledJobs: Record<string, ScheduledMemoryJob>;
 
   login: (user: UserSession) => void;
   logout: () => void;
@@ -156,6 +178,12 @@ type State = {
   removeCombo: (id: string) => void;
   setCartOpen: (open: boolean) => void;
   clearCart: () => void;
+
+  addScheduledJob: (job: ScheduledMemoryJob) => void;
+  addScheduledJobsBatch: (jobs: ScheduledMemoryJob[]) => void;
+  updateScheduledJob: (id: string, patch: Partial<ScheduledMemoryJob>) => void;
+  deleteScheduledJob: (id: string) => void;
+  triggerScheduledJobNow: (id: string) => string | null;
 
   setMemory: (
     m: Partial<MemoryData> &
@@ -260,6 +288,63 @@ const createDefaultMemoryData = (
   blockedUsers: [],
 });
 
+const DEFAULT_SCHEDULED_JOBS: Record<string, ScheduledMemoryJob> = {
+  "job-priya": {
+    id: "job-priya",
+    occasion: "Birthday Celebration",
+    recipient: "Priya Sharma",
+    whatsapp: "+91 98765 43210",
+    email: "priya.sharma@acme.corp",
+    department: "Product Design",
+    organizerName: "Acme People Team",
+    eventDate: "2026-08-28",
+    scheduledTime: "09:00",
+    themeId: "rose-elegance",
+    customNote: "Happy Birthday Priya! Wishing you a sensational year ahead filled with creativity, joy, and incredible milestones! 🎉🎂",
+    notifyOneDayBefore: true,
+    autoDispatchOnDate: true,
+    status: "scheduled",
+    createdAt: new Date().toISOString(),
+    isCorporate: true,
+  },
+  "job-arjun": {
+    id: "job-arjun",
+    occasion: "3rd Work Anniversary",
+    recipient: "Arjun Verma",
+    whatsapp: "+91 98123 45678",
+    email: "arjun.verma@acme.corp",
+    department: "Core Engineering",
+    organizerName: "HR Culture Team",
+    eventDate: "2026-09-02",
+    scheduledTime: "10:00",
+    themeId: "floral-sage",
+    customNote: "Congratulations Arjun on completing 3 amazing years with Acme Corp! Thank you for your leadership and stellar contributions. 🚀✨",
+    notifyOneDayBefore: true,
+    autoDispatchOnDate: true,
+    status: "scheduled",
+    createdAt: new Date().toISOString(),
+    isCorporate: true,
+  },
+  "job-sarah": {
+    id: "job-sarah",
+    occasion: "Farewell Keepsake",
+    recipient: "Sarah Lin",
+    whatsapp: "+1 415 555 0192",
+    email: "sarah.lin@acme.corp",
+    department: "Marketing & Growth",
+    organizerName: "David Kim",
+    eventDate: "2026-09-10",
+    scheduledTime: "09:30",
+    themeId: "champagne-gold",
+    customNote: "Wishing you the absolute best on your next exciting chapter Sarah! We will miss your vibrant energy and warmth! 🌸🥂",
+    notifyOneDayBefore: true,
+    autoDispatchOnDate: true,
+    status: "scheduled",
+    createdAt: new Date().toISOString(),
+    isCorporate: true,
+  },
+};
+
 export const useStore = create<State>()(
   persist(
     (set) => ({
@@ -269,6 +354,7 @@ export const useStore = create<State>()(
       memories: {},
       guests: [],
       currentUser: null,
+      scheduledJobs: DEFAULT_SCHEDULED_JOBS,
 
       login: (u) => set({ currentUser: u }),
       logout: () => set({ currentUser: null }),
@@ -277,6 +363,121 @@ export const useStore = create<State>()(
       removeCombo: (id) => set((s) => ({ combos: s.combos.filter((x) => x.id !== id) })),
       setCartOpen: (open) => set({ cartOpen: open }),
       clearCart: () => set({ combos: [] }),
+
+      addScheduledJob: (job) =>
+        set((s) => ({
+          scheduledJobs: { ...s.scheduledJobs, [job.id]: job },
+        })),
+
+      addScheduledJobsBatch: (jobs) =>
+        set((s) => {
+          const next = { ...s.scheduledJobs };
+          jobs.forEach((j) => {
+            next[j.id] = j;
+          });
+          return { scheduledJobs: next };
+        }),
+
+      updateScheduledJob: (id, patch) =>
+        set((s) => {
+          const current = s.scheduledJobs[id];
+          if (!current) return {};
+          return {
+            scheduledJobs: {
+              ...s.scheduledJobs,
+              [id]: { ...current, ...patch },
+            },
+          };
+        }),
+
+      deleteScheduledJob: (id) =>
+        set((s) => {
+          const next = { ...s.scheduledJobs };
+          delete next[id];
+          return { scheduledJobs: next };
+        }),
+
+      triggerScheduledJobNow: (id) => {
+        let createdSlug: string | null = null;
+        set((s) => {
+          const job = s.scheduledJobs[id];
+          if (!job) return {};
+
+          const cleanName =
+            job.recipient.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "celebration";
+          const cleanOccasion =
+            job.occasion.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "event";
+          const randomSuffix = Math.random().toString(36).slice(2, 6);
+          const slug = `${cleanName}-${cleanOccasion}-${randomSuffix}`;
+          createdSlug = slug;
+
+          const defaults = createDefaultMemoryData(slug);
+          const newMemory: MemoryData = {
+            ...defaults,
+            slug,
+            occasion: job.occasion,
+            recipient: job.recipient,
+            from: job.organizerName || s.currentUser?.name || "Corporate Team",
+            creatorName: job.organizerName || s.currentUser?.name || "Corporate Team",
+            creatorEmail: job.email || s.currentUser?.email || "",
+            followers: [
+              job.recipient,
+              job.organizerName || s.currentUser?.name || "Organizer",
+            ],
+            date: job.eventDate,
+            themeId: job.themeId || "rose-elegance",
+            wishes: job.customNote
+              ? [job.customNote]
+              : [
+                  `Celebrating ${job.recipient}'s ${job.occasion}! Wishing you an unforgettable day filled with happiness! ✨🎉`,
+                ],
+            photos: [],
+            audios: [],
+            videos: [],
+            visibility: "public",
+            isCorporate: job.isCorporate,
+            corporateLogo: job.corporateLogo,
+            allowedActions: { addPhotos: true, addVideos: true, addComments: true },
+            collaborators: job.organizerName
+              ? [
+                  {
+                    id: "collab-org",
+                    name: job.organizerName,
+                    email: job.email || "",
+                    role: "admin",
+                    status: "accepted",
+                    inviteSentVia: "whatsapp",
+                  },
+                ]
+              : [],
+            comments: [
+              {
+                id: `c-welcome-${Date.now()}`,
+                author: job.organizerName || "SocioDex Scheduler",
+                text:
+                  job.customNote ||
+                  `Happy ${job.occasion}, ${job.recipient}! We are thrilled to celebrate this milestone with you. 🎊`,
+                timestamp: new Date().toISOString(),
+                likes: 3,
+                avatar: "✨",
+              },
+            ],
+          };
+
+          const updatedJob: ScheduledMemoryJob = {
+            ...job,
+            status: "created",
+            createdMemorySlug: slug,
+          };
+
+          return {
+            memories: { ...s.memories, [slug]: newMemory },
+            scheduledJobs: { ...s.scheduledJobs, [id]: updatedJob },
+          };
+        });
+
+        return createdSlug;
+      },
 
       setMemory: (m) =>
         set((s) => {
@@ -830,6 +1031,7 @@ export const useStore = create<State>()(
             : null,
           memories: cleanMemories,
           currentUser: s.currentUser,
+          scheduledJobs: s.scheduledJobs || {},
         };
       },
     },
