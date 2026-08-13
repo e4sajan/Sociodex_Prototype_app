@@ -1453,25 +1453,21 @@ function PublicMemoryPage() {
                 </button>
               )}
 
-              {/* Single Unified Memory Chat Icon Button */}
+              {/* Single Unified Direct Chat Icon Button */}
               {activeMemory && (
                 <button
                   type="button"
                   onClick={() => {
                     if (!currentUser) {
                       setShowAuthModal(true);
-                      toast.info("Please sign in to join the memory chat room.");
+                      toast.info("Please sign in to view your messages.");
                       return;
                     }
-                    useChatStore.getState().openMemoryGroupChat({
-                      memorySlug: activeMemory.slug,
-                      memoryTitle: activeMemory.occasion || activeMemory.recipient,
-                      creatorName: activeMemory.creatorName || activeMemory.from,
-                    });
+                    useChatStore.getState().setDrawerOpen(true);
                   }}
                   className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-white border border-[#241621]/15 flex items-center justify-center text-[#E4603C] hover:bg-[#FAF6F0] hover:border-[#E4603C]/40 transition-all cursor-pointer shadow-xs select-none relative active:scale-95"
-                  title="Open Celebration Chat Room"
-                  aria-label="Open Celebration Chat Room"
+                  title="Open Direct Messages"
+                  aria-label="Open Direct Messages"
                 >
                   <MessageSquare className="h-4 w-4" />
                 </button>

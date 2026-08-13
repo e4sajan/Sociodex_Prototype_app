@@ -270,53 +270,13 @@ export const useChatStore = create<ChatStore>()(
       },
 
       openMemoryGroupChat: ({ memorySlug, memoryTitle, creatorName = "Page Creator" }) => {
-        const convId = `conv-group-${memorySlug}`;
-        const currentUser = useStore.getState().currentUser;
-        const myName = currentUser?.name || "Guest";
-        const myAvatar = currentUser?.avatar || "👤";
-        const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
-
-        set((state) => {
-          const existing = state.conversations[convId];
-          const now = new Date().toISOString();
-
-          const updatedConvs = { ...state.conversations };
-          const updatedMessages = { ...state.messages };
-
-          if (!existing) {
-            const newConv: ChatConversation = {
-              id: convId,
-              type: "memory_group",
-              memorySlug,
-              memoryTitle,
-              title: `${memoryTitle} — Celebration Lounge`,
-              avatar: "🎉",
-              avatarColor: "#EBC85A",
-              participantIds: ["creator", myId],
-              participants: [
-                { id: "creator", name: creatorName, avatar: "👑", color: "#E4603C", role: "creator", isOnline: true },
-                { id: myId, name: myName, avatar: myAvatar, role: "contributor", isOnline: true },
-              ],
-              unreadCount: 0,
-              updatedAt: now,
-            };
-            updatedConvs[convId] = newConv;
-            if (!updatedMessages[convId]) {
-              updatedMessages[convId] = [];
-            }
-          } else {
-            updatedConvs[convId] = {
-              ...existing,
-              unreadCount: 0,
-            };
-          }
-
-          return {
-            conversations: updatedConvs,
-            messages: updatedMessages,
-            activeConversationId: convId,
-            isDrawerOpen: true,
-          };
+        get().openChatWithContributor({
+          name: creatorName,
+          avatar: "👑",
+          avatarColor: "#E4603C",
+          role: "creator",
+          memorySlug,
+          memoryTitle,
         });
       },
 
@@ -437,23 +397,12 @@ export const useChatStore = create<ChatStore>()(
               }
             : {
                 id: convId,
-                type:
-                  convMeta?.type ||
-                  (convId.startsWith("conv-group-") ? "memory_group" : "direct"),
+                type: "direct",
                 memorySlug: convMeta?.memorySlug,
                 memoryTitle: convMeta?.memoryTitle,
-                title:
-                  convMeta?.type === "memory_group"
-                    ? `${convMeta.memoryTitle || "Memory"} — Celebration Lounge`
-                    : msg.senderName,
-                avatar:
-                  convMeta?.type === "memory_group"
-                    ? "🎉"
-                    : msg.senderAvatar || "👤",
-                avatarColor:
-                  convMeta?.type === "memory_group"
-                    ? "#EBC85A"
-                    : msg.senderColor || "#E4603C",
+                title: msg.senderName || "Contributor",
+                avatar: msg.senderAvatar || "👤",
+                avatarColor: msg.senderColor || "#E4603C",
                 participantIds: [msg.senderId, myId],
                 participants: [
                   {

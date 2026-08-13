@@ -4,13 +4,11 @@ import {
   Send,
   MessageSquare,
   Search,
-  Users,
   User,
   Sparkles,
   Smile,
   Image as ImageIcon,
   Mic,
-  Square,
   Volume2,
   VolumeX,
   ArrowLeft,
@@ -18,14 +16,8 @@ import {
   Lock,
   Check,
   CheckCheck,
-  MoreVertical,
   Trash2,
   Reply,
-  Heart,
-  ThumbsUp,
-  PartyPopper,
-  Flame,
-  Info,
   Maximize2,
   Minimize2,
 } from "lucide-react";
@@ -37,9 +29,9 @@ import { toast } from "sonner";
 const QUICK_SUGGESTIONS = [
   "Loved your memory photo! 📸",
   "So excited for the celebration! 🎉",
-  "Let's coordinate on the group gift! 🎁",
+  "Let's coordinate on the keepsake! 🎁",
   "Thank you for the warm wish! 💖",
-  "Can't wait to see everyone! ✨",
+  "Can't wait to see you! ✨",
 ];
 
 const EMOJI_LIST = ["❤️", "👍", "👏", "🎉", "😂", "✨", "🙏", "💖", "🌸", "🥂", "🎂", "💐"];
@@ -49,12 +41,10 @@ export function ChatDrawer() {
   const activeConversationId = useChatStore((s) => s.activeConversationId);
   const conversations = useChatStore((s) => s.conversations);
   const messages = useChatStore((s) => s.messages);
-  const filterTab = useChatStore((s) => s.filterTab);
   const soundEnabled = useChatStore((s) => s.soundEnabled);
 
   const setDrawerOpen = useChatStore((s) => s.setDrawerOpen);
   const setActiveConversation = useChatStore((s) => s.setActiveConversation);
-  const setFilterTab = useChatStore((s) => s.setFilterTab);
   const toggleSoundEnabled = useChatStore((s) => s.toggleSoundEnabled);
   const sendMessage = useChatStore((s) => s.sendMessage);
   const toggleReaction = useChatStore((s) => s.toggleReaction);
@@ -70,7 +60,7 @@ export function ChatDrawer() {
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
   const [isMaximized, setIsMaximized] = useState(false);
 
-  // Real voice note recording states
+  // Voice note recording states
   const [isRecordingVoice, setIsRecordingVoice] = useState(false);
   const [voiceSeconds, setVoiceSeconds] = useState(0);
   const voiceTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,16 +81,15 @@ export function ChatDrawer() {
     ? messages[activeConversationId] || []
     : [];
 
-  // Filtered conversations list
+  // Filtered direct conversations list (excluding rooms/groups)
   const filteredConversations = useMemo(() => {
     const list = Object.values(conversations).sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
 
     return list.filter((conv) => {
-      // Tab filter
-      if (filterTab === "direct" && conv.type !== "direct") return false;
-      if (filterTab === "memory_group" && conv.type !== "memory_group") return false;
+      // Keep direct 1-on-1 conversations only
+      if (conv.type === "memory_group") return false;
 
       // Search query
       if (searchQuery.trim()) {
@@ -112,7 +101,7 @@ export function ChatDrawer() {
       }
       return true;
     });
-  }, [conversations, filterTab, searchQuery]);
+  }, [conversations, searchQuery]);
 
   // Auto-scroll on new message
   useEffect(() => {
@@ -263,6 +252,10 @@ export function ChatDrawer() {
     e.target.value = "";
   };
 
+  const myId = currentUser?.email || currentUser?.name || currentUser?.id || "guest-me";
+  const myName = (currentUser?.name || "").trim().toLowerCase();
+  const myEmail = (currentUser?.email || "").trim().toLowerCase();
+
   return (
     <div className="fixed inset-0 z-50 flex justify-end pointer-events-none">
       {/* Backdrop overlay */}
@@ -295,10 +288,10 @@ export function ChatDrawer() {
 
             <div className="space-y-2 max-w-xs">
               <h3 className="font-display text-xl font-bold text-[#241621]">
-                Sign in to Chat
+                Sign in to Message
               </h3>
               <p className="text-xs text-neutral-500 leading-relaxed">
-                You need to be signed in to SocioDex to message contributors, participate in celebration rooms, and communicate with page admins.
+                You need to be signed in to SocioDex to chat directly with memory contributors, page creators, and guests.
               </p>
             </div>
 
@@ -324,9 +317,12 @@ export function ChatDrawer() {
             </div>
           </div>
         ) : !activeConv ? (
+          /* ==================================================================== */
+          /* DIRECT MESSAGES INBOX VIEW                                           */
+          /* ==================================================================== */
           <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="p-4 sm:p-5 border-b border-[#241621]/10 bg-white/80 backdrop-blur-md">
+            {/* Inbox Header */}
+            <div className="p-4 sm:p-5 border-b border-[#241621]/10 bg-white/85 backdrop-blur-md">
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5">
                   <div className="h-9 w-9 rounded-2xl bg-[#E4603C]/10 flex items-center justify-center border border-[#E4603C]/25 text-[#E4603C]">
@@ -334,10 +330,10 @@ export function ChatDrawer() {
                   </div>
                   <div>
                     <h2 className="font-display text-lg sm:text-xl font-bold leading-tight text-[#241621]">
-                      SocioDex Messages
+                      Direct Messages
                     </h2>
                     <p className="text-[11px] text-[#594855] font-medium">
-                      Chat with memory contributors & guests
+                      Private 1-on-1 chats with contributors
                     </p>
                   </div>
                 </div>
@@ -369,48 +365,9 @@ export function ChatDrawer() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search contributors, memory rooms..."
+                  placeholder="Search direct messages..."
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#241621]/10 outline-none focus:border-[#E4603C] transition"
                 />
-              </div>
-
-              {/* Filter Tabs */}
-              <div className="flex items-center gap-1.5 mt-3">
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("all")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    filterTab === "all"
-                      ? "bg-[#E4603C] text-white shadow-xs"
-                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("direct")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                    filterTab === "direct"
-                      ? "bg-[#E4603C] text-white shadow-xs"
-                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  <User className="h-3 w-3" />
-                  Direct
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFilterTab("memory_group")}
-                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
-                    filterTab === "memory_group"
-                      ? "bg-[#E4603C] text-white shadow-xs"
-                      : "bg-[#FAF6F0] text-neutral-600 hover:bg-neutral-100"
-                  }`}
-                >
-                  <Users className="h-3 w-3" />
-                  Rooms
-                </button>
               </div>
             </div>
 
@@ -421,9 +378,9 @@ export function ChatDrawer() {
                   <div className="h-12 w-12 rounded-full bg-[#FAF6F0] mx-auto flex items-center justify-center text-xl text-neutral-400">
                     💬
                   </div>
-                  <h3 className="text-sm font-bold text-neutral-700">No conversations yet</h3>
+                  <h3 className="text-sm font-bold text-neutral-700">No direct messages yet</h3>
                   <p className="text-xs text-neutral-500 max-w-xs mx-auto">
-                    Click on any contributor's name or avatar on a memory page to start a conversation!
+                    Click the <strong>Message</strong> button next to any contributor or follower on a memory page or tracker dashboard to start chatting!
                   </p>
                 </div>
               ) : (
@@ -442,17 +399,14 @@ export function ChatDrawer() {
                       {/* Avatar */}
                       <div className="relative shrink-0">
                         <div
-                          className="h-11 w-11 rounded-2xl flex items-center justify-center text-lg font-bold shadow-xs border border-white"
+                          className="h-11 w-11 rounded-2xl flex items-center justify-center text-lg font-bold shadow-xs border border-white text-white"
                           style={{
-                            backgroundColor: conv.avatarColor || (conv.type === "memory_group" ? "#EBC85A" : "#E4603C"),
-                            color: "#FFFFFF",
+                            backgroundColor: conv.avatarColor || "#E4603C",
                           }}
                         >
-                          {conv.avatar || (conv.type === "memory_group" ? "🎉" : conv.title[0])}
+                          {conv.avatar || conv.title[0]}
                         </div>
-                        {conv.type === "direct" && (
-                          <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
-                        )}
+                        <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
                       </div>
 
                       {/* Info & Snippet */}
@@ -482,7 +436,7 @@ export function ChatDrawer() {
                                 {conv.typingUser || "Contributor"} is typing...
                               </span>
                             ) : (
-                              conv.lastMessage?.content || "Tap to start conversation"
+                              conv.lastMessage?.content || "Tap to open chat"
                             )}
                           </p>
 
@@ -501,7 +455,7 @@ export function ChatDrawer() {
           </div>
         ) : (
           /* ==================================================================== */
-          /* ACTIVE CONVERSATION CHAT VIEW                                        */
+          /* ACTIVE 1-ON-1 CONVERSATION VIEW                                      */
           /* ==================================================================== */
           <div className="flex flex-col h-full">
             {/* Top Bar */}
@@ -523,11 +477,9 @@ export function ChatDrawer() {
                       backgroundColor: activeConv.avatarColor || "#E4603C",
                     }}
                   >
-                    {activeConv.avatar || (activeConv.type === "memory_group" ? "🎉" : activeConv.title[0])}
+                    {activeConv.avatar || activeConv.title[0]}
                   </div>
-                  {activeConv.type === "direct" && (
-                    <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
-                  )}
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white" />
                 </div>
 
                 <div className="min-w-0">
@@ -536,7 +488,7 @@ export function ChatDrawer() {
                       {activeConv.title}
                     </h3>
                     <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#E4603C]/10 text-[#E4603C] border border-[#E4603C]/20 shrink-0">
-                      {activeConv.type === "memory_group" ? "Group Room" : "Contributor"}
+                      Direct Message
                     </span>
                   </div>
                   <p className="text-[10px] text-neutral-500 truncate">
@@ -573,18 +525,18 @@ export function ChatDrawer() {
             </div>
 
             {/* Messages Stream */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-[#FAF6F0]/50">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FAF6F0]/40">
               {/* Memory context callout card */}
               {activeConv.memoryTitle && (
                 <div className="bg-white/80 border border-[#241621]/10 rounded-2xl p-3 text-center space-y-1 shadow-2xs">
                   <span className="text-[10px] font-bold text-[#E4603C] uppercase tracking-wider">
-                    ✨ Memory Page Thread
+                    ✨ Direct Memory Thread
                   </span>
                   <p className="text-xs font-bold text-neutral-800">
                     {activeConv.memoryTitle}
                   </p>
                   <p className="text-[10px] text-neutral-500">
-                    All messages in this chat are linked with this keepsake celebration.
+                    Private direct messages linked with this keepsake celebration.
                   </p>
                 </div>
               )}
@@ -599,14 +551,22 @@ export function ChatDrawer() {
                     Start a conversation with {activeConv.title}
                   </h4>
                   <p className="text-[11px] text-neutral-500 max-w-xs mx-auto">
-                    Send a message, share memories, or coordinate for {activeConv.memoryTitle || "this page"}.
+                    Send a private message to coordinate or share wishes for {activeConv.memoryTitle || "this page"}.
                   </p>
                 </div>
               )}
 
-              {/* Message bubbles */}
+              {/* Message bubbles stream */}
               {activeMessages.map((msg) => {
-                const isMe = msg.senderId === "me";
+                // Correct sender identification
+                const isMe =
+                  msg.senderId === "me" ||
+                  msg.senderId === "guest-me" ||
+                  msg.senderId === myId ||
+                  (currentUser?.id && msg.senderId === currentUser.id) ||
+                  (myEmail && msg.senderId.toLowerCase() === myEmail) ||
+                  (myName && msg.senderName.trim().toLowerCase() === myName);
+
                 const reactions = Object.entries(msg.reactions || {});
 
                 return (
@@ -614,27 +574,26 @@ export function ChatDrawer() {
                     key={msg.id}
                     className={`flex flex-col group ${isMe ? "items-end" : "items-start"}`}
                   >
-                    {/* Contributor name label in group chat */}
-                    {!isMe && activeConv.type === "memory_group" && (
-                      <span className="text-[10px] font-bold text-neutral-500 mb-1 ml-1">
-                        {msg.senderName} {msg.senderRole && `(${msg.senderRole})`}
-                      </span>
-                    )}
-
-                    <div className="flex items-end gap-1.5 max-w-[85%] sm:max-w-[78%]">
-                      {/* Non-user Avatar */}
+                    <div
+                      className={`flex items-end gap-2 max-w-[85%] sm:max-w-[78%] ${
+                        isMe ? "justify-end ml-auto" : "justify-start mr-auto"
+                      }`}
+                    >
+                      {/* Left Avatar for Received Messages Only */}
                       {!isMe && (
                         <div
                           className="h-7 w-7 rounded-xl flex items-center justify-center text-xs font-bold text-white shadow-2xs shrink-0 mb-1"
-                          style={{ backgroundColor: msg.senderColor || "#E4603C" }}
+                          style={{
+                            backgroundColor: msg.senderColor || activeConv.avatarColor || "#E4603C",
+                          }}
                         >
-                          {msg.senderAvatar || msg.senderName[0]}
+                          {msg.senderAvatar || (msg.senderName ? msg.senderName[0] : "👤")}
                         </div>
                       )}
 
-                      {/* Bubble Content */}
+                      {/* Bubble Content Box */}
                       <div
-                        className={`relative rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed shadow-2xs ${
+                        className={`relative rounded-2xl p-3 sm:p-3.5 text-xs sm:text-sm leading-relaxed shadow-xs ${
                           isMe
                             ? "bg-gradient-to-br from-[#E4603C] to-[#C94B29] text-white rounded-br-xs"
                             : "bg-white border border-[#241621]/10 text-[#241621] rounded-bl-xs"
@@ -646,7 +605,7 @@ export function ChatDrawer() {
                             className={`mb-2 p-2 rounded-xl text-[11px] border-l-2 ${
                               isMe
                                 ? "bg-black/15 border-white/60 text-white/90"
-                                : "bg-neutral-100 border-[#E4603C] text-neutral-700"
+                                : "bg-[#FAF6F0] border-[#E4603C] text-neutral-700"
                             }`}
                           >
                             <span className="block font-bold text-[9px] uppercase tracking-wider opacity-75">
@@ -657,7 +616,7 @@ export function ChatDrawer() {
                         )}
 
                         {/* Text Content */}
-                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                        <p className="whitespace-pre-wrap font-medium">{msg.content}</p>
 
                         {/* Media Attachment (Photo) */}
                         {msg.mediaType === "photo" && msg.mediaUrl && (
@@ -692,7 +651,7 @@ export function ChatDrawer() {
                         {/* Timestamp & Status */}
                         <div
                           className={`mt-1 flex items-center justify-end gap-1 text-[9px] font-semibold ${
-                            isMe ? "text-white/70" : "text-neutral-400"
+                            isMe ? "text-white/80" : "text-neutral-400"
                           }`}
                         >
                           <span>
@@ -772,7 +731,11 @@ export function ChatDrawer() {
 
                     {/* Reaction Badges List under message */}
                     {reactions.length > 0 && (
-                      <div className={`flex items-center gap-1 mt-1 ${isMe ? "mr-1" : "ml-9"}`}>
+                      <div
+                        className={`flex items-center gap-1 mt-1 ${
+                          isMe ? "mr-1 justify-end" : "ml-9 justify-start"
+                        }`}
+                      >
                         {reactions.map(([emoji, userList]) => (
                           <button
                             key={emoji}
