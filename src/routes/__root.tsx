@@ -77,7 +77,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 import { useEffect } from "react";
 import { useStore } from "@/lib/store";
-import { initAuthListener } from "@/lib/supabase";
+import { useChatStore } from "@/lib/chatStore";
+import { initAuthListener, subscribeToGlobalChat } from "@/lib/supabase";
 import { ChatDrawer } from "@/components/chat/ChatDrawer";
 import { FloatingChatButton } from "@/components/chat/FloatingChatButton";
 import { Toaster } from "sonner";
@@ -87,7 +88,7 @@ function RootComponent() {
   const logout = useStore((s) => s.logout);
 
   useEffect(() => {
-    const unsubscribe = initAuthListener((userSession, event) => {
+    const unsubscribeAuth = initAuthListener((userSession, event) => {
       if (userSession) {
         login(userSession);
       } else if (event === "SIGNED_OUT") {
@@ -95,7 +96,26 @@ function RootComponent() {
       }
     });
 
-    return () => unsubscribe();
+    // Global persistent realtime chat synchronization across all devices and tabs
+    const unsubscribeChat = subscribeToGlobalChat({
+      onMessage: (msg, conv) => {
+        useChatStore.getState().receiveRemoteMessage(msg, conv);
+      },
+      onReaction: (convId, msgId, reactions) => {
+        useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
+      },
+      onSyncRequest: (convId, requesterId) => {
+        useChatStore.getState().handleSyncRequest(convId, requesterId);
+      },
+      onSyncResponse: (convId, msgs) => {
+        useChatStore.getState().receiveSyncMessages(convId, msgs);
+      },
+    });
+
+    return () => {
+      unsubscribeAuth();
+      unsubscribeChat();
+    };
   }, [login, logout]);
 
   return (

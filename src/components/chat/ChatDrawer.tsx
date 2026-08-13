@@ -103,10 +103,11 @@ export function ChatDrawer() {
     });
   }, [conversations, searchQuery]);
 
-  // Auto-scroll on new message
+  // Auto-scroll on new message and request peer history sync
   useEffect(() => {
     if (activeConversationId) {
       markAsRead(activeConversationId);
+      useChatStore.getState().requestConversationSync(activeConversationId);
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }
   }, [activeConversationId, activeMessages.length, markAsRead]);
@@ -125,23 +126,6 @@ export function ChatDrawer() {
       if (voiceTimerRef.current) clearInterval(voiceTimerRef.current);
     };
   }, [isRecordingVoice]);
-
-  // Cross-device live chat synchronization
-  useEffect(() => {
-    const memorySlug = activeConv?.memorySlug;
-    const unsubscribe = subscribeToChatRealtime(
-      memorySlug,
-      (msg, conv) => {
-        useChatStore.getState().receiveRemoteMessage(msg, conv);
-      },
-      (convId, msgId, reactions) => {
-        useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
-      }
-    );
-    return () => {
-      unsubscribe();
-    };
-  }, [activeConv?.memorySlug]);
 
   if (!isDrawerOpen) return null;
 

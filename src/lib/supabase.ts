@@ -419,25 +419,109 @@ export function subscribeToMemoryRealtime(
   };
 }
 
+/* ─────────────────────────────────────────────────────────────
+ * REALTIME CHAT SYNCHRONIZATION (CROSS-DEVICE SINGLETON)
+ * ───────────────────────────────────────────────────────────── */
+
+let globalChatChannel: any = null;
+const globalChatSubscribers = new Set<{
+  onMessage: (message: any, conversation: any) => void;
+  onReaction?: (conversationId: string, messageId: string, reactions: Record<string, string[]>) => void;
+  onSyncRequest?: (conversationId: string, requesterId: string) => void;
+  onSyncResponse?: (conversationId: string, messages: any[]) => void;
+}>();
+
+export function getOrCreateGlobalChatChannel() {
+  if (!isSupabaseConfigured) return null;
+  if (!globalChatChannel) {
+    globalChatChannel = supabase.channel("sociodex-realtime-chat-sync", {
+      config: {
+        broadcast: { self: true },
+      },
+    });
+
+    globalChatChannel
+      .on("broadcast", { event: "chat_message" }, ({ payload }: any) => {
+        if (payload?.message) {
+          globalChatSubscribers.forEach((sub) => sub.onMessage(payload.message, payload.conversation));
+        }
+      })
+      .on("broadcast", { event: "chat_reaction" }, ({ payload }: any) => {
+        if (payload?.messageId) {
+          globalChatSubscribers.forEach((sub) =>
+            sub.onReaction?.(payload.conversationId, payload.messageId, payload.reactions)
+          );
+        }
+      })
+      .on("broadcast", { event: "chat_sync_request" }, ({ payload }: any) => {
+        if (payload?.conversationId) {
+          globalChatSubscribers.forEach((sub) =>
+            sub.onSyncRequest?.(payload.conversationId, payload.requesterId)
+          );
+        }
+      })
+      .on("broadcast", { event: "chat_sync_response" }, ({ payload }: any) => {
+        if (payload?.conversationId && payload?.messages) {
+          globalChatSubscribers.forEach((sub) =>
+            sub.onSyncResponse?.(payload.conversationId, payload.messages)
+          );
+        }
+      })
+      .subscribe((status: string) => {
+        console.log("[Supabase Global Chat Realtime Status]:", status);
+      });
+  }
+  return globalChatChannel;
+}
+
 /**
- * Broadcast a real-time chat message across devices via Supabase Realtime WebSocket
+ * Global subscriber for real-time chat messages across all pages & devices
+ */
+export function subscribeToGlobalChat(subscriber: {
+  onMessage: (message: any, conversation: any) => void;
+  onReaction?: (conversationId: string, messageId: string, reactions: Record<string, string[]>) => void;
+  onSyncRequest?: (conversationId: string, requesterId: string) => void;
+  onSyncResponse?: (conversationId: string, messages: any[]) => void;
+}) {
+  getOrCreateGlobalChatChannel();
+  globalChatSubscribers.add(subscriber);
+  return () => {
+    globalChatSubscribers.delete(subscriber);
+  };
+}
+
+/**
+ * Legacy wrapper for compatibility
+ */
+export function subscribeToChatRealtime(
+  _memorySlug: string | undefined,
+  onMessageReceived: (message: any, conversation: any) => void,
+  onReactionReceived?: (conversationId: string, messageId: string, reactions: Record<string, string[]>) => void
+) {
+  return subscribeToGlobalChat({
+    onMessage: onMessageReceived,
+    onReaction: onReactionReceived,
+  });
+}
+
+/**
+ * Broadcast a real-time chat message across devices via active WebSocket channel
  */
 export async function broadcastChatMessage(
-  memorySlug: string | undefined,
+  _memorySlug: string | undefined,
   message: any,
   conversation: any
 ) {
-  if (!isSupabaseConfigured) return;
+  const channel = getOrCreateGlobalChatChannel();
+  if (!channel) return;
   try {
-    const channelName = memorySlug ? `chat-room-${memorySlug}` : "chat-global";
-    const channel = supabase.channel(channelName);
     await channel.send({
       type: "broadcast",
       event: "chat_message",
       payload: { message, conversation },
     });
   } catch (err) {
-    console.warn("[Supabase Broadcast Error]", err);
+    console.warn("[Supabase Broadcast Message Error]", err);
   }
 }
 
@@ -445,58 +529,55 @@ export async function broadcastChatMessage(
  * Broadcast a message reaction update across devices
  */
 export async function broadcastChatReaction(
-  memorySlug: string | undefined,
+  _memorySlug: string | undefined,
   conversationId: string,
   messageId: string,
   reactions: Record<string, string[]>
 ) {
-  if (!isSupabaseConfigured) return;
+  const channel = getOrCreateGlobalChatChannel();
+  if (!channel) return;
   try {
-    const channelName = memorySlug ? `chat-room-${memorySlug}` : "chat-global";
-    const channel = supabase.channel(channelName);
     await channel.send({
       type: "broadcast",
       event: "chat_reaction",
       payload: { conversationId, messageId, reactions },
     });
   } catch (err) {
-    console.warn("[Supabase Reaction Broadcast Error]", err);
+    console.warn("[Supabase Broadcast Reaction Error]", err);
   }
 }
 
 /**
- * Subscribe to Supabase Realtime Chat messages & reactions for a memory page or global chat
+ * Request peer conversation history sync from other active devices
  */
-export function subscribeToChatRealtime(
-  memorySlug: string | undefined,
-  onMessageReceived: (message: any, conversation: any) => void,
-  onReactionReceived?: (conversationId: string, messageId: string, reactions: Record<string, string[]>) => void
-) {
-  if (!isSupabaseConfigured) return () => {};
-
-  const channelName = memorySlug ? `chat-room-${memorySlug}` : "chat-global";
-  const channel = supabase
-    .channel(channelName, {
-      config: {
-        broadcast: { self: false },
-      },
-    })
-    .on("broadcast", { event: "chat_message" }, ({ payload }) => {
-      if (payload?.message) {
-        onMessageReceived(payload.message, payload.conversation);
-      }
-    })
-    .on("broadcast", { event: "chat_reaction" }, ({ payload }) => {
-      if (payload?.messageId && onReactionReceived) {
-        onReactionReceived(payload.conversationId, payload.messageId, payload.reactions);
-      }
-    })
-    .subscribe((status) => {
-      console.log(`[Supabase Chat Realtime] Channel ${channelName} status:`, status);
+export async function broadcastChatSyncRequest(conversationId: string, requesterId: string) {
+  const channel = getOrCreateGlobalChatChannel();
+  if (!channel) return;
+  try {
+    await channel.send({
+      type: "broadcast",
+      event: "chat_sync_request",
+      payload: { conversationId, requesterId },
     });
+  } catch (err) {
+    console.warn("[Supabase Broadcast Sync Request Error]", err);
+  }
+}
 
-  return () => {
-    supabase.removeChannel(channel);
-  };
+/**
+ * Reply with conversation messages history for peer sync
+ */
+export async function broadcastChatSyncResponse(conversationId: string, messages: any[]) {
+  const channel = getOrCreateGlobalChatChannel();
+  if (!channel) return;
+  try {
+    await channel.send({
+      type: "broadcast",
+      event: "chat_sync_response",
+      payload: { conversationId, messages },
+    });
+  } catch (err) {
+    console.warn("[Supabase Broadcast Sync Response Error]", err);
+  }
 }
 
