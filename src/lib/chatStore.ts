@@ -453,7 +453,9 @@ export const useChatStore = create<ChatStore>()(
           // Show floating toast alert if user isn't currently looking at this conversation and message wasn't sent by me
           if (!isCurrentActive && !isMe) {
             toast.info(`💬 ${msg.senderName}: ${msg.content || (msg.mediaType ? `[${msg.mediaType}]` : "sent a message")}`, {
+              id: `chat-msg-${msg.id}`,
               description: convMeta?.memoryTitle ? `in ${convMeta.memoryTitle}` : undefined,
+              duration: 5000,
               action: {
                 label: "Reply",
                 onClick: () => {

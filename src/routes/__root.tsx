@@ -126,7 +126,22 @@ function RootComponent() {
       </main>
       <ChatDrawer />
       <FloatingChatButton />
-      <Toaster position="top-right" richColors />
+      <Toaster
+        position="top-right"
+        richColors
+        expand={true}
+        visibleToasts={6}
+        closeButton={true}
+        gap={12}
+        toastOptions={{
+          style: {
+            borderRadius: "16px",
+            padding: "14px 16px",
+            boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(36, 22, 33, 0.08)",
+            backdropFilter: "blur(12px)",
+          },
+        }}
+      />
     </>
   );
 }

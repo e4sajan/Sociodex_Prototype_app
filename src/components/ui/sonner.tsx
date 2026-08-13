@@ -6,6 +6,10 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       className="toaster group"
+      expand={true}
+      visibleToasts={6}
+      closeButton={true}
+      gap={12}
       toastOptions={{
         classNames: {
           toast:
@@ -13,6 +17,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
           description: "group-[.toast]:text-muted-foreground",
           actionButton: "group-[.toast]:bg-primary group-[.toast]:text-primary-foreground",
           cancelButton: "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
+        },
+        style: {
+          borderRadius: "16px",
+          padding: "14px 16px",
+          boxShadow: "0 10px 30px -5px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(36, 22, 33, 0.08)",
+          backdropFilter: "blur(12px)",
         },
       }}
       {...props}
