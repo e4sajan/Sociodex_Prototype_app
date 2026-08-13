@@ -172,9 +172,10 @@ export const useChatStore = create<ChatStore>()(
       filterTab: "direct",
       soundEnabled: true,
 
-      setDrawerOpen: (open, conversationId) => {
+      setDrawerOpen: (open, conversationId = null) => {
         set((state) => {
-          const nextActive = conversationId !== undefined ? conversationId : state.activeConversationId;
+          // When opening drawer from the general chat icon, always open to the contacts list
+          const nextActive = conversationId || null;
           const updatedConvs = { ...state.conversations };
           if (nextActive && updatedConvs[nextActive]) {
             updatedConvs[nextActive] = {
@@ -486,7 +487,7 @@ export const useChatStore = create<ChatStore>()(
             if (msg.id !== messageId) return msg;
 
             const reactions = { ...(msg.reactions || {}) };
-            const users = reactions[emoji] || [];
+            const users = Array.isArray(reactions[emoji]) ? [...reactions[emoji]] : [];
 
             if (users.includes(myName)) {
               const nextUsers = users.filter((u) => u !== myName);
@@ -511,24 +512,40 @@ export const useChatStore = create<ChatStore>()(
           };
         });
 
-        // Broadcast reaction across devices
+        // Broadcast reaction across devices immediately
         const conv = get().conversations[conversationId];
         broadcastChatReaction(conv?.memorySlug, conversationId, messageId, updatedReactions);
       },
 
       receiveRemoteReaction: (conversationId, messageId, reactions) => {
         set((state) => {
-          const convMessages = state.messages[conversationId] || [];
-          const updated = convMessages.map((msg) => {
-            if (msg.id !== messageId) return msg;
-            return { ...msg, reactions };
-          });
+          const updatedMessages = { ...state.messages };
+          let found = false;
+
+          if (updatedMessages[conversationId]) {
+            updatedMessages[conversationId] = updatedMessages[conversationId].map((msg) => {
+              if (msg.id === messageId) {
+                found = true;
+                return { ...msg, reactions: reactions || {} };
+              }
+              return msg;
+            });
+          }
+
+          // Fallback search across all conversations
+          if (!found) {
+            Object.keys(updatedMessages).forEach((cId) => {
+              updatedMessages[cId] = updatedMessages[cId].map((msg) => {
+                if (msg.id === messageId) {
+                  return { ...msg, reactions: reactions || {} };
+                }
+                return msg;
+              });
+            });
+          }
 
           return {
-            messages: {
-              ...state.messages,
-              [conversationId]: updated,
-            },
+            messages: updatedMessages,
           };
         });
       },

@@ -4,8 +4,6 @@ import {
   Send,
   MessageSquare,
   Search,
-  User,
-  Sparkles,
   Smile,
   Image as ImageIcon,
   Mic,
@@ -23,16 +21,7 @@ import {
 } from "lucide-react";
 import { useChatStore, type ChatMessage, type ChatConversation } from "@/lib/chatStore";
 import { useStore } from "@/lib/store";
-import { subscribeToChatRealtime } from "@/lib/supabase";
 import { toast } from "sonner";
-
-const QUICK_SUGGESTIONS = [
-  "Loved your memory photo! 📸",
-  "So excited for the celebration! 🎉",
-  "Let's coordinate on the keepsake! 🎁",
-  "Thank you for the warm wish! 💖",
-  "Can't wait to see you! ✨",
-];
 
 const EMOJI_LIST = ["❤️", "👍", "👏", "🎉", "😂", "✨", "🙏", "💖", "🌸", "🥂", "🎂", "💐"];
 
@@ -81,7 +70,7 @@ export function ChatDrawer() {
     ? messages[activeConversationId] || []
     : [];
 
-  // Filtered direct conversations list (excluding rooms/groups)
+  // Filtered direct conversations list (sorted by most recent chat to last chat)
   const filteredConversations = useMemo(() => {
     const list = Object.values(conversations).sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
@@ -302,7 +291,7 @@ export function ChatDrawer() {
           </div>
         ) : !activeConv ? (
           /* ==================================================================== */
-          /* DIRECT MESSAGES INBOX VIEW                                           */
+          /* CONTACTS / DIRECT MESSAGES INBOX VIEW                                */
           /* ==================================================================== */
           <div className="flex flex-col h-full">
             {/* Inbox Header */}
@@ -314,10 +303,10 @@ export function ChatDrawer() {
                   </div>
                   <div>
                     <h2 className="font-display text-lg sm:text-xl font-bold leading-tight text-[#241621]">
-                      Direct Messages
+                      Contacts & Messages
                     </h2>
                     <p className="text-[11px] text-[#594855] font-medium">
-                      Private 1-on-1 chats with contributors
+                      Direct 1-on-1 conversations ({filteredConversations.length})
                     </p>
                   </div>
                 </div>
@@ -349,22 +338,22 @@ export function ChatDrawer() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search direct messages..."
+                  placeholder="Search contacts and messages..."
                   className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#FAF6F0] border border-[#241621]/10 outline-none focus:border-[#E4603C] transition"
                 />
               </div>
             </div>
 
-            {/* Conversation Threads List */}
+            {/* Contacts & Conversation Threads List */}
             <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
               {filteredConversations.length === 0 ? (
                 <div className="text-center py-12 px-4 space-y-3">
                   <div className="h-12 w-12 rounded-full bg-[#FAF6F0] mx-auto flex items-center justify-center text-xl text-neutral-400">
                     💬
                   </div>
-                  <h3 className="text-sm font-bold text-neutral-700">No direct messages yet</h3>
+                  <h3 className="text-sm font-bold text-neutral-700">No conversations yet</h3>
                   <p className="text-xs text-neutral-500 max-w-xs mx-auto">
-                    Click the <strong>Message</strong> button next to any contributor or follower on a memory page or tracker dashboard to start chatting!
+                    Click the <strong>Message</strong> or <strong>Chat</strong> button next to any contributor or follower to start a conversation!
                   </p>
                 </div>
               ) : (
@@ -374,13 +363,13 @@ export function ChatDrawer() {
                     <div
                       key={conv.id}
                       onClick={() => setActiveConversation(conv.id)}
-                      className={`group flex items-center gap-3 p-3 rounded-2xl border transition-all cursor-pointer ${
+                      className={`group flex items-center gap-3 p-3.5 rounded-2xl border transition-all cursor-pointer select-none ${
                         hasUnread
-                          ? "bg-white border-[#E4603C]/30 shadow-xs hover:border-[#E4603C]"
-                          : "bg-white/60 hover:bg-white border-[#241621]/10 hover:border-[#241621]/20 hover:shadow-xs"
+                          ? "bg-white border-[#E4603C]/40 shadow-sm hover:border-[#E4603C]"
+                          : "bg-white/70 hover:bg-white border-[#241621]/10 hover:border-[#241621]/20 hover:shadow-xs"
                       }`}
                     >
-                      {/* Avatar */}
+                      {/* Avatar with Online Indicator */}
                       <div className="relative shrink-0">
                         <div
                           className="h-11 w-11 rounded-2xl flex items-center justify-center text-lg font-bold shadow-xs border border-white text-white"
@@ -396,10 +385,23 @@ export function ChatDrawer() {
                       {/* Info & Snippet */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <h4 className="text-xs sm:text-sm font-bold text-[#241621] truncate">
-                            {conv.title}
-                          </h4>
-                          <span className="text-[10px] text-neutral-400 font-semibold shrink-0">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {hasUnread && (
+                              <span className="h-2 w-2 rounded-full bg-[#E4603C] animate-pulse shrink-0" />
+                            )}
+                            <h4
+                              className={`text-xs sm:text-sm truncate ${
+                                hasUnread ? "font-extrabold text-[#241621]" : "font-bold text-[#241621]/90"
+                              }`}
+                            >
+                              {conv.title}
+                            </h4>
+                          </div>
+                          <span
+                            className={`text-[10px] shrink-0 ${
+                              hasUnread ? "font-bold text-[#E4603C]" : "font-medium text-neutral-400"
+                            }`}
+                          >
                             {new Date(conv.updatedAt).toLocaleTimeString([], {
                               hour: "2-digit",
                               minute: "2-digit",
@@ -414,7 +416,11 @@ export function ChatDrawer() {
                         )}
 
                         <div className="flex items-center justify-between gap-2">
-                          <p className="text-xs text-neutral-500 truncate leading-snug">
+                          <p
+                            className={`text-xs truncate leading-snug ${
+                              hasUnread ? "font-semibold text-neutral-800" : "text-neutral-500"
+                            }`}
+                          >
                             {conv.isTyping ? (
                               <span className="text-[#E4603C] font-semibold animate-pulse">
                                 {conv.typingUser || "Contributor"} is typing...
@@ -425,7 +431,7 @@ export function ChatDrawer() {
                           </p>
 
                           {hasUnread && (
-                            <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#E4603C] text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-xs animate-bounce">
+                            <span className="h-5 min-w-5 px-1.5 rounded-full bg-[#E4603C] text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 shadow-xs">
                               {conv.unreadCount}
                             </span>
                           )}
@@ -448,7 +454,7 @@ export function ChatDrawer() {
                 <button
                   type="button"
                   onClick={() => setActiveConversation(null)}
-                  title="Back to inbox"
+                  title="Back to contacts"
                   className="p-1.5 rounded-full hover:bg-neutral-100 text-neutral-600 transition cursor-pointer"
                 >
                   <ArrowLeft className="h-4 w-4" />
@@ -535,7 +541,7 @@ export function ChatDrawer() {
                     Start a conversation with {activeConv.title}
                   </h4>
                   <p className="text-[11px] text-neutral-500 max-w-xs mx-auto">
-                    Send a private message to coordinate or share wishes for {activeConv.memoryTitle || "this page"}.
+                    Send a private message to coordinate or share memories for {activeConv.memoryTitle || "this celebration"}.
                   </p>
                 </div>
               )}
@@ -551,7 +557,9 @@ export function ChatDrawer() {
                   (myEmail && msg.senderId.toLowerCase() === myEmail) ||
                   (myName && msg.senderName.trim().toLowerCase() === myName);
 
-                const reactions = Object.entries(msg.reactions || {});
+                const reactions = Object.entries(msg.reactions || {}).filter(
+                  ([_, userList]) => Array.isArray(userList) && userList.length > 0
+                );
 
                 return (
                   <div
@@ -673,7 +681,7 @@ export function ChatDrawer() {
                               })
                             }
                             title="React with Heart"
-                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer select-none"
                           >
                             ❤️
                           </button>
@@ -687,15 +695,29 @@ export function ChatDrawer() {
                               })
                             }
                             title="React with Thumbs Up"
-                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer select-none"
                           >
                             👍
                           </button>
                           <button
                             type="button"
+                            onClick={() =>
+                              toggleReaction({
+                                conversationId: activeConv.id,
+                                messageId: msg.id,
+                                emoji: "🎉",
+                              })
+                            }
+                            title="React with Party Popper"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-xs hover:scale-110 transition cursor-pointer select-none"
+                          >
+                            🎉
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => setReplyTo(msg)}
                             title="Reply to message"
-                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-600 hover:text-[#E4603C] hover:scale-110 transition cursor-pointer"
+                            className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-neutral-600 hover:text-[#E4603C] hover:scale-110 transition cursor-pointer select-none"
                           >
                             <Reply className="h-3 w-3" />
                           </button>
@@ -704,7 +726,7 @@ export function ChatDrawer() {
                               type="button"
                               onClick={() => deleteMessage(activeConv.id, msg.id)}
                               title="Delete message"
-                              className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-red-500 hover:scale-110 transition cursor-pointer"
+                              className="h-6 w-6 rounded-full bg-white border border-neutral-200 shadow-xs flex items-center justify-center text-red-500 hover:scale-110 transition cursor-pointer select-none"
                             >
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -716,7 +738,7 @@ export function ChatDrawer() {
                     {/* Reaction Badges List under message */}
                     {reactions.length > 0 && (
                       <div
-                        className={`flex items-center gap-1 mt-1 ${
+                        className={`flex items-center gap-1 mt-1 flex-wrap ${
                           isMe ? "mr-1 justify-end" : "ml-9 justify-start"
                         }`}
                       >
@@ -732,7 +754,7 @@ export function ChatDrawer() {
                               })
                             }
                             title={`Reacted by: ${userList.join(", ")}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-white border border-[#241621]/15 px-2 py-0.5 text-[10px] font-bold shadow-2xs hover:scale-105 transition cursor-pointer"
+                            className="inline-flex items-center gap-1 rounded-full bg-white border border-[#241621]/15 px-2 py-0.5 text-[10px] font-bold shadow-2xs hover:scale-105 transition cursor-pointer select-none"
                           >
                             <span>{emoji}</span>
                             <span>{userList.length}</span>
@@ -764,23 +786,6 @@ export function ChatDrawer() {
               )}
 
               <div ref={messagesEndRef} />
-            </div>
-
-            {/* Quick Suggestions Chips */}
-            <div className="px-3 pt-2 pb-1 bg-white border-t border-[#241621]/10 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0">
-              {QUICK_SUGGESTIONS.map((suggestion, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setInputText(suggestion);
-                    chatInputRef.current?.focus();
-                  }}
-                  className="rounded-full bg-[#FAF6F0] hover:bg-[#F4ECE0] border border-[#241621]/10 px-2.5 py-1 text-[11px] font-semibold text-neutral-700 whitespace-nowrap transition cursor-pointer select-none"
-                >
-                  {suggestion}
-                </button>
-              ))}
             </div>
 
             {/* Replying banner */}
@@ -816,7 +821,7 @@ export function ChatDrawer() {
                       setInputText((prev) => prev + emoji);
                       chatInputRef.current?.focus();
                     }}
-                    className="h-8 w-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-lg transition cursor-pointer"
+                    className="h-8 w-8 rounded-lg hover:bg-neutral-100 flex items-center justify-center text-lg transition cursor-pointer select-none"
                   >
                     {emoji}
                   </button>
