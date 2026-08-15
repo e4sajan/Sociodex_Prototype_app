@@ -60,7 +60,9 @@ import {
   Flag,
   Copy,
   LogOut,
+  Printer,
 } from "lucide-react";
+import { PostcardModal } from "@/components/PostcardModal";
 import { toast, Toaster } from "sonner";
 
 export const Route = createFileRoute("/m/$slug")({
@@ -458,6 +460,7 @@ const getOccasionIcon = (occasion: string) => {
 /* ─── Main Public Memory Page Component ─── */
 function PublicMemoryPage() {
   const { slug } = useParams({ from: "/m/$slug" });
+  const loaderData = Route.useLoaderData() as { memory: Partial<MemoryData> | null } | undefined;
 
   const [isRevealed, setIsRevealed] = useState(false);
   const [isUnwrapping, setIsUnwrapping] = useState(false);
@@ -475,7 +478,10 @@ function PublicMemoryPage() {
   // Zustand State
   const memories = useStore((s) => s.memories || {});
   const fallbackMemory = useStore((s) => s.memory);
-  const activeMemory = memories[slug] || (fallbackMemory?.slug === slug ? fallbackMemory : null);
+  const activeMemory =
+    memories[slug] ||
+    (fallbackMemory?.slug === slug ? fallbackMemory : null) ||
+    (loaderData?.memory?.slug === slug ? (loaderData.memory as MemoryData) : null);
 
   const currentUser = useStore((s) => s.currentUser);
   const guests = useStore((s) => s.guests || []);
@@ -502,11 +508,22 @@ function PublicMemoryPage() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
 
-  // Fetch memory from Supabase and subscribe to Realtime
+  // Sync loader data into Zustand store immediately on mount
+  useEffect(() => {
+    if (loaderData?.memory && loaderData.memory.slug === slug) {
+      if (!memories[slug]) {
+        setMemory(loaderData.memory as any);
+      }
+    }
+  }, [loaderData, slug, memories, setMemory]);
+
+  // Fetch memory from Supabase and subscribe to Realtime (non-blocking if activeMemory is available)
   useEffect(() => {
     let isMounted = true;
+    let unsubscribeMemory: (() => void) | undefined;
+    let unsubscribeChat: (() => void) | undefined;
+    let realtimeTimer: NodeJS.Timeout | undefined;
 
-    // If activeMemory is already present in Zustand store, no blocking load
     if (activeMemory) {
       setIsLoading(false);
       setFetchError(null);
@@ -515,50 +532,56 @@ function PublicMemoryPage() {
     }
 
     if (isSupabaseConfigured && slug) {
-      fetchMemoryFromSupabase(slug)
-        .then((remoteData) => {
-          if (!isMounted) return;
-          if (remoteData && remoteData.slug) {
-            setMemory(remoteData as any);
-            setFetchError(null);
-          }
-        })
-        .catch((err) => {
-          if (!isMounted) return;
-          console.error("[PublicMemoryPage] Supabase fetch error:", err);
-          if (!activeMemory) {
+      // If we don't have activeMemory from store or loader, fetch it
+      if (!activeMemory) {
+        fetchMemoryFromSupabase(slug)
+          .then((remoteData) => {
+            if (!isMounted) return;
+            if (remoteData && remoteData.slug) {
+              setMemory(remoteData as any);
+              setFetchError(null);
+            }
+          })
+          .catch((err) => {
+            if (!isMounted) return;
+            console.error("[PublicMemoryPage] Supabase fetch error:", err);
             setFetchError("Unable to connect to server. Please check your internet connection.");
-          }
-        })
-        .finally(() => {
-          if (isMounted) {
-            setIsLoading(false);
-          }
+          })
+          .finally(() => {
+            if (isMounted) {
+              setIsLoading(false);
+            }
+          });
+      }
+
+      // Defer real-time WebSocket connections slightly so initial DOM, fonts, and photos paint first
+      realtimeTimer = setTimeout(() => {
+        if (!isMounted) return;
+        unsubscribeMemory = subscribeToMemoryRealtime(slug, (newContrib) => {
+          addSimulatedContribution(slug, newContrib);
         });
 
-      const unsubscribeMemory = subscribeToMemoryRealtime(slug, (newContrib) => {
-        addSimulatedContribution(slug, newContrib);
-      });
-
-      const unsubscribeChat = subscribeToChatRealtime(
-        slug,
-        (msg, conv) => {
-          useChatStore.getState().receiveRemoteMessage(msg, conv);
-        },
-        (convId, msgId, reactions) => {
-          useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
-        }
-      );
+        unsubscribeChat = subscribeToChatRealtime(
+          slug,
+          (msg, conv) => {
+            useChatStore.getState().receiveRemoteMessage(msg, conv);
+          },
+          (convId, msgId, reactions) => {
+            useChatStore.getState().receiveRemoteReaction(convId, msgId, reactions);
+          }
+        );
+      }, 400);
 
       return () => {
         isMounted = false;
-        unsubscribeMemory();
-        unsubscribeChat();
+        if (realtimeTimer) clearTimeout(realtimeTimer);
+        if (unsubscribeMemory) unsubscribeMemory();
+        if (unsubscribeChat) unsubscribeChat();
       };
     } else {
       setIsLoading(false);
     }
-  }, [slug, retryTrigger, setMemory, addSimulatedContribution]);
+  }, [slug, retryTrigger, Boolean(activeMemory), setMemory, addSimulatedContribution]);
 
   // Local UI States
   const [tab, setTab] = useState<"all" | "wishes" | "photos" | "audios" | "videos">("all");
@@ -569,6 +592,7 @@ function PublicMemoryPage() {
   const [showRolesModal, setShowRolesModal] = useState(false);
   const [activeCardMenuId, setActiveCardMenuId] = useState<string | null>(null);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showPostcardModal, setShowPostcardModal] = useState(false);
 
   const userRole: PageRole = getPageRole(activeMemory, currentUser);
   const isFollowing = activeMemory?.followers?.some(
@@ -1311,6 +1335,7 @@ function PublicMemoryPage() {
                 <img
                   src={activeMemory.corporateLogo}
                   alt="Company Logo"
+                  decoding="async"
                   className="max-h-16 max-w-[180px] object-contain"
                 />
               </div>
@@ -1453,6 +1478,19 @@ function PublicMemoryPage() {
                 </button>
               )}
 
+              {/* Print Postcard Keepsake Button */}
+              {activeMemory && (
+                <button
+                  type="button"
+                  onClick={() => setShowPostcardModal(true)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#241621]/15 bg-white px-3 py-1 text-xs font-bold text-[#241621] hover:bg-[#FAF6F0] hover:text-[#E4603C] hover:border-[#E4603C]/40 transition-all cursor-pointer shadow-xs select-none"
+                  title="Print Postcard Size Keepsake Record with QR Code (4x6)"
+                >
+                  <Printer className="h-3.5 w-3.5 text-[#E4603C]" />
+                  <span className="hidden sm:inline">Print Postcard</span>
+                </button>
+              )}
+
               {/* Single Unified Direct Chat Icon Button */}
               {activeMemory && (
                 <button
@@ -1523,6 +1561,19 @@ function PublicMemoryPage() {
                       </div>
 
                       <div className="py-1 space-y-0.5">
+                        {/* Print Postcard Option */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowProfileMenu(false);
+                            setShowPostcardModal(true);
+                          }}
+                          className="w-full text-left rounded-xl px-3 py-2 text-xs font-semibold text-neutral-700 hover:bg-[#FAF6F0] hover:text-[#E4603C] flex items-center gap-2.5 cursor-pointer transition-colors"
+                        >
+                          <Printer className="h-4 w-4 text-[#E4603C]" />
+                          <span>Print Postcard (4" × 6")</span>
+                        </button>
+
                         {/* Host / Page Settings (if creator or admin) */}
                         {isOwner && (
                           <button
@@ -1607,6 +1658,7 @@ function PublicMemoryPage() {
               <img
                 src={activeMemory.corporateLogo}
                 alt="Company Logo"
+                decoding="async"
                 className="max-h-12 max-w-[200px] object-contain"
               />
             </div>
@@ -1928,6 +1980,8 @@ function PublicMemoryPage() {
                     <img
                       src={activeMemory.photos[0]}
                       alt="Memory gallery"
+                      loading="lazy"
+                      decoding="async"
                       className="max-h-[300px] sm:max-h-[340px] max-w-full w-auto h-auto object-contain rounded-2xl group-hover:scale-[1.01] transition-transform duration-300"
                     />
                   </div>
@@ -1942,6 +1996,8 @@ function PublicMemoryPage() {
                         <img
                           src={url}
                           alt="Memory gallery"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-auto max-h-56 object-contain group-hover:scale-[1.02] transition-transform duration-300"
                         />
                       </div>
@@ -2056,6 +2112,8 @@ function PublicMemoryPage() {
                     <img
                       src={photo.src}
                       alt={photo.caption}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-auto max-h-[500px] object-contain group-hover:scale-[1.01] transition-transform duration-300 rounded-xl"
                     />
                   </div>
@@ -2428,6 +2486,8 @@ function PublicMemoryPage() {
                                   <img
                                     src={c.media_urls[0]}
                                     alt="Attached memory"
+                                    loading="lazy"
+                                    decoding="async"
                                     className="max-h-[300px] sm:max-h-[340px] max-w-full w-auto h-auto object-contain rounded-2xl group-hover:scale-[1.01] transition-transform duration-200"
                                   />
                                 </div>
@@ -2446,6 +2506,8 @@ function PublicMemoryPage() {
                                       <img
                                         src={imgUrl}
                                         alt="Attached memory"
+                                        loading="lazy"
+                                        decoding="async"
                                         className="w-full h-auto max-h-56 object-contain group-hover:scale-[1.02] transition-transform duration-200"
                                       />
                                     </div>
@@ -3479,6 +3541,7 @@ function PublicMemoryPage() {
               <img
                 src={masonryPhotos[lightboxIndex]?.src}
                 alt="Enlarged"
+                decoding="async"
                 className="max-w-full max-h-[70vh] object-contain"
               />
             </div>
@@ -3541,6 +3604,13 @@ function PublicMemoryPage() {
           }
         }
       `}</style>
+
+      {/* ── POSTCARD PHYSICAL PRINT MODAL ── */}
+      <PostcardModal
+        memory={activeMemory}
+        isOpen={showPostcardModal}
+        onClose={() => setShowPostcardModal(false)}
+      />
     </div>
   );
 }

@@ -173,20 +173,28 @@ export function initAuthListener(onUserChanged: (session: UserSession | null, ev
  * ───────────────────────────────────────────────────────────── */
 
 /**
- * Fetch a memory page and its live contributions/comments from Supabase
+ * Fetch a memory page and its live contributions from Supabase with timeout protection
  */
-export async function fetchMemoryFromSupabase(slug: string): Promise<Partial<MemoryData> | null> {
-  if (!isSupabaseConfigured) return null;
+export async function fetchMemoryFromSupabase(slug: string, timeoutMs: number = 3500): Promise<Partial<MemoryData> | null> {
+  if (!isSupabaseConfigured || !slug) return null;
 
   try {
-    const { data: memory, error } = await supabase
+    const fetchPromise = supabase
       .from("memory_pages")
-      .select("*, contributions(*), guests(*)")
+      .select("*, contributions(*), guests(id, first_name, last_name, email, rsvp)")
       .eq("slug", slug)
       .single();
 
+    const timeoutPromise = new Promise<{ data: null; error: { message: string } }>((resolve) =>
+      setTimeout(() => resolve({ data: null, error: { message: "Supabase request timed out" } }), timeoutMs)
+    );
+
+    const { data: memory, error } = (await Promise.race([fetchPromise, timeoutPromise])) as any;
+
     if (error || !memory) {
-      console.warn("[Supabase] Memory not found or error:", error?.message);
+      if (error?.message !== "Supabase request timed out") {
+        console.warn("[Supabase] Memory not found or error:", error?.message);
+      }
       return null;
     }
 

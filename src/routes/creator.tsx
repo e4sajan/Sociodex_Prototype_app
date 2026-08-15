@@ -20,7 +20,9 @@ import {
   QrCode,
   Share2,
   AlertCircle,
+  Printer,
 } from "lucide-react";
+import { PostcardModal } from "@/components/PostcardModal";
 
 export const Route = createFileRoute("/creator")({
   head: () => ({
@@ -819,6 +821,7 @@ function CreatedPreview({
   const [entered, setEntered] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [showPostcardModal, setShowPostcardModal] = useState(false);
 
   // Contribution popup states
   const [showSettingsModal, setShowSettingsModal] = useState(true);
@@ -1149,6 +1152,17 @@ function CreatedPreview({
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
             <button
+              onClick={() => setShowPostcardModal(true)}
+              style={{
+                ...actionBtn(accent),
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "0.35rem",
+              }}
+            >
+              <Printer size={13} /> Print Postcard (4" × 6")
+            </button>
+            <button
               onClick={copyUrl}
               style={{
                 ...actionBtn(accent),
@@ -1335,6 +1349,13 @@ function CreatedPreview({
           to   { opacity: 1; }
         }
       `}</style>
+
+      {/* ── POSTCARD PHYSICAL PRINT MODAL ── */}
+      <PostcardModal
+        memory={data}
+        isOpen={showPostcardModal}
+        onClose={() => setShowPostcardModal(false)}
+      />
     </div>
   );
 }

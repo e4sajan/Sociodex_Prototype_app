@@ -266,6 +266,8 @@ function SocioDexLandingPage() {
                   <img
                     src="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=800"
                     alt="Sarah's 30th Birthday"
+                    loading="lazy"
+                    decoding="async"
                     className="w-full h-full object-cover"
                   />
                   <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-[#E4603C] shadow-xs">
@@ -479,6 +481,8 @@ function SocioDexLandingPage() {
                 <img
                   src="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=1000"
                   alt="Sarah's 30th"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover opacity-60"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-6 flex flex-col justify-end">
@@ -563,11 +567,15 @@ function SocioDexLandingPage() {
                         <img
                           src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=400"
                           alt="Photo 1"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
                         <img
                           src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=400"
                           alt="Photo 2"
+                          loading="lazy"
+                          decoding="async"
                           className="w-full h-full object-cover"
                         />
                       </div>

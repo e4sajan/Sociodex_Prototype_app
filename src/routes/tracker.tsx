@@ -29,8 +29,10 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
+  Printer,
 } from "lucide-react";
 import { fetchUserMemoriesFromSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { PostcardModal } from "@/components/PostcardModal";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/tracker")({
@@ -60,6 +62,9 @@ function DashboardPage() {
 
   // Track expanded shutters map { [slug]: boolean }
   const [expandedSlugs, setExpandedSlugs] = useState<Record<string, boolean>>({});
+
+  // Active memory selected for Postcard Printing
+  const [postcardMemory, setPostcardMemory] = useState<MemoryData | null>(null);
 
   // Convert memories object to array sorted by date descending
   const memoriesList = useMemo(() => {
@@ -465,40 +470,48 @@ function DashboardPage() {
         )}
       </div>
 
-      {/* LIST OF MEMORY CARDS WITH SLIDE-DOWN INLINE SHUTTER */}
-      <div className="space-y-4">
-        {displayedCategoryPages.map((mem) => (
-          <MemoryShutterCard
-            key={mem.slug}
-            mem={mem}
-            isOpen={!!expandedSlugs[mem.slug]}
-            onToggle={() => toggleShutter(mem.slug)}
-            onCopyLink={copyPublicLink}
-          />
-        ))}
+        {/* LIST OF MEMORY CARDS WITH SLIDE-DOWN INLINE SHUTTER */}
+        <div className="space-y-4">
+          {displayedCategoryPages.map((mem) => (
+            <MemoryShutterCard
+              key={mem.slug}
+              mem={mem}
+              isOpen={!!expandedSlugs[mem.slug]}
+              onToggle={() => toggleShutter(mem.slug)}
+              onCopyLink={copyPublicLink}
+              onPrintPostcard={(m) => setPostcardMemory(m)}
+            />
+          ))}
 
-        {displayedCategoryPages.length === 0 && (
-          <div className="rounded-3xl border border-dashed border-[#241621]/20 p-10 text-center bg-white shadow-xs">
-            <Sparkles className="mx-auto h-8 w-8 text-[#E4603C] mb-2 animate-bounce" />
-            <h3 className="font-display text-base font-bold text-[#241621]">
-              No memory pages in this category yet
-            </h3>
-            <p className="text-xs text-[#594855] mt-1 max-w-sm mx-auto">
-              Create a new memory page to preserve celebrations, or explore pages shared by your friends.
-            </p>
-            <Link
-              to="/creator"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-4 py-2 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
-            >
-              <PlusCircle className="h-3.5 w-3.5" />
-              <span>Create a Memory Page</span>
-            </Link>
-          </div>
-        )}
+          {displayedCategoryPages.length === 0 && (
+            <div className="rounded-3xl border border-dashed border-[#241621]/20 p-10 text-center bg-white shadow-xs">
+              <Sparkles className="mx-auto h-8 w-8 text-[#E4603C] mb-2 animate-bounce" />
+              <h3 className="font-display text-base font-bold text-[#241621]">
+                No memory pages in this category yet
+              </h3>
+              <p className="text-xs text-[#594855] mt-1 max-w-sm mx-auto">
+                Create a new memory page to preserve celebrations, or explore pages shared by your friends.
+              </p>
+              <Link
+                to="/creator"
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-4 py-2 text-xs font-bold text-white shadow-md transition-all cursor-pointer"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span>Create a Memory Page</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* ── POSTCARD PHYSICAL PRINT & PREVIEW MODAL ── */}
+        <PostcardModal
+          memory={postcardMemory}
+          isOpen={!!postcardMemory}
+          onClose={() => setPostcardMemory(null)}
+        />
       </div>
-    </div>
-  );
-}
+    );
+  }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // INDIVIDUAL MEMORY CARD WITH SLIDE-DOWN SHUTTER ACCORDION
@@ -508,9 +521,16 @@ interface MemoryShutterCardProps {
   isOpen: boolean;
   onToggle: () => void;
   onCopyLink: (slug: string) => void;
+  onPrintPostcard: (mem: MemoryData) => void;
 }
 
-function MemoryShutterCard({ mem, isOpen, onToggle, onCopyLink }: MemoryShutterCardProps) {
+function MemoryShutterCard({
+  mem,
+  isOpen,
+  onToggle,
+  onCopyLink,
+  onPrintPostcard,
+}: MemoryShutterCardProps) {
   const pendingCount =
     mem.collaborationRequests?.filter((r) => r.status === "pending").length || 0;
 
@@ -577,26 +597,42 @@ function MemoryShutterCard({ mem, isOpen, onToggle, onCopyLink }: MemoryShutterC
             </span>
           </div>
 
-          {/* Shutter Toggle Action Button */}
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggle();
-            }}
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer select-none shadow-2xs ${
-              isOpen
-                ? "bg-[#E4603C] text-white hover:bg-[#c94b29]"
-                : "bg-[#FFFDF9] hover:bg-[#E4603C]/10 text-[#241621] border border-[#241621]/15 hover:border-[#E4603C]/40 hover:text-[#E4603C]"
-            }`}
-          >
-            <span>{isOpen ? "Close Shutter" : "View Stats"}</span>
-            {isOpen ? (
-              <ChevronUp className="h-3.5 w-3.5 text-white animate-pulse" />
-            ) : (
-              <ChevronDown className="h-3.5 w-3.5 text-[#E4603C]" />
-            )}
-          </button>
+          {/* Action Buttons: Quick Print Postcard + Shutter Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onPrintPostcard(mem);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FFFDF9] hover:bg-[#E4603C]/10 text-[#241621] hover:text-[#E4603C] border border-[#241621]/15 hover:border-[#E4603C]/40 transition-all cursor-pointer select-none shadow-2xs"
+              title="Print Postcard Size Physical Keepsake Record"
+            >
+              <Printer className="h-3.5 w-3.5 text-[#E4603C]" />
+              <span className="hidden sm:inline">Print Postcard</span>
+            </button>
+
+            {/* Shutter Toggle Action Button */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggle();
+              }}
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer select-none shadow-2xs ${
+                isOpen
+                  ? "bg-[#E4603C] text-white hover:bg-[#c94b29]"
+                  : "bg-[#FFFDF9] hover:bg-[#E4603C]/10 text-[#241621] border border-[#241621]/15 hover:border-[#E4603C]/40 hover:text-[#E4603C]"
+              }`}
+            >
+              <span>{isOpen ? "Close Shutter" : "View Stats"}</span>
+              {isOpen ? (
+                <ChevronUp className="h-3.5 w-3.5 text-white animate-pulse" />
+              ) : (
+                <ChevronDown className="h-3.5 w-3.5 text-[#E4603C]" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Title and Recipient */}
@@ -665,7 +701,16 @@ function MemoryShutterCard({ mem, isOpen, onToggle, onCopyLink }: MemoryShutterC
               </span>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onPrintPostcard(mem)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#241621]/15 bg-[#FFFDF9] px-3.5 py-1.5 text-xs font-bold text-[#241621] hover:bg-[#FAF6F0] hover:text-[#E4603C] hover:border-[#E4603C]/40 transition cursor-pointer select-none shadow-2xs"
+                title="Print 4x6 Postcard Physical Record with QR Code"
+              >
+                <Printer className="h-3.5 w-3.5 text-[#E4603C]" />
+                <span>Print Postcard</span>
+              </button>
               <button
                 type="button"
                 onClick={() => onCopyLink(mem.slug)}
