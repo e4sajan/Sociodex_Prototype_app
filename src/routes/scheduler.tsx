@@ -1570,11 +1570,11 @@ function SchedulerPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Sender Email / Domain</label>
+                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Official Sender Email Address</label>
                   <input
-                    value={apiConfig.resendFromEmail || "onboarding@resend.dev"}
+                    value={apiConfig.resendFromEmail || "SocioDex Celebrations <events@sociodex.com>"}
                     onChange={(e) => setApiConfig({ ...apiConfig, resendFromEmail: e.target.value })}
-                    placeholder="onboarding@resend.dev or celebrations@yourdomain.com"
+                    placeholder="SocioDex Celebrations <events@sociodex.com>"
                     className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-[#E4603C]"
                   />
                 </div>
@@ -1749,6 +1749,7 @@ function SchedulerPage() {
             {modalEmailType === "celebrant" && (
               <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner animate-in fade-in duration-150">
                 <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
+                  <div><strong>From:</strong> SocioDex Celebrations &lt;events@sociodex.com&gt;</div>
                   <div><strong>To:</strong> {simulationModalJob.email || "recipient@example.com"}</div>
                   <div><strong>Subject:</strong> {generateCelebrantBirthdayEmailSubject(simulationModalJob)}</div>
                   <div><strong>Time:</strong> 10:00 AM on Birthday Date</div>
@@ -1787,6 +1788,7 @@ function SchedulerPage() {
             {modalEmailType === "contributor" && (
               <div className="rounded-2xl bg-[#EFF6FF] p-4 space-y-3 border border-blue-200 shadow-inner animate-in fade-in duration-150">
                 <div className="text-[11px] text-blue-900 space-y-1 pb-2 border-b border-blue-200 font-mono">
+                  <div><strong>From:</strong> SocioDex Celebrations &lt;events@sociodex.com&gt;</div>
                   <div><strong>To:</strong> Organizer ({simulationModalJob.organizerEmail || "you"}) + {simulationModalJob.contributorEmails?.length || 0} Contributors</div>
                   <div><strong>Subject:</strong> {generateContributorEmailSubject(simulationModalJob)}</div>
                   <div><strong>Time:</strong> 10:00 AM (1 Day Before Birthday)</div>

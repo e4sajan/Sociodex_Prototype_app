@@ -14,11 +14,11 @@ export const serverDispatchEmail = createServerFn({ method: "POST" })
 
     const activeFromEmail =
       data.fromEmail ||
-      (typeof process !== "undefined" ? process.env?.VITE_RESEND_FROM_EMAIL : undefined) ||
+      (typeof process !== "undefined" ? process.env?.RESEND_FROM_EMAIL || process.env?.VITE_RESEND_FROM_EMAIL : undefined) ||
       (typeof import.meta !== "undefined" && import.meta.env
-        ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string)
+        ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string) || (import.meta.env.RESEND_FROM_EMAIL as string)
         : "") ||
-      "onboarding@resend.dev";
+      "SocioDex Celebrations <events@sociodex.com>";
 
     if (!activeApiKey) {
       return {
@@ -249,7 +249,7 @@ export function loadAutonomousApiConfig(): AutonomousApiConfig {
     twilioAuthToken: envTwilioToken || "",
     twilioFromNumber: envTwilioFrom || "+14155238886",
     resendApiKey: envResendKey || "",
-    resendFromEmail: envFromEmail || "onboarding@resend.dev",
+    resendFromEmail: envFromEmail || "SocioDex Celebrations <events@sociodex.com>",
   };
 
   if (typeof window === "undefined") {
@@ -266,7 +266,10 @@ export function loadAutonomousApiConfig(): AutonomousApiConfig {
         twilioAuthToken: parsed.twilioAuthToken || envTwilioToken || "",
         twilioFromNumber: parsed.twilioFromNumber || envTwilioFrom || "+14155238886",
         resendApiKey: parsed.resendApiKey || envResendKey || "",
-        resendFromEmail: parsed.resendFromEmail || envFromEmail || "onboarding@resend.dev",
+        resendFromEmail:
+          parsed.resendFromEmail === "onboarding@resend.dev"
+            ? "SocioDex Celebrations <events@sociodex.com>"
+            : (parsed.resendFromEmail || envFromEmail || "SocioDex Celebrations <events@sociodex.com>"),
         emailProvider:
           parsed.emailProvider === "demo" && envResendKey
             ? "resend"
@@ -533,7 +536,7 @@ export async function sendAutonomousEmail(
       (typeof import.meta !== "undefined" && import.meta.env
         ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string | undefined)
         : "") ||
-      "onboarding@resend.dev";
+      "SocioDex Celebrations <events@sociodex.com>";
 
     try {
       const result = await serverDispatchEmail({
