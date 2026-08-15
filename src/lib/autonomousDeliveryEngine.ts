@@ -216,9 +216,9 @@ export async function sendAutonomousWhatsApp(
         let errorMsg = resData.message || `Twilio Error (${response.status})`;
         if (response.status === 401 || resData.code === 20003 || errorMsg.includes("Authenticate")) {
           errorMsg =
-            "Twilio Authentication Failed (401 Authenticate). Twilio requires your Primary Auth Token (found on Twilio Console homepage under Account Info). Note: An API Key SID starting with 'SK' requires its matching API Secret.";
-        } else if (resData.code === 63015 || resData.code === 21608) {
-          errorMsg = `WhatsApp Sandbox Requirement: Recipient must first join your Twilio sandbox by sending the join keyword to ${activeFromNumber} on WhatsApp.`;
+            "Twilio Authentication Failed (401 Authenticate). Twilio requires your Primary Auth Token (found on Twilio Console homepage under Account Info).";
+        } else if (resData.code === 63015 || resData.code === 21608 || resData.code === 21654) {
+          errorMsg = `WhatsApp Sandbox Requirement: Send your Twilio join phrase (e.g., 'join <code-name>') from your phone to ${activeFromNumber} on WhatsApp first to enable test delivery, or connect an approved production WhatsApp Sender.`;
         }
 
         return {
