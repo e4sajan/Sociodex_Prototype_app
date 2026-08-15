@@ -1,12 +1,170 @@
+import { createServerFn } from "@tanstack/react-start";
+
 /**
- * ─────────────────────────────────────────────────────────────
- * SocioDex 100% Autonomous Zero-Touch Delivery Engine
- * ─────────────────────────────────────────────────────────────
- * Provides server-to-server REST API integrations for:
- * 1. WhatsApp Automated Background APIs (Twilio, Meta Cloud API, Green API)
- * 2. Transactional Email APIs (Resend, Brevo, SendGrid, Webhooks)
- * 3. Webhook / Cron Triggers (Zapier, Make, n8n, Supabase Edge Functions)
+ * Server-Side Dispatch Function for Resend Emails (Bypasses Browser CORS)
  */
+export const serverDispatchEmail = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      to: string;
+      subject: string;
+      html: string;
+      apiKey?: string;
+      fromEmail?: string;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const activeApiKey =
+      data.apiKey ||
+      (typeof process !== "undefined" ? process.env?.RESEND_API_KEY || process.env?.VITE_RESEND_API_KEY : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_RESEND_API_KEY as string) || (import.meta.env.RESEND_API_KEY as string)
+        : "");
+
+    const activeFromEmail =
+      data.fromEmail ||
+      (typeof process !== "undefined" ? process.env?.VITE_RESEND_FROM_EMAIL : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string)
+        : "") ||
+      "onboarding@resend.dev";
+
+    if (!activeApiKey) {
+      return {
+        success: false,
+        error: "Missing Resend API Key in server environment (RESEND_API_KEY).",
+      };
+    }
+
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${activeApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: activeFromEmail,
+          to: [data.to],
+          subject: data.subject,
+          html: data.html,
+        }),
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        return {
+          success: false,
+          error: resData.message || `Resend error (${response.status})`,
+        };
+      }
+
+      return {
+        success: true,
+        messageId: resData.id,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || "Failed to connect to Resend API.",
+      };
+    }
+  });
+
+/**
+ * Server-Side Dispatch Function for Twilio WhatsApp (Bypasses Browser CORS & Handles Auth)
+ */
+export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
+  .validator(
+    (data: {
+      toPhone: string;
+      messageText: string;
+      accountSid?: string;
+      authToken?: string;
+      fromNumber?: string;
+    }) => data
+  )
+  .handler(async ({ data }) => {
+    const activeAccountSid =
+      data.accountSid ||
+      (typeof process !== "undefined" ? process.env?.TWILIO_ACCOUNT_SID || process.env?.VITE_TWILIO_ACCOUNT_SID : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_ACCOUNT_SID as string) || (import.meta.env.TWILIO_ACCOUNT_SID as string)
+        : "") ||
+      "";
+
+    const activeAuthToken =
+      data.authToken ||
+      (typeof process !== "undefined" ? process.env?.TWILIO_AUTH_TOKEN || process.env?.VITE_TWILIO_AUTH_TOKEN : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_AUTH_TOKEN as string) || (import.meta.env.TWILIO_AUTH_TOKEN as string)
+        : "") ||
+      "";
+
+    const activeFromNumber =
+      data.fromNumber ||
+      (typeof process !== "undefined" ? process.env?.VITE_TWILIO_FROM_NUMBER : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_FROM_NUMBER as string)
+        : "") ||
+      "+14155238886";
+
+    if (!activeAccountSid || !activeAuthToken) {
+      return {
+        success: false,
+        error: !activeAccountSid
+          ? "Missing Twilio Account SID (AC...). Please configure TWILIO_ACCOUNT_SID."
+          : "Missing Twilio Auth Token. Please configure TWILIO_AUTH_TOKEN.",
+      };
+    }
+
+    try {
+      const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${activeAccountSid}/Messages.json`;
+      const basicAuth = btoa(`${activeAccountSid}:${activeAuthToken}`);
+
+      const bodyParams = new URLSearchParams();
+      bodyParams.append("From", `whatsapp:${activeFromNumber}`);
+      bodyParams.append("To", `whatsapp:+${data.toPhone}`);
+      bodyParams.append("Body", data.messageText);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${basicAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: bodyParams.toString(),
+      });
+
+      const resData = await response.json();
+      if (!response.ok) {
+        let errorMsg = resData.message || `Twilio Error (${response.status})`;
+        if (response.status === 401 || resData.code === 20003 || errorMsg.includes("Authenticate")) {
+          errorMsg =
+            "Twilio Authentication Failed (401 Authenticate). Please ensure your primary Auth Token is set in Vercel Environment Variables.";
+        } else if (resData.code === 63015 || resData.code === 21608 || resData.code === 21654) {
+          errorMsg = `WhatsApp Sandbox Requirement: Send your Twilio join phrase (e.g. 'join <keyword>') to ${activeFromNumber} on WhatsApp from your phone first.`;
+        }
+
+        return {
+          success: false,
+          error: errorMsg,
+          code: resData.code,
+        };
+      }
+
+      return {
+        success: true,
+        messageId: resData.sid,
+        status: resData.status,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        error: err.message || "Failed to contact Twilio API from server.",
+      };
+    }
+  });
 
 export interface AutonomousApiConfig {
   // WhatsApp Provider: "demo" | "twilio" | "meta" | "greenapi" | "webhook"
@@ -180,54 +338,25 @@ export async function sendAutonomousWhatsApp(
         : "") ||
       "+14155238886";
 
-    if (!activeAccountSid || !activeAuthToken) {
-      return {
-        success: false,
-        provider: "Twilio",
-        channel: "whatsapp",
-        recipient: cleanPhone,
-        timestamp: now,
-        details: !activeAccountSid
-          ? "Missing Twilio Account SID (AC...). Please provide your Twilio Account SID in .env or API settings."
-          : "Missing Twilio Auth Token/API Key in API settings.",
-      };
-    }
-
     try {
-      const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${activeAccountSid}/Messages.json`;
-      const basicAuth = btoa(`${activeAccountSid}:${activeAuthToken}`);
-
-      const bodyParams = new URLSearchParams();
-      bodyParams.append("From", `whatsapp:${activeFromNumber}`);
-      bodyParams.append("To", `whatsapp:+${cleanPhone}`);
-      bodyParams.append("Body", messageText);
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Basic ${basicAuth}`,
-          "Content-Type": "application/x-www-form-urlencoded",
+      const result = await serverDispatchWhatsAppTwilio({
+        data: {
+          toPhone: cleanPhone,
+          messageText,
+          accountSid: activeAccountSid,
+          authToken: activeAuthToken,
+          fromNumber: activeFromNumber,
         },
-        body: bodyParams.toString(),
       });
 
-      const resData = await response.json();
-      if (!response.ok) {
-        let errorMsg = resData.message || `Twilio Error (${response.status})`;
-        if (response.status === 401 || resData.code === 20003 || errorMsg.includes("Authenticate")) {
-          errorMsg =
-            "Twilio Authentication Failed (401 Authenticate). Twilio requires your Primary Auth Token (found on Twilio Console homepage under Account Info).";
-        } else if (resData.code === 63015 || resData.code === 21608 || resData.code === 21654) {
-          errorMsg = `WhatsApp Sandbox Requirement: Send your Twilio join phrase (e.g., 'join <code-name>') from your phone to ${activeFromNumber} on WhatsApp first to enable test delivery, or connect an approved production WhatsApp Sender.`;
-        }
-
+      if (!result.success) {
         return {
           success: false,
           provider: "Twilio WhatsApp API",
           channel: "whatsapp",
           recipient: cleanPhone,
           timestamp: now,
-          details: errorMsg,
+          details: result.error || "Failed to dispatch via Twilio.",
           requestPayload: { to: `whatsapp:+${cleanPhone}` },
         };
       }
@@ -238,8 +367,8 @@ export async function sendAutonomousWhatsApp(
         channel: "whatsapp",
         recipient: cleanPhone,
         timestamp: now,
-        messageId: resData.sid,
-        details: `Successfully dispatched via Twilio (SID: ${resData.sid}, Status: ${resData.status})`,
+        messageId: result.messageId,
+        details: `Successfully dispatched via Twilio (SID: ${result.messageId}, Status: ${result.status})`,
       };
     } catch (err: any) {
       return {
@@ -399,41 +528,25 @@ export async function sendAutonomousEmail(
         : "") ||
       "onboarding@resend.dev";
 
-    if (!activeApiKey) {
-      return {
-        success: false,
-        provider: "Resend API",
-        channel: "email",
-        recipient: toEmail,
-        timestamp: now,
-        details: "Missing Resend API Key in settings or environment.",
-      };
-    }
-
     try {
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${activeApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: activeFromEmail,
-          to: [toEmail],
+      const result = await serverDispatchEmail({
+        data: {
+          to: toEmail,
           subject: subject,
           html: `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #241621; padding: 20px;">${bodyHtml.replace(/\n/g, "<br/>")}</div>`,
-        }),
+          apiKey: activeApiKey,
+          fromEmail: activeFromEmail,
+        },
       });
 
-      const resData = await response.json();
-      if (!response.ok) {
+      if (!result.success) {
         return {
           success: false,
           provider: "Resend API",
           channel: "email",
           recipient: toEmail,
           timestamp: now,
-          details: resData.message || `Resend error (${response.status})`,
+          details: result.error || "Resend email delivery failed.",
         };
       }
 
@@ -443,8 +556,8 @@ export async function sendAutonomousEmail(
         channel: "email",
         recipient: toEmail,
         timestamp: now,
-        messageId: resData.id,
-        details: `Successfully sent email silently via Resend (ID: ${resData.id})`,
+        messageId: result.messageId,
+        details: `Successfully sent email silently via Resend (ID: ${result.messageId})`,
       };
     } catch (e: any) {
       return {
