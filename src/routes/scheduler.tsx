@@ -159,8 +159,11 @@ function SchedulerPage() {
   const [indDate, setIndDate] = useState("");
   const [indTime, setIndTime] = useState("10:00"); // 10:00 AM Morning Birthday Reveal Default
   const [indOrganizer, setIndOrganizer] = useState(currentUser?.name || "Organizer");
-  const [indOrganizerEmail, setIndOrganizerEmail] = useState(currentUser?.email || "e4sajan@gmail.com"); // Mandatory
-  const [indContributors, setIndContributors] = useState("");
+  
+  // Dynamic Email List: 1st is Primary Organizer (Mandatory), subsequent are Contributors/HR
+  const [teamEmails, setTeamEmails] = useState<string[]>([
+    currentUser?.email || "e4sajan@gmail.com",
+  ]);
   const [indContributorTime, setIndContributorTime] = useState("10:00"); // 10:00 AM Day Before Default
   const [indThemeId, setIndThemeId] = useState(THEMES[0].id);
   const [indCustomNote, setIndCustomNote] = useState("");
@@ -215,12 +218,47 @@ function SchedulerPage() {
   // Update default organizer email when logged-in user changes
   useEffect(() => {
     if (currentUser?.email) {
-      setIndOrganizerEmail(currentUser.email);
+      setTeamEmails((prev) => {
+        if (prev.length === 0 || !prev[0]) {
+          return [currentUser.email, ...prev.slice(1)];
+        }
+        return prev;
+      });
     }
     if (currentUser?.name) {
       setIndOrganizer(currentUser.name);
     }
   }, [currentUser]);
+
+  const handleAddEmailRow = () => {
+    setTeamEmails((prev) => [...prev, ""]);
+  };
+
+  const handleUpdateEmailRow = (index: number, val: string) => {
+    if (val.includes(",") || val.includes(";")) {
+      const parts = val
+        .split(/[,;]+/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (parts.length > 1) {
+        setTeamEmails((prev) => {
+          const copy = [...prev];
+          copy.splice(index, 1, ...parts);
+          return copy;
+        });
+        return;
+      }
+    }
+    setTeamEmails((prev) => {
+      const copy = [...prev];
+      copy[index] = val;
+      return copy;
+    });
+  };
+
+  const handleRemoveEmailRow = (index: number) => {
+    setTeamEmails((prev) => prev.filter((_, i) => i !== index));
+  };
 
   // ── AUTONOMOUS 2-PHASE SCHEDULER ENGINE (1 Day Before @ 10 AM & Birthday @ 10 AM) ──
   useEffect(() => {
@@ -467,17 +505,18 @@ function SchedulerPage() {
 
   const handleScheduleIndividual = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!indRecipient.trim() || !indDate || !indOrganizerEmail.trim()) {
-      toast.error("Please fill in recipient name, event date, and organizer email address.");
+    const validTeamEmails = teamEmails
+      .map((e) => e.trim())
+      .filter((e) => e.length > 0 && e.includes("@"));
+
+    const primaryOrganizerEmail = validTeamEmails[0];
+
+    if (!indRecipient.trim() || !indDate || !primaryOrganizerEmail) {
+      toast.error("Please fill in recipient name, event date, and at least one organizer email.");
       return;
     }
 
-    const contributorList = indContributors
-      ? indContributors
-          .split(/[,;\n\s]+/)
-          .map((s) => s.trim())
-          .filter((s) => s.length > 0 && s.includes("@"))
-      : [];
+    const contributorList = validTeamEmails.slice(1);
 
     const newJob: ScheduledMemoryJob = {
       id: `job-ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -485,7 +524,7 @@ function SchedulerPage() {
       recipient: indRecipient.trim(),
       email: indEmail.trim() || undefined,
       organizerName: indOrganizer.trim() || currentUser?.name || "Organizer",
-      organizerEmail: indOrganizerEmail.trim() || currentUser?.email || "e4sajan@gmail.com",
+      organizerEmail: primaryOrganizerEmail,
       contributorEmails: contributorList,
       contributorDispatchTime: indContributorTime || "10:00",
       eventDate: indDate,
@@ -506,7 +545,7 @@ function SchedulerPage() {
     setIndRecipient("");
     setIndEmail("");
     setIndDate("");
-    setIndContributors("");
+    setTeamEmails([currentUser?.email || "e4sajan@gmail.com"]);
     setIndCustomNote("");
     setActiveTab("queue");
   };
@@ -843,17 +882,17 @@ function SchedulerPage() {
               </span>
             </div>
 
-            {/* ORGANIZER & SECRET CONTRIBUTORS SECTION */}
+            {/* ORGANIZER & SECRET CONTRIBUTORS SECTION WITH + BUTTON */}
             <div className="sm:col-span-2 pt-4 border-t border-[#241621]/10">
               <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-1">
-                <Users className="h-4 w-4 text-blue-600" /> 2. Organizer & Secret Contributors (1-Day Advance Planning)
+                <Users className="h-4 w-4 text-blue-600" /> 2. Organizer & Collaborators (1-Day Advance Planning)
               </h3>
-              <p className="text-[11px] text-[#594855] mb-2">
-                These collaborators will automatically receive an invite 1 day before at 10:00 AM to secretly add wishes and photos.
+              <p className="text-[11px] text-[#594855] mb-3">
+                These collaborators will automatically receive an invitation email 1 day before at 10:00 AM to secretly add wishes and photos.
               </p>
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-[#241621] mb-1.5">
                 Organizer / Sender Name *
               </label>
@@ -866,40 +905,87 @@ function SchedulerPage() {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1.5">
-                Organizer Email Address * <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Mandatory</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={indOrganizerEmail}
-                  onChange={(e) => setIndOrganizerEmail(e.target.value)}
-                  placeholder="e.g. e4sajan@gmail.com"
-                  required
-                  className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
-                />
-                <User className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
-              </div>
-              <span className="text-[10px] text-[#594855] mt-1 block">
-                🔔 Receives 1-day advance reminder (10:00 AM) & memory page admin links.
-              </span>
-            </div>
+            {/* UNIFIED DYNAMIC EMAIL ROWS WITH + BUTTON */}
+            <div className="sm:col-span-2 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-[#241621]">
+                  Organizer, HR & Contributor Email IDs *
+                </label>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#241621] mb-1.5">
-                Teammates & Contributors Email IDs <span className="text-[11px] font-normal text-[#594855]">(Optional, separate with commas)</span>
-              </label>
-              <textarea
-                value={indContributors}
-                onChange={(e) => setIndContributors(e.target.value)}
-                rows={2}
-                placeholder="e.g. alex@acme.corp, sarah@acme.corp, david@acme.corp, priya@acme.corp"
-                className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C] resize-none font-mono"
-              />
-              <span className="text-[10px] text-[#594855] mt-1 block">
-                💌 Each contributor receives a secret email 1 day prior (10:00 AM) requesting them to contribute photos & memories and invite others.
-              </span>
+                <button
+                  type="button"
+                  onClick={handleAddEmailRow}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-3 py-1 text-xs font-bold transition cursor-pointer shadow-2xs active:scale-95"
+                >
+                  <PlusCircle className="h-3.5 w-3.5" />
+                  <span>Add Email (+ Contributor / HR)</span>
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                {teamEmails.map((emailVal, index) => {
+                  const isPrimary = index === 0;
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 animate-in fade-in duration-150"
+                    >
+                      <div className="relative flex-1">
+                        <input
+                          type="email"
+                          value={emailVal}
+                          onChange={(e) => handleUpdateEmailRow(index, e.target.value)}
+                          placeholder={
+                            isPrimary
+                              ? "e.g. organizer@company.com (Organizer / HR Email)"
+                              : `e.g. teammate${index}@company.com`
+                          }
+                          required={isPrimary}
+                          className={`w-full rounded-xl border bg-[#FFFDF9] p-3 pl-9 pr-36 text-xs font-semibold outline-none transition ${
+                            isPrimary
+                              ? "border-[#E4603C]/30 focus:border-[#E4603C]"
+                              : "border-[#241621]/15 focus:border-blue-600"
+                          }`}
+                        />
+                        <Mail
+                          className={`absolute left-3 top-3.5 h-3.5 w-3.5 ${
+                            isPrimary ? "text-[#E4603C]" : "text-[#594855]"
+                          }`}
+                        />
+                        <span
+                          className={`absolute right-2.5 top-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full select-none ${
+                            isPrimary
+                              ? "bg-orange-100 text-[#E4603C]"
+                              : "bg-blue-100 text-blue-800"
+                          }`}
+                        >
+                          {isPrimary ? "Organizer (Primary) *" : `Contributor #${index}`}
+                        </span>
+                      </div>
+
+                      {!isPrimary && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveEmailRow(index)}
+                          title="Remove email"
+                          className="p-2.5 rounded-xl text-neutral-400 hover:text-red-600 hover:bg-red-50 transition cursor-pointer shrink-0 border border-transparent hover:border-red-100"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex items-center justify-between text-[10px] text-[#594855] pt-0.5">
+                <span>
+                  💡 <strong>Tip:</strong> Click <strong>+ Add Email</strong> to add more coworkers, HR leads, or friends.
+                </span>
+                <span className="font-semibold text-blue-700">
+                  {teamEmails.filter((e) => e.trim().length > 0).length} Collaborator(s) Added
+                </span>
+              </div>
             </div>
 
             {/* THEME & GREETING NOTE */}
