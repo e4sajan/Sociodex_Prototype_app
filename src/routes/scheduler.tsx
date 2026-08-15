@@ -623,9 +623,33 @@ function SchedulerPage() {
 
   const generateWishTemplate = () => {
     const recipient = indRecipient.trim() || "our friend";
-    setIndCustomNote(
-      `Happy ${indOccasion}, ${recipient}! 🥳 Wishing you endless happiness, good health, and immense success. So excited to celebrate this milestone with you! 🥂✨`
-    );
+    const occLower = indOccasion.toLowerCase();
+
+    if (occLower.includes("anniversary")) {
+      setIndCustomNote(
+        `Happy ${indOccasion}, ${recipient}! 🥂 Wishing you endless love, joy, and continued happiness together! So thrilled to celebrate this milestone with you! ✨`
+      );
+    } else if (occLower.includes("farewell")) {
+      setIndCustomNote(
+        `Wishing you all the very best in your next chapter, ${recipient}! 🌸 You will be deeply missed. Thank you for all the wonderful memories and contributions! 🚀`
+      );
+    } else if (occLower.includes("promotion")) {
+      setIndCustomNote(
+        `Heartiest congratulations on your promotion, ${recipient}! 🌟 So proud of your achievements and wishing you soaring success ahead! 🎉`
+      );
+    } else if (occLower.includes("wedding")) {
+      setIndCustomNote(
+        `Warmest congratulations on your wedding, ${recipient}! 💍 Wishing you both a lifetime of love, laughter, and endless happiness together! 🥂`
+      );
+    } else if (occLower.includes("baby")) {
+      setIndCustomNote(
+        `Congratulations on your new bundle of joy, ${recipient}! 🍼 Wishing your growing family immense health, love, and sweet memories! 💕`
+      );
+    } else {
+      setIndCustomNote(
+        `Happy ${indOccasion}, ${recipient}! 🥳 Wishing you endless happiness, good health, and immense success. So excited to celebrate this special day with you! 🥂✨`
+      );
+    }
   };
 
   return (
@@ -642,7 +666,7 @@ function SchedulerPage() {
             Celebration Scheduler
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-[#594855] max-w-2xl">
-            Auto-send <strong>1-Day Secret Contributor Invites (10:00 AM)</strong> to collect wishes & photos, and reveal the <strong>Official Keepsake on Birthday (10:00 AM)</strong>.
+            Auto-send <strong>1-Day Secret Contributor Invites (10:00 AM)</strong> to collect wishes & photos, and reveal the <strong>Official Keepsake on Celebration Day (10:00 AM)</strong>.
           </p>
         </div>
 
@@ -695,7 +719,7 @@ function SchedulerPage() {
               Schedule Event Page
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              2-phase auto emails for birthday & milestone
+              2-phase auto emails for any milestone
             </div>
           </div>
         </button>
@@ -755,7 +779,7 @@ function SchedulerPage() {
               Scheduled Queue ({jobsList.length})
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              Track 1-day invites & birthday morning emails
+              Track 1-day invites & celebration day keepsakes
             </div>
           </div>
         </button>
@@ -774,10 +798,10 @@ function SchedulerPage() {
               2-Phase Celebration Automation
             </span>
             <h2 className="font-display text-xl sm:text-2xl font-bold text-[#241621]">
-              Schedule a Memory Page
+              Schedule an Event Memory Page
             </h2>
             <p className="text-xs text-[#594855] mt-0.5">
-              1) Sends <strong>secret contributor invitation (10:00 AM day before)</strong> to collect wishes & photos. 2) Sends <strong>surprise celebration keepsake email (10:00 AM on birthday)</strong> to the birthday person.
+              1) Sends <strong>secret contributor invitation (10:00 AM day before)</strong> to collect wishes & photos. 2) Sends <strong>surprise celebration keepsake email (10:00 AM on event day)</strong> to the honoree.
             </p>
           </div>
 
@@ -795,7 +819,7 @@ function SchedulerPage() {
                   Secret Contributor & Organizer Invite
                 </div>
                 <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
-                  Invites teammates & friends to secretly add wishes, photos, and invite others.
+                  Invites teammates, friends & family to secretly add wishes, photos, and invite others.
                 </div>
               </div>
             </div>
@@ -806,23 +830,23 @@ function SchedulerPage() {
               </div>
               <div className="min-w-0">
                 <div className="text-[10px] font-bold text-[#E4603C] uppercase tracking-wider flex items-center gap-1">
-                  <Gift className="h-3 w-3" /> Birthday Morning · 10:00 AM
+                  <Gift className="h-3 w-3" /> Event Day · 10:00 AM
                 </div>
                 <div className="font-bold text-xs text-[#241621] mt-0.5">
                   Surprise Keepsake Reveal
                 </div>
                 <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
-                  Celebrant receives their finished living memory page full of love & memories!
+                  Honoree / Celebrant receives their living memory page full of love & memories!
                 </div>
               </div>
             </div>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2">
-            {/* OCCASION & CELEBRANT DETAILS */}
+            {/* OCCASION & HONOREE DETAILS */}
             <div className="sm:col-span-2 pt-2 border-t border-[#241621]/10">
               <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-1">
-                <Gift className="h-4 w-4 text-[#E4603C]" /> 1. Celebrant & Event Details
+                <Gift className="h-4 w-4 text-[#E4603C]" /> 1. Honoree & Event Details
               </h3>
             </div>
 
@@ -842,18 +866,18 @@ function SchedulerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1.5">Birthday Person's Name *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">Honoree / Recipient's Name *</label>
               <input
                 value={indRecipient}
                 onChange={(e) => setIndRecipient(e.target.value)}
-                placeholder="e.g. Maya Iyer"
+                placeholder="e.g. Maya Iyer, Maya & Arjun, Team Lead"
                 required
                 className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1.5">Birthday / Event Date *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">Celebration / Event Date *</label>
               <input
                 type="date"
                 value={indDate}
@@ -865,7 +889,7 @@ function SchedulerPage() {
 
             <div>
               <label className="block text-xs font-bold text-[#241621] mb-1.5">
-                Birthday Person's Email <span className="text-[11px] font-normal text-[#594855]">(Optional)</span>
+                Honoree's Email <span className="text-[11px] font-normal text-[#594855]">(Optional)</span>
               </label>
               <div className="relative">
                 <input
@@ -878,7 +902,7 @@ function SchedulerPage() {
                 <Mail className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
               </div>
               <span className="text-[10px] text-[#594855] mt-1 block">
-                💡 Optional: If provided, celebrant receives the surprise keepsake email directly at 10:00 AM on their birthday.
+                💡 Optional: If provided, the honoree receives the surprise keepsake email directly at 10:00 AM on the celebration date.
               </span>
             </div>
 
@@ -1055,7 +1079,7 @@ function SchedulerPage() {
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                🎂 <strong>Phase 2 (Birthday at 10:00 AM):</strong> Automatically generate celebration memory page and email surprise keepsake link
+                🎁 <strong>Phase 2 (Event Day at 10:00 AM):</strong> Automatically generate celebration memory page and email surprise keepsake link
               </span>
             </label>
           </div>
@@ -1424,10 +1448,10 @@ function SchedulerPage() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 font-medium truncate">
                           <Gift className="h-3.5 w-3.5 text-[#E4603C] shrink-0" />
-                          <span className="font-bold text-[#241621]">Celebrant:</span> {job.email || "(No email - manual share)"}
+                          <span className="font-bold text-[#241621]">Honoree:</span> {job.email || "(No email - manual share)"}
                         </div>
                         <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
-                          10:00 AM Birthday
+                          10:00 AM Event Day
                         </span>
                       </div>
 
@@ -1556,7 +1580,7 @@ function SchedulerPage() {
                 }`}
               >
                 <Gift className="h-3.5 w-3.5" />
-                <span>🎂 Birthday Keepsake (10 AM)</span>
+                <span>🎁 Celebration Keepsake (10 AM)</span>
               </button>
 
               <button
@@ -1573,19 +1597,19 @@ function SchedulerPage() {
               </button>
             </div>
 
-            {/* EMAIL PREVIEW CARD 1: CELEBRANT BIRTHDAY SURPRISE */}
+            {/* EMAIL PREVIEW CARD 1: HONOREE SURPRISE KEEPSAKE */}
             {modalEmailType === "celebrant" && (
               <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner animate-in fade-in duration-150">
                 <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
                   <div><strong>From:</strong> SocioDex Celebrations &lt;events@sociodex.com&gt;</div>
                   <div><strong>To:</strong> {simulationModalJob.email || "(No email provided)"}</div>
                   <div><strong>Subject:</strong> {generateCelebrantBirthdayEmailSubject(simulationModalJob)}</div>
-                  <div><strong>Time:</strong> 10:00 AM on Birthday Date</div>
+                  <div><strong>Time:</strong> 10:00 AM on Celebration Date</div>
                 </div>
 
                 <div className="bg-white rounded-2xl p-4 shadow-xs space-y-3 text-xs text-[#241621]">
                   <div className="font-display text-sm font-bold text-[#E4603C]">
-                    🎉 Happy {simulationModalJob.occasion}, {simulationModalJob.recipient}! 🎂
+                    🎉 Happy {simulationModalJob.occasion}, {simulationModalJob.recipient}! 🎁
                   </div>
                   <p className="text-[#594855] leading-relaxed">
                     Today is all about YOU! Wishing you a sensational {simulationModalJob.occasion} filled with joy, health, and memorable celebrations!
@@ -1663,7 +1687,7 @@ function SchedulerPage() {
                 <Zap className="h-4 w-4 fill-white" />
                 <span>
                   {modalEmailType === "celebrant"
-                    ? "⚡ Test Birthday Reveal Email (Resend API)"
+                    ? "⚡ Test Keepsake Reveal Email (Resend API)"
                     : "🎨 Test 1-Day Contributor Invite Email (Resend API)"}
                 </span>
               </button>
