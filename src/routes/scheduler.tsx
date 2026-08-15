@@ -1545,9 +1545,14 @@ function SchedulerPage() {
                 <h3 className="font-display text-xl font-bold text-[#241621]">
                   Test 100% Silent Background Dispatch Right Now
                 </h3>
-                <p className="text-xs text-[#594855]">
-                  Test sending to your own WhatsApp number & Email address with zero human intervention.
-                </p>
+                <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-300 text-green-800 text-[10px] font-bold px-2.5 py-0.5">
+                    📱 WhatsApp: {apiConfig.whatsappProvider.toUpperCase()}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 border border-orange-300 text-orange-800 text-[10px] font-bold px-2.5 py-0.5">
+                    ✉️ Email: {apiConfig.emailProvider.toUpperCase()}
+                  </span>
+                </div>
               </div>
 
               <button

@@ -78,7 +78,7 @@ export function loadAutonomousApiConfig(): AutonomousApiConfig {
       : undefined;
 
   const defaultConfig: AutonomousApiConfig = {
-    whatsappProvider: envTwilioToken ? "twilio" : "demo",
+    whatsappProvider: envTwilioAccountSid ? "twilio" : "demo",
     emailProvider: envResendKey ? "resend" : "demo",
     twilioAccountSid: envTwilioAccountSid || "",
     twilioAuthToken: envTwilioToken || "",
@@ -102,8 +102,14 @@ export function loadAutonomousApiConfig(): AutonomousApiConfig {
         twilioFromNumber: parsed.twilioFromNumber || envTwilioFrom || "+14155238886",
         resendApiKey: parsed.resendApiKey || envResendKey || "",
         resendFromEmail: parsed.resendFromEmail || envFromEmail || "onboarding@resend.dev",
-        emailProvider: parsed.emailProvider || (envResendKey ? "resend" : "demo"),
-        whatsappProvider: parsed.whatsappProvider || (envTwilioToken ? "twilio" : "demo"),
+        emailProvider:
+          parsed.emailProvider === "demo" && envResendKey
+            ? "resend"
+            : (parsed.emailProvider || (envResendKey ? "resend" : "demo")),
+        whatsappProvider:
+          parsed.whatsappProvider === "demo" && envTwilioAccountSid
+            ? "twilio"
+            : (parsed.whatsappProvider || (envTwilioAccountSid ? "twilio" : "demo")),
       };
     }
   } catch (e) {
@@ -182,7 +188,7 @@ export async function sendAutonomousWhatsApp(
         recipient: cleanPhone,
         timestamp: now,
         details: !activeAccountSid
-          ? "Missing Twilio Account SID (AC...). Please provide your Twilio Account SID in .env or API settings to pair with your API Key/Auth Token."
+          ? "Missing Twilio Account SID (AC...). Please provide your Twilio Account SID in .env or API settings."
           : "Missing Twilio Auth Token/API Key in API settings.",
       };
     }
@@ -207,13 +213,21 @@ export async function sendAutonomousWhatsApp(
 
       const resData = await response.json();
       if (!response.ok) {
+        let errorMsg = resData.message || `Twilio Error (${response.status})`;
+        if (response.status === 401 || resData.code === 20003 || errorMsg.includes("Authenticate")) {
+          errorMsg =
+            "Twilio Authentication Failed (401 Authenticate). Twilio requires your Primary Auth Token (found on Twilio Console homepage under Account Info). Note: An API Key SID starting with 'SK' requires its matching API Secret.";
+        } else if (resData.code === 63015 || resData.code === 21608) {
+          errorMsg = `WhatsApp Sandbox Requirement: Recipient must first join your Twilio sandbox by sending the join keyword to ${activeFromNumber} on WhatsApp.`;
+        }
+
         return {
           success: false,
           provider: "Twilio WhatsApp API",
           channel: "whatsapp",
           recipient: cleanPhone,
           timestamp: now,
-          details: resData.message || `Twilio Error (${response.status})`,
+          details: errorMsg,
           requestPayload: { to: `whatsapp:+${cleanPhone}` },
         };
       }
