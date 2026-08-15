@@ -46,6 +46,9 @@ import {
   Lock,
   Inbox,
   CheckCircle,
+  Users,
+  Gift,
+  HeartHandshake,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,20 +59,20 @@ export const Route = createFileRoute("/scheduler")({
       {
         name: "description",
         content:
-          "Automate celebration memory pages for birthdays, weddings, anniversaries, and corporate employee milestones with 1-day advance reminders and 100% autonomous Email auto-dispatch via Resend API.",
+          "Schedule celebration memory pages with 1-day advance contributor invites (10:00 AM) and birthday surprise keepsake auto-dispatch (10:00 AM) via Resend API.",
       },
     ],
   }),
   component: SchedulerPage,
 });
 
-// CSV Sample Data for Download & Demo (Email-Focused)
-const SAMPLE_CSV_TEMPLATE = `Employee Name,Occasion Type,Event Date,Email Address,Department,Organizer Name,Custom Greeting Note
-Priya Sharma,Birthday Celebration,2026-08-28,priya.sharma@acme.corp,Product Design,Acme People Team,Happy Birthday Priya! Wishing you a sensational year filled with creativity and joy! 🎉
-Arjun Verma,3rd Work Anniversary,2026-09-02,arjun.verma@acme.corp,Core Engineering,HR Culture Team,Congratulations Arjun on 3 stellar years with Acme! Thank you for your leadership! 🚀
-Sarah Lin,Farewell Celebration,2026-09-10,sarah.lin@acme.corp,Marketing & Growth,David Kim,Wishing you the absolute best in your next chapter Sarah! You will be missed! 🌸
-Vikram Mehta,Birthday Celebration,2026-09-18,vikram.mehta@acme.corp,Operations,Acme People Team,Wishing you a fantastic birthday Vikram! Have a wonderful celebration! 🎂
-Ananya Roy,Promotion Milestone,2026-09-25,ananya.roy@acme.corp,Data & AI,Engineering Lead,Kudos on your well-deserved promotion Ananya! So proud of your achievements! 🌟`;
+// CSV Sample Data for Download & Demo
+const SAMPLE_CSV_TEMPLATE = `Employee Name,Occasion Type,Event Date,Employee Email,Department,Organizer Name,Organizer Email,Contributor Emails,Custom Greeting Note
+Priya Sharma,Birthday Celebration,2026-08-28,priya.sharma@acme.corp,Product Design,Acme People Team,hr@acme.corp,"alex@acme.corp, rahul@acme.corp, meera@acme.corp",Happy Birthday Priya! Wishing you a sensational year filled with creativity and joy! 🎉
+Arjun Verma,3rd Work Anniversary,2026-09-02,arjun.verma@acme.corp,Core Engineering,HR Culture Team,culture@acme.corp,"tech-leads@acme.corp, vikram@acme.corp",Congratulations Arjun on 3 stellar years with Acme! Thank you for your leadership! 🚀
+Sarah Lin,Farewell Celebration,2026-09-10,sarah.lin@acme.corp,Marketing & Growth,David Kim,david.kim@acme.corp,"marketing-team@acme.corp",Wishing you the absolute best in your next chapter Sarah! You will be missed! 🌸
+Vikram Mehta,Birthday Celebration,2026-09-18,vikram.mehta@acme.corp,Operations,Acme People Team,hr@acme.corp,"ops-lead@acme.corp, tania@acme.corp",Wishing you a fantastic birthday Vikram! Have a wonderful celebration! 🎂
+Ananya Roy,Promotion Milestone,2026-09-25,ananya.roy@acme.corp,Data & AI,Engineering Lead,lead@acme.corp,"ai-team@acme.corp",Kudos on your well-deserved promotion Ananya! So proud of your achievements! 🌟`;
 
 // ── DELIVERY HELPER UTILITIES ──
 
@@ -81,22 +84,49 @@ function getKeepsakeUrl(slug?: string): string {
   return `https://sociodex.app/m/${slug}`;
 }
 
-function generateEmailSubject(job: ScheduledMemoryJob): string {
-  return `🎉 Celebrate ${job.recipient}'s ${job.occasion} with SocioDex!`;
+// 1. 1-DAY ADVANCE SECRET CONTRIBUTOR & ORGANIZER INVITATION EMAIL
+export function generateContributorEmailSubject(job: ScheduledMemoryJob): string {
+  return `🎨 Shh... Secret Celebration: Contribute to ${job.recipient}'s ${job.occasion} Keepsake! (Tomorrow at 10 AM Reveal)`;
 }
 
-function generateEmailBody(job: ScheduledMemoryJob, slug?: string): string {
+export function generateContributorEmailBody(job: ScheduledMemoryJob, slug?: string): string {
   const url = getKeepsakeUrl(slug || job.createdMemorySlug);
-  return `Hi ${job.recipient},
+  return `Hi there! 👋
 
-We have created a living digital memory page to celebrate your ${job.occasion}!
+${job.recipient}'s ${job.occasion} is TOMORROW! 🎂🎉
 
-💌 Open your living memory page and view all wishes & photos:
+We are secretly creating a living digital keepsake page full of photos, heartfelt wishes, inside jokes, and videos to surprise ${job.recipient} tomorrow morning at 10:00 AM!
+
+👉 Open Secret Collaboration Link & Add Your Wishes Now:
 ${url}
 
-${job.customNote ? `"${job.customNote}"\n\n` : ""}✨ Feel free to add your own memories, leave replies, and share with your loved ones!
+💡 How you can help make this unforgettable:
+1. Click the link above to upload your photos, memories, or a warm birthday note.
+2. Share this secret link with coworkers, mutual friends, and family so they can add their wishes before tomorrow morning's reveal!
 
-Warm wishes,
+${job.customNote ? `Special Note from ${job.organizerName || "Organizer"}:\n"${job.customNote}"\n\n` : ""}Warmly,
+${job.organizerName || "SocioDex Celebrations"} & The Organizing Team`;
+}
+
+// 2. BIRTHDAY MORNING SURPRISE CELEBRATION EMAIL (TO THE CELEBRANT)
+export function generateCelebrantBirthdayEmailSubject(job: ScheduledMemoryJob): string {
+  return `🎉 Happy ${job.occasion}, ${job.recipient}! Your surprise celebration keepsake is ready! 🎂`;
+}
+
+export function generateCelebrantBirthdayEmailBody(job: ScheduledMemoryJob, slug?: string): string {
+  const url = getKeepsakeUrl(slug || job.createdMemorySlug);
+  return `Dear ${job.recipient}, 🥳
+
+Today is all about YOU! Wishing you a sensational ${job.occasion} filled with joy, health, and memorable celebrations!
+
+🎁 SURPRISE! Your friends, family, and colleagues at ${job.organizerName || "SocioDex"} have secretly created a living digital memory page just for you!
+
+💌 Open your living memory page to view personal wishes, photos, and messages:
+${url}
+
+${job.customNote ? `"${job.customNote}"\n\n` : ""}✨ Feel free to leave replies, add your own photos from today's celebration, and cherish this keepsake forever!
+
+With warmest celebration wishes,
 ${job.organizerName || "SocioDex Celebrations"}`;
 }
 
@@ -134,8 +164,11 @@ function SchedulerPage() {
   const [indRecipient, setIndRecipient] = useState("");
   const [indEmail, setIndEmail] = useState("");
   const [indDate, setIndDate] = useState("");
-  const [indTime, setIndTime] = useState("10:00"); // 10:00 AM Morning Default
-  const [indOrganizer, setIndOrganizer] = useState(currentUser?.name || "");
+  const [indTime, setIndTime] = useState("10:00"); // 10:00 AM Morning Birthday Reveal Default
+  const [indOrganizer, setIndOrganizer] = useState(currentUser?.name || "Organizer");
+  const [indOrganizerEmail, setIndOrganizerEmail] = useState(currentUser?.email || "e4sajan@gmail.com");
+  const [indContributors, setIndContributors] = useState("");
+  const [indContributorTime, setIndContributorTime] = useState("10:00"); // 10:00 AM Day Before Default
   const [indThemeId, setIndThemeId] = useState(THEMES[0].id);
   const [indCustomNote, setIndCustomNote] = useState("");
   const [indNotifyBefore, setIndNotifyBefore] = useState(true);
@@ -151,6 +184,8 @@ function SchedulerPage() {
       email: string;
       department: string;
       organizer: string;
+      organizerEmail: string;
+      contributors: string;
       customNote: string;
       isValid: boolean;
     }>
@@ -173,6 +208,7 @@ function SchedulerPage() {
   // Modal simulation state
   const [simulationModalJob, setSimulationModalJob] = useState<ScheduledMemoryJob | null>(null);
   const [simulationSlug, setSimulationSlug] = useState<string | null>(null);
+  const [modalEmailType, setModalEmailType] = useState<"celebrant" | "contributor">("celebrant");
 
   // Browser notifications
   const [notificationsAllowed, setNotificationsAllowed] = useState(false);
@@ -183,36 +219,80 @@ function SchedulerPage() {
     }
   }, []);
 
-  // ── AUTONOMOUS BIRTHDAY & CELEBRATION DISPATCH RUNNER (10:00 AM Auto-Email) ──
+  // Update default organizer email when logged-in user changes
   useEffect(() => {
-    const checkAndDispatchScheduledEmails = async () => {
+    if (currentUser?.email) {
+      setIndOrganizerEmail(currentUser.email);
+    }
+    if (currentUser?.name) {
+      setIndOrganizer(currentUser.name);
+    }
+  }, [currentUser]);
+
+  // ── AUTONOMOUS 2-PHASE SCHEDULER ENGINE (1 Day Before @ 10 AM & Birthday @ 10 AM) ──
+  useEffect(() => {
+    const runAutonomousSchedulerEngine = async () => {
       const now = new Date();
       const todayStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
       const currentHours = now.getHours().toString().padStart(2, "0");
       const currentMinutes = now.getMinutes().toString().padStart(2, "0");
       const currentTimeStr = `${currentHours}:${currentMinutes}`;
 
+      // Calculate tomorrow date string (for 1-day advance check)
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = tomorrow.toISOString().split("T")[0];
+
       for (const job of Object.values(scheduledJobs)) {
+        // PHASE 1: 1 Day Before Birthday at 10:00 AM -> Send Secret Contributor Invite
+        if (
+          job.notifyOneDayBefore &&
+          !job.contributorEmailsDispatched &&
+          job.eventDate === tomorrowStr &&
+          (job.contributorDispatchTime || "10:00") <= currentTimeStr
+        ) {
+          const slug = job.createdMemorySlug || triggerScheduledJobNow(job.id);
+          const contribSub = generateContributorEmailSubject(job);
+          const contribBody = generateContributorEmailBody(job, slug || "celebration-preview");
+
+          const recipientList = [
+            ...(job.organizerEmail ? [job.organizerEmail] : []),
+            ...(job.contributorEmails || []),
+          ].filter(Boolean);
+
+          for (const email of recipientList) {
+            await sendAutonomousEmail(email, contribSub, contribBody, apiConfig);
+          }
+
+          job.contributorEmailsDispatched = true;
+          toast.success(
+            `🎨 Dispatched 1-day secret contributor invite to ${recipientList.length} collaborators for ${job.recipient}!`
+          );
+        }
+
+        // PHASE 2: Birthday Date at 10:00 AM -> Send Surprise Keepsake Reveal to Celebrant
         if (
           job.status === "scheduled" &&
           job.autoDispatchOnDate &&
           job.email &&
           job.eventDate <= todayStr &&
-          (job.scheduledTime || "10:00") <= currentTimeStr
+          (job.scheduledTime || "10:00") <= currentTimeStr &&
+          !job.celebrantEmailDispatched
         ) {
           const slug = triggerScheduledJobNow(job.id);
-          const emailSub = generateEmailSubject(job);
-          const emailBody = generateEmailBody(job, slug || "celebration-preview");
+          const emailSub = generateCelebrantBirthdayEmailSubject(job);
+          const emailBody = generateCelebrantBirthdayEmailBody(job, slug || "celebration-preview");
           const res = await sendAutonomousEmail(job.email, emailSub, emailBody, apiConfig);
           if (res.success) {
-            toast.success(`🎂 Auto-dispatched 10:00 AM celebration email to ${job.recipient} (${job.email})!`);
+            job.celebrantEmailDispatched = true;
+            toast.success(`🎂 Auto-dispatched 10:00 AM surprise birthday email to ${job.recipient} (${job.email})!`);
           }
         }
       }
     };
 
-    checkAndDispatchScheduledEmails();
-    const interval = setInterval(checkAndDispatchScheduledEmails, 30000);
+    runAutonomousSchedulerEngine();
+    const interval = setInterval(runAutonomousSchedulerEngine, 30000);
     return () => clearInterval(interval);
   }, [scheduledJobs, apiConfig]);
 
@@ -279,15 +359,16 @@ function SchedulerPage() {
     const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("employee"));
     const occIdx = headers.findIndex((h) => h.includes("occasion") || h.includes("event") || h.includes("type"));
     const dateIdx = headers.findIndex((h) => h.includes("date"));
-    const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("mail"));
+    const emailIdx = headers.findIndex((h) => h.includes("employee email") || h.includes("recipient email") || h.includes("email"));
     const deptIdx = headers.findIndex((h) => h.includes("department") || h.includes("dept") || h.includes("team"));
-    const orgIdx = headers.findIndex((h) => h.includes("organizer") || h.includes("sender") || h.includes("hr"));
+    const orgIdx = headers.findIndex((h) => h.includes("organizer name") || h.includes("sender"));
+    const orgEmailIdx = headers.findIndex((h) => h.includes("organizer email") || h.includes("hr email"));
+    const contribIdx = headers.findIndex((h) => h.includes("contributor") || h.includes("teammates") || h.includes("collaborator"));
     const noteIdx = headers.findIndex((h) => h.includes("note") || h.includes("greeting") || h.includes("wish") || h.includes("custom"));
 
     const parsed = [];
     for (let i = 1; i < lines.length; i++) {
       const rowText = lines[i];
-      // Basic CSV token parser handling quotes
       const values: string[] = [];
       let inQuotes = false;
       let curVal = "";
@@ -310,7 +391,9 @@ function SchedulerPage() {
       const email = values[emailIdx >= 0 ? emailIdx : 3] || "";
       const dept = values[deptIdx >= 0 ? deptIdx : 4] || "General Team";
       const org = values[orgIdx >= 0 ? orgIdx : 5] || "People Operations";
-      const customNote = values[noteIdx >= 0 ? noteIdx : 6] || "";
+      const orgEmail = values[orgEmailIdx >= 0 ? orgEmailIdx : 6] || "hr@acme.corp";
+      const contributors = values[contribIdx >= 0 ? contribIdx : 7] || "";
+      const customNote = values[noteIdx >= 0 ? noteIdx : 8] || "";
 
       parsed.push({
         id: `row-${i}-${Date.now()}`,
@@ -320,6 +403,8 @@ function SchedulerPage() {
         email,
         department: dept,
         organizer: org,
+        organizerEmail: orgEmail,
+        contributors,
         customNote,
         isValid: Boolean(name && date && email),
       });
@@ -357,23 +442,32 @@ function SchedulerPage() {
       return;
     }
 
-    const batchJobs: ScheduledMemoryJob[] = validRows.map((r) => ({
-      id: `job-corp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      occasion: r.occasion,
-      recipient: r.name,
-      email: r.email,
-      department: r.department,
-      organizerName: r.organizer || corpCompanyName,
-      eventDate: r.date,
-      scheduledTime: "09:00",
-      themeId: corpThemeId,
-      customNote: r.customNote,
-      notifyOneDayBefore: corpNotifyBefore,
-      autoDispatchOnDate: corpAutoDispatch,
-      status: "scheduled",
-      createdAt: new Date().toISOString(),
-      isCorporate: true,
-    }));
+    const batchJobs: ScheduledMemoryJob[] = validRows.map((r) => {
+      const contribList = r.contributors
+        ? r.contributors.split(/[,;\s]+/).map((s) => s.trim()).filter((s) => s.includes("@"))
+        : [];
+
+      return {
+        id: `job-corp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        occasion: r.occasion,
+        recipient: r.name,
+        email: r.email,
+        department: r.department,
+        organizerName: r.organizer || corpCompanyName,
+        organizerEmail: r.organizerEmail || currentUser?.email || "hr@acme.corp",
+        contributorEmails: contribList,
+        contributorDispatchTime: "10:00",
+        eventDate: r.date,
+        scheduledTime: "10:00",
+        themeId: corpThemeId,
+        customNote: r.customNote,
+        notifyOneDayBefore: corpNotifyBefore,
+        autoDispatchOnDate: corpAutoDispatch,
+        status: "scheduled",
+        createdAt: new Date().toISOString(),
+        isCorporate: true,
+      };
+    });
 
     addScheduledJobsBatch(batchJobs);
     toast.success(`Successfully scheduled ${batchJobs.length} automated celebration pages!`);
@@ -388,14 +482,24 @@ function SchedulerPage() {
       return;
     }
 
+    const contributorList = indContributors
+      ? indContributors
+          .split(/[,;\n\s]+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && s.includes("@"))
+      : [];
+
     const newJob: ScheduledMemoryJob = {
       id: `job-ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       occasion: indOccasion,
       recipient: indRecipient.trim(),
       email: indEmail.trim(),
       organizerName: indOrganizer.trim() || currentUser?.name || "Organizer",
+      organizerEmail: indOrganizerEmail.trim() || currentUser?.email || "e4sajan@gmail.com",
+      contributorEmails: contributorList,
+      contributorDispatchTime: indContributorTime || "10:00",
       eventDate: indDate,
-      scheduledTime: indTime,
+      scheduledTime: indTime || "10:00",
       themeId: indThemeId,
       customNote: indCustomNote.trim(),
       notifyOneDayBefore: indNotifyBefore,
@@ -406,12 +510,13 @@ function SchedulerPage() {
     };
 
     addScheduledJob(newJob);
-    toast.success(`Scheduled automatic celebration page for ${newJob.recipient}!`);
+    toast.success(`Scheduled automatic 2-phase celebration page for ${newJob.recipient}!`);
 
     // Reset form
     setIndRecipient("");
     setIndEmail("");
     setIndDate("");
+    setIndContributors("");
     setIndCustomNote("");
     setActiveTab("queue");
   };
@@ -433,7 +538,7 @@ function SchedulerPage() {
   };
 
   // 100% Autonomous Silent Email Dispatch Action (Resend API)
-  const handleExecuteAutonomousSilentDispatch = async (job?: ScheduledMemoryJob) => {
+  const handleExecuteAutonomousSilentDispatch = async (job?: ScheduledMemoryJob, targetType: "celebrant" | "contributor" = "celebrant") => {
     const targetJob = job || simulationModalJob || jobsList[0];
     if (!targetJob) {
       toast.error("No scheduled event to dispatch.");
@@ -442,32 +547,50 @@ function SchedulerPage() {
 
     setIsDispatching(true);
     const targetSlug = targetJob.createdMemorySlug || triggerScheduledJobNow(targetJob.id) || "celebration-preview";
-    const emailSub = generateEmailSubject(targetJob);
-    const emailBody = generateEmailBody(targetJob, targetSlug);
-
     const newLogs: DispatchResult[] = [];
 
-    // Email Autonomous Dispatch via Resend API
-    const targetEmail = myTestEmail.trim() || targetJob.email;
-    if (targetEmail) {
-      const emailResult = await sendAutonomousEmail(targetEmail, emailSub, emailBody, apiConfig);
-      newLogs.push(emailResult);
-      if (emailResult.success) {
-        toast.success(`[Email API] ${emailResult.details}`);
-      } else {
-        toast.error(`[Email API] ${emailResult.details}`);
+    if (targetType === "celebrant") {
+      // 1. Send Birthday Morning Surprise Email to Celebrant
+      const targetEmail = myTestEmail.trim() || targetJob.email;
+      if (targetEmail) {
+        const emailSub = generateCelebrantBirthdayEmailSubject(targetJob);
+        const emailBody = generateCelebrantBirthdayEmailBody(targetJob, targetSlug);
+        const result = await sendAutonomousEmail(targetEmail, emailSub, emailBody, apiConfig);
+        newLogs.push(result);
+        if (result.success) {
+          toast.success(`[Celebrant Reveal Email] ${result.details}`);
+        } else {
+          toast.error(`[Celebrant Reveal Email] ${result.details}`);
+        }
       }
     } else {
-      toast.error("Please provide a valid recipient email address.");
+      // 2. Send 1-Day Secret Contributor Invite Email to Organiser + Contributors
+      const emailSub = generateContributorEmailSubject(targetJob);
+      const emailBody = generateContributorEmailBody(targetJob, targetSlug);
+      const recipientList = [
+        myTestEmail.trim() || targetJob.organizerEmail || "e4sajan@gmail.com",
+        ...(targetJob.contributorEmails || []),
+      ].filter(Boolean);
+
+      for (const email of recipientList) {
+        const result = await sendAutonomousEmail(email, emailSub, emailBody, apiConfig);
+        newLogs.push(result);
+        if (result.success) {
+          toast.success(`[Contributor Invite Email to ${email}] ${result.details}`);
+        } else {
+          toast.error(`[Contributor Invite Email to ${email}] ${result.details}`);
+        }
+      }
     }
 
     setDispatchLogs((prev) => [...newLogs, ...prev]);
     setIsDispatching(false);
   };
 
-  const handleOpenSimulation = (job: ScheduledMemoryJob) => {
+  const handleOpenSimulation = (job: ScheduledMemoryJob, defaultType: "celebrant" | "contributor" = "celebrant") => {
     setSimulationModalJob(job);
     setSimulationSlug(job.createdMemorySlug || null);
+    setModalEmailType(defaultType);
   };
 
   const generateWishTemplate = () => {
@@ -491,8 +614,7 @@ function SchedulerPage() {
             Auto-Schedule Celebrations
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-[#594855] max-w-2xl">
-            Schedule celebration page creation ahead of time with <strong>100% Autonomous Zero-Touch Dispatch</strong> via
-            Resend Email API and instant keepsake delivery.
+            Auto-send <strong>1-Day Secret Contributor Invites (10:00 AM)</strong> to plan & collect memories, then surprise the celebrant with their <strong>Official Keepsake Email on their Birthday (10:00 AM)</strong>.
           </p>
         </div>
 
@@ -545,7 +667,7 @@ function SchedulerPage() {
               Schedule Event Page
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              Schedule birthday, wedding, or anniversary keepsake
+              2-phase automated emails for birthday & milestone
             </div>
           </div>
         </button>
@@ -605,7 +727,7 @@ function SchedulerPage() {
               Scheduled Queue ({jobsList.length})
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              Trigger & dispatch Email keepsake links
+              Track 1-day invites & birthday morning emails
             </div>
           </div>
         </button>
@@ -651,18 +773,61 @@ function SchedulerPage() {
         >
           <div className="border-b border-[#241621]/10 pb-4">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
-              Individual Event Automation
+              2-Phase Celebration Automation
             </span>
             <h2 className="font-display text-xl sm:text-2xl font-bold text-[#241621]">
               Schedule a Memory Page
             </h2>
             <p className="text-xs text-[#594855] mt-0.5">
-              Set up a celebration page in advance. On the event date, live keepsake links are automatically
-              prepared and dispatched directly to the recipient's email address.
+              1) Sends <strong>secret collaboration email (10:00 AM day before)</strong> to contributors to collect wishes & photos. 2) Sends <strong>surprise celebration keepsake email (10:00 AM on birthday)</strong> to the birthday person.
             </p>
           </div>
 
+          {/* 2-PHASE WORKFLOW VISUAL TIMELINE */}
+          <div className="grid gap-3 sm:grid-cols-2 p-4 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#241621]/5 shadow-2xs">
+              <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                1
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
+                  <HeartHandshake className="h-3 w-3" /> 1 Day Before (10:00 AM)
+                </div>
+                <div className="font-bold text-xs text-[#241621] mt-0.5">
+                  Secret Contributor & Organizer Invite
+                </div>
+                <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
+                  Invites teammates & friends to secretly add wishes, videos, photos, and invite others.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#241621]/5 shadow-2xs">
+              <div className="h-8 w-8 rounded-full bg-orange-100 text-[#E4603C] flex items-center justify-center font-bold text-xs shrink-0">
+                2
+              </div>
+              <div className="min-w-0">
+                <div className="text-[11px] font-bold text-[#E4603C] uppercase tracking-wider flex items-center gap-1">
+                  <Gift className="h-3 w-3" /> Birthday Morning (10:00 AM)
+                </div>
+                <div className="font-bold text-xs text-[#241621] mt-0.5">
+                  Surprise Keepsake Reveal Email
+                </div>
+                <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
+                  Celebrant receives their finished living memory page full of personal messages!
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="grid gap-5 sm:grid-cols-2">
+            {/* OCCASION & CELEBRANT DETAILS */}
+            <div className="sm:col-span-2 pt-2 border-t border-[#241621]/10">
+              <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-3">
+                <Gift className="h-4 w-4 text-[#E4603C]" /> Celebrant & Event Details
+              </h3>
+            </div>
+
             <div>
               <label className="block text-xs font-bold text-[#241621] mb-1">Occasion Type *</label>
               <select
@@ -679,7 +844,7 @@ function SchedulerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">Recipient Name *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1">Birthday Person's Name *</label>
               <input
                 value={indRecipient}
                 onChange={(e) => setIndRecipient(e.target.value)}
@@ -689,9 +854,9 @@ function SchedulerPage() {
               />
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="block text-xs font-bold text-[#241621] mb-1">
-                Recipient Email Address *
+                Birthday Person's Email Address *
               </label>
               <div className="relative">
                 <input
@@ -705,7 +870,7 @@ function SchedulerPage() {
                 <Mail className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
               </div>
               <span className="text-[10px] text-[#594855] mt-1 block">
-                💡 Enables 100% autonomous background delivery via connected Resend Email API on the event date.
+                ☀️ Receives the finished surprise keepsake email at 10:00 AM on their birthday.
               </span>
             </div>
 
@@ -720,28 +885,17 @@ function SchedulerPage() {
               />
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-bold text-[#241621]">
-                  ⏰ Auto-Email Dispatch Time
-                </label>
-                <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
-                  10:00 AM Default
-                </span>
-              </div>
-              <input
-                type="time"
-                value={indTime}
-                onChange={(e) => setIndTime(e.target.value)}
-                required
-                className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C]"
-              />
-              <span className="text-[10px] text-[#594855] mt-1 block">
-                ☀️ Celebrant automatically receives their keepsake email at this time on their birthday.
-              </span>
+            {/* ORGANIZER & SECRET CONTRIBUTORS SECTION */}
+            <div className="sm:col-span-2 pt-4 border-t border-[#241621]/10">
+              <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-1">
+                <Users className="h-4 w-4 text-blue-600" /> Organizer & Secret Contributors (1-Day Advance Planning)
+              </h3>
+              <p className="text-[11px] text-[#594855] mb-3">
+                These people will automatically receive an invitation email 1 day before at 10:00 AM to secretly add wishes and photos.
+              </p>
             </div>
 
-            <div className="sm:col-span-2">
+            <div>
               <label className="block text-xs font-bold text-[#241621] mb-1">
                 Organizer / Sender Name
               </label>
@@ -753,8 +907,43 @@ function SchedulerPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-[#241621] mb-1">
+                Organizer Email Address (Default: Logged-in User)
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={indOrganizerEmail}
+                  onChange={(e) => setIndOrganizerEmail(e.target.value)}
+                  placeholder="e.g. your-email@example.com"
+                  className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
+                />
+                <User className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
+              </div>
+              <span className="text-[10px] text-[#594855] mt-1 block">
+                🔔 Receives 1-day advance reminder & collaboration tracking links.
+              </span>
+            </div>
+
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#241621] mb-1">Theme</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1">
+                Teammates & Contributors Email IDs (Separate with commas)
+              </label>
+              <textarea
+                value={indContributors}
+                onChange={(e) => setIndContributors(e.target.value)}
+                rows={2}
+                placeholder="e.g. alex@acme.corp, sarah@acme.corp, david@acme.corp, priya@acme.corp"
+                className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C] resize-none font-mono"
+              />
+              <span className="text-[10px] text-[#594855] mt-1 block">
+                💌 Each contributor receives a secret email 1 day prior (10:00 AM) requesting them to contribute photos & memories and invite others.
+              </span>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-[#241621] mb-1">Keepsake Visual Theme</label>
               <div className="flex flex-wrap gap-2.5">
                 {THEMES.map((t) => (
                   <button
@@ -777,7 +966,7 @@ function SchedulerPage() {
             <div className="sm:col-span-2">
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-xs font-bold text-[#241621]">
-                  Preset Wish / Welcome Greeting
+                  Preset Welcome Greeting / Organizer Note
                 </label>
                 <button
                   type="button"
@@ -801,24 +990,24 @@ function SchedulerPage() {
             <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
               <input
                 type="checkbox"
-                checked={indAutoDispatch}
-                onChange={(e) => setIndAutoDispatch(e.target.checked)}
+                checked={indNotifyBefore}
+                onChange={(e) => setIndNotifyBefore(e.target.checked)}
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                ✉️ <strong>Autonomous Birthday Delivery:</strong> Automatically send official keepsake email to the celebrant on their birthday at <strong>{indTime || "10:00 AM"}</strong> morning
+                🎨 <strong>Phase 1 (1 Day Before at 10:00 AM):</strong> Automatically send secret contribution invites to organizer and contributors to plan & add memories
               </span>
             </label>
 
             <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
               <input
                 type="checkbox"
-                checked={indNotifyBefore}
-                onChange={(e) => setIndNotifyBefore(e.target.checked)}
+                checked={indAutoDispatch}
+                onChange={(e) => setIndAutoDispatch(e.target.checked)}
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                🔔 <strong>1-Day Advance Reminder:</strong> Notify organizer 1 day before at 9:00 AM to collect photos & messages early
+                🎂 <strong>Phase 2 (Birthday at 10:00 AM):</strong> Automatically send official surprise memory page email to the celebrant
               </span>
             </label>
           </div>
@@ -829,7 +1018,7 @@ function SchedulerPage() {
               className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-8 py-3 text-sm font-bold text-white shadow-md transition-all cursor-pointer active:scale-95"
             >
               <Calendar className="h-4 w-4" />
-              <span>Schedule Memory Page Creation</span>
+              <span>Schedule 2-Phase Automated Memory Page</span>
             </button>
           </div>
         </form>
@@ -851,8 +1040,7 @@ function SchedulerPage() {
                   Import Employee Roster (Excel / CSV)
                 </h2>
                 <p className="text-xs text-[#594855] mt-0.5">
-                  Upload an Excel (`.xlsx`, `.xls`) or `.csv` spreadsheet containing employee names,
-                  occasions, dates, and work email addresses.
+                  Upload an Excel or `.csv` spreadsheet containing employee names, occasions, dates, work emails, and team contributors.
                 </p>
               </div>
 
@@ -909,7 +1097,7 @@ function SchedulerPage() {
                 Drop your Employee Spreadsheet here
               </h3>
               <p className="text-xs text-[#594855] mt-1 max-w-sm mx-auto">
-                Supports `.csv` files formatted with columns for Name, Occasion, Date, and Email Address.
+                Supports `.csv` files formatted with columns for Name, Occasion, Date, Employee Email, and Contributor Emails.
               </p>
 
               <input
@@ -961,9 +1149,10 @@ function SchedulerPage() {
                       <th className="p-3">Employee Name</th>
                       <th className="p-3">Occasion</th>
                       <th className="p-3">Event Date</th>
-                      <th className="p-3">Email Address</th>
+                      <th className="p-3">Employee Email</th>
                       <th className="p-3">Department</th>
                       <th className="p-3">Organizer</th>
+                      <th className="p-3">Contributors</th>
                       <th className="p-3 text-center">Status</th>
                     </tr>
                   </thead>
@@ -976,6 +1165,7 @@ function SchedulerPage() {
                         <td className="p-3 font-mono text-[#594855]">{row.email}</td>
                         <td className="p-3">{row.department}</td>
                         <td className="p-3">{row.organizer}</td>
+                        <td className="p-3 font-mono text-[10px] text-[#594855] max-w-[150px] truncate">{row.contributors || "None"}</td>
                         <td className="p-3 text-center">
                           {row.isValid ? (
                             <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-bold text-[10px] border border-green-200">
@@ -1037,7 +1227,7 @@ function SchedulerPage() {
                       className="h-4 w-4 rounded accent-[#E4603C]"
                     />
                     <span>
-                      🔔 Notify HR & Team 1 day in advance via Email so coworkers can upload wishes early
+                      🎨 <strong>Phase 1:</strong> Automatically invite team contributors 1 day before at 10:00 AM to secretly contribute wishes & photos
                     </span>
                   </label>
 
@@ -1049,8 +1239,7 @@ function SchedulerPage() {
                       className="h-4 w-4 rounded accent-[#E4603C]"
                     />
                     <span>
-                      ✉️ Automatically generate live memory page and dispatch official Email keepsake links
-                      for employees on their celebration day
+                      🎂 <strong>Phase 2:</strong> Automatically dispatch surprise keepsake email to employee on event morning at 10:00 AM
                     </span>
                   </label>
                 </div>
@@ -1116,8 +1305,7 @@ function SchedulerPage() {
             </div>
 
             <div className="text-[11px] text-[#594855] font-medium px-2">
-              💡 Click <strong>"Trigger & Create Now"</strong> to instantly generate the live page &
-              dispatch via Resend Email API.
+              💡 Background engine sends <strong>Contributor Invites 1-day before @ 10:00 AM</strong> and <strong>Surprise Keepsakes on Birthday @ 10:00 AM</strong>.
             </div>
           </div>
 
@@ -1127,9 +1315,9 @@ function SchedulerPage() {
               const eventDateObj = new Date(job.eventDate);
               const isCreated = job.status === "created";
               const slug = job.createdMemorySlug;
-              const emailSubject = generateEmailSubject(job);
-              const emailBody = generateEmailBody(job, slug);
-              const gmailUrl = getGmailComposeUrl(job.email, emailSubject, emailBody);
+              const celebrantSubject = generateCelebrantBirthdayEmailSubject(job);
+              const celebrantBody = generateCelebrantBirthdayEmailBody(job, slug);
+              const gmailUrl = getGmailComposeUrl(job.email, celebrantSubject, celebrantBody);
 
               return (
                 <div
@@ -1151,7 +1339,7 @@ function SchedulerPage() {
                               : "bg-[#E4603C]/10 text-[#E4603C]"
                           }`}
                         >
-                          {isCreated ? "✓ Live & Created" : "⏱ Scheduled"}
+                          {isCreated ? "✓ Live & Dispatched" : "⏱ Scheduled"}
                         </span>
                         {job.isCorporate && (
                           <span className="text-[10px] font-bold bg-[#EBC85A]/25 text-[#241621] px-2 py-0.5 rounded-full flex items-center gap-1">
@@ -1183,27 +1371,29 @@ function SchedulerPage() {
                       </div>
                     </div>
 
-                    {/* Contact & Notification Rules */}
-                    <div className="rounded-xl bg-[#FAF6F0]/70 p-3 text-xs space-y-1.5 text-[#594855]">
+                    {/* Contact & 2-Phase Timeline Rules */}
+                    <div className="rounded-xl bg-[#FAF6F0]/70 p-3 text-xs space-y-2 text-[#594855]">
                       {job.email && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 font-medium truncate">
-                            <Mail className="h-3.5 w-3.5 text-[#E4603C] shrink-0" />
-                            <span className="font-bold text-[#241621]">Email:</span> {job.email}
+                            <Gift className="h-3.5 w-3.5 text-[#E4603C] shrink-0" />
+                            <span className="font-bold text-[#241621]">Celebrant:</span> {job.email}
                           </div>
-                          <a
-                            href={gmailUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-[#E4603C] hover:underline bg-[#E4603C]/10 px-2 py-0.5 rounded-md border border-[#E4603C]/20"
-                          >
-                            <Mail className="h-2.5 w-2.5" /> Gmail Send
-                          </a>
+                          <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
+                            10:00 AM Birthday
+                          </span>
                         </div>
                       )}
-                      {job.notifyOneDayBefore && (
-                        <div className="text-[11px] text-[#E4603C] font-bold flex items-center gap-1 pt-1 border-t border-[#241621]/5">
-                          🔔 1-Day Advance Reminder Scheduled
+
+                      {(job.organizerEmail || (job.contributorEmails && job.contributorEmails.length > 0)) && (
+                        <div className="flex items-center justify-between pt-1 border-t border-[#241621]/5">
+                          <div className="flex items-center gap-1.5 font-medium truncate text-[11px]">
+                            <Users className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                            <span className="font-bold text-[#241621]">Contributors:</span> {1 + (job.contributorEmails?.length || 0)} people
+                          </div>
+                          <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                            10:00 AM Day Before
+                          </span>
                         </div>
                       )}
                     </div>
@@ -1219,7 +1409,7 @@ function SchedulerPage() {
                           className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-3.5 py-1.5 text-xs font-bold text-white shadow-xs transition cursor-pointer active:scale-95"
                         >
                           <Play className="h-3 w-3 fill-white" />
-                          <span>Trigger & Create Now</span>
+                          <span>Trigger Live Now</span>
                         </button>
                       ) : (
                         <a
@@ -1235,11 +1425,11 @@ function SchedulerPage() {
 
                       <button
                         type="button"
-                        onClick={() => handleOpenSimulation(job)}
+                        onClick={() => handleOpenSimulation(job, "celebrant")}
                         className="inline-flex items-center gap-1 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-3 py-1.5 text-xs font-bold text-[#241621] transition cursor-pointer shadow-2xs"
                       >
                         <Mail className="h-3 w-3 text-[#E4603C]" />
-                        <span>Email Keepsake Details</span>
+                        <span>Email Actions</span>
                       </button>
                     </div>
 
@@ -1284,10 +1474,10 @@ function SchedulerPage() {
                   <Zap className="h-3.5 w-3.5" /> 100% Autonomous Zero-Touch Architecture
                 </span>
                 <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#241621] mt-0.5">
-                  Autonomous Email Keepsake Gateway
+                  Autonomous 2-Phase Email Gateway
                 </h2>
                 <p className="text-xs text-[#594855] mt-1 max-w-2xl">
-                  Dispatches celebration keepsake notifications completely silently in the background <strong>without human intervention</strong> using verified server-side Resend API integration.
+                  Dispatches <strong>Phase 1: Secret Contributor Invites (10:00 AM Day Before)</strong> and <strong>Phase 2: Birthday Surprise Keepsakes (10:00 AM on Birthday)</strong> completely silently using server-side Resend API.
                 </p>
               </div>
 
@@ -1301,32 +1491,32 @@ function SchedulerPage() {
             {/* 3 Core Pillars of Full Automation */}
             <div className="grid gap-4 md:grid-cols-3">
               <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-[#E4603C]/15 text-[#E4603C] flex items-center justify-center font-bold text-sm">
-                  ✉️
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">1. Resend API Engine</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Connected with official Resend API key. Automatically sends responsive HTML keepsake invitation emails with deep-links directly to the recipient's inbox.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-sm">
-                  🔒
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">2. Secure Serverless Proxy</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Calls are securely executed through serverless RPC functions to protect API keys and ensure zero browser CORS restrictions.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
                 <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
-                  🕒
+                  🎨
                 </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">3. Advance Reminder Engine</h3>
+                <h3 className="font-display text-sm font-bold text-[#241621]">1. Phase 1: Contributor Invites</h3>
                 <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Notifies organizers 1 day in advance so colleagues, friends, and family can contribute memory wishes, voice notes, and photos before the celebration day.
+                  Sends secret collaboration invitations 1 day prior at 10:00 AM to organizer & contributors so everyone can upload photos and memories before the reveal.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
+                <div className="h-8 w-8 rounded-xl bg-[#E4603C]/15 text-[#E4603C] flex items-center justify-center font-bold text-sm">
+                  🎂
+                </div>
+                <h3 className="font-display text-sm font-bold text-[#241621]">2. Phase 2: Birthday Keepsake</h3>
+                <p className="text-[11px] text-[#594855] leading-relaxed">
+                  On the morning of the birthday at 10:00 AM, the celebrant receives the surprise keepsake email with wishes, photos, and messages directly in their inbox.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
+                <div className="h-8 w-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">
+                  ⚡
+                </div>
+                <h3 className="font-display text-sm font-bold text-[#241621]">3. Resend Serverless Engine</h3>
+                <p className="text-[11px] text-[#594855] leading-relaxed">
+                  Executes via serverless RPC functions to protect API keys and ensure zero browser CORS blocks.
                 </p>
               </div>
             </div>
@@ -1409,20 +1599,32 @@ function SchedulerPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                disabled={isDispatching}
-                onClick={() => handleExecuteAutonomousSilentDispatch()}
-                className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] disabled:opacity-50 px-6 py-2.5 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-95"
-              >
-                <Zap className="h-4 w-4 fill-white" />
-                <span>{isDispatching ? "Dispatching via Resend..." : "⚡ Trigger Silent Email Dispatch"}</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isDispatching}
+                  onClick={() => handleExecuteAutonomousSilentDispatch(undefined, "contributor")}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-blue-600 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 px-4 py-2 text-xs font-bold text-blue-800 transition cursor-pointer"
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span>Test 1-Day Contributor Invite</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isDispatching}
+                  onClick={() => handleExecuteAutonomousSilentDispatch(undefined, "celebrant")}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] disabled:opacity-50 px-5 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-95"
+                >
+                  <Zap className="h-3.5 w-3.5 fill-white" />
+                  <span>Test Birthday Reveal</span>
+                </button>
+              </div>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-[#241621] mb-1">
-                Target Email Address
+                Target Email Address for Test Dispatch
               </label>
               <input
                 type="email"
@@ -1474,26 +1676,11 @@ function SchedulerPage() {
               </div>
             )}
           </div>
-
-          {/* Future Multi-Channel Roadmap Note */}
-          <div className="rounded-2xl bg-[#FAF6F0] p-4 border border-[#241621]/10 flex items-start gap-3">
-            <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0">
-              📱
-            </div>
-            <div>
-              <h4 className="font-display text-xs font-bold text-[#241621]">
-                Multi-Channel Roadmap: WhatsApp & SMS Automation
-              </h4>
-              <p className="text-[11px] text-[#594855] mt-0.5 leading-relaxed">
-                Direct WhatsApp automated messaging is scheduled for the v2.0 Enterprise release with pre-registered Meta Business templates and verified sender IDs.
-              </p>
-            </div>
-          </div>
         </div>
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* EMAIL KEEPSAKE PREVIEW & DIRECT DISPATCH MODAL                */}
+      {/* 2-PHASE EMAIL PREVIEW & DIRECT DISPATCH MODAL                 */}
       {/* ───────────────────────────────────────────────────────────── */}
       {simulationModalJob && (
         <div
@@ -1512,10 +1699,10 @@ function SchedulerPage() {
                 </div>
                 <div>
                   <h3 className="font-display text-base font-bold text-[#241621]">
-                    Email Keepsake Dispatch
+                    2-Phase Automated Email Dispatch
                   </h3>
                   <p className="text-[11px] text-[#594855]">
-                    Recipient: {simulationModalJob.recipient} · {simulationModalJob.email || "Email ready"}
+                    Recipient: {simulationModalJob.recipient} ({simulationModalJob.email})
                   </p>
                 </div>
               </div>
@@ -1529,39 +1716,103 @@ function SchedulerPage() {
               </button>
             </div>
 
-            {/* Email Preview Card */}
-            <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner">
-              <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
-                <div><strong>To:</strong> {simulationModalJob.email || "recipient@example.com"}</div>
-                <div><strong>Subject:</strong> {generateEmailSubject(simulationModalJob)}</div>
-                <div><strong>From:</strong> SocioDex Celebrations &lt;onboarding@resend.dev&gt;</div>
-              </div>
+            {/* Email Type Tabs Toggle */}
+            <div className="grid grid-cols-2 gap-2 bg-[#FAF6F0] p-1.5 rounded-2xl border border-[#241621]/10 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setModalEmailType("celebrant")}
+                className={`py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  modalEmailType === "celebrant"
+                    ? "bg-[#E4603C] text-white shadow-xs"
+                    : "text-[#594855] hover:text-[#241621]"
+                }`}
+              >
+                <Gift className="h-3.5 w-3.5" />
+                <span>🎂 Birthday Keepsake (10 AM)</span>
+              </button>
 
-              <div className="bg-white rounded-2xl p-4 shadow-xs space-y-3 text-xs text-[#241621]">
-                <div className="font-display text-sm font-bold text-[#E4603C]">
-                  🎉 Happy {simulationModalJob.occasion}, {simulationModalJob.recipient}! 🎂
-                </div>
-                <p className="text-[#594855] leading-relaxed">
-                  Your team at{" "}
-                  <strong>{simulationModalJob.organizerName || "SocioDex"}</strong> has created a
-                  special digital memory page to celebrate this special day!
-                </p>
-                {simulationModalJob.customNote && (
-                  <p className="italic bg-[#FFFDF9] p-2.5 rounded-xl border border-[#241621]/10 text-[11px] text-[#594855]">
-                    "{simulationModalJob.customNote}"
-                  </p>
-                )}
-
-                <div className="p-3 rounded-xl bg-[#FAF6F0] border border-[#E4603C]/20 text-center space-y-1.5">
-                  <div className="text-[11px] font-bold text-[#E4603C]">
-                    💌 Living Keepsake Memory Page
-                  </div>
-                  <div className="font-mono text-xs text-blue-700 font-semibold underline truncate">
-                    {getKeepsakeUrl(simulationSlug || simulationModalJob.createdMemorySlug)}
-                  </div>
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setModalEmailType("contributor")}
+                className={`py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 ${
+                  modalEmailType === "contributor"
+                    ? "bg-blue-600 text-white shadow-xs"
+                    : "text-[#594855] hover:text-[#241621]"
+                }`}
+              >
+                <Users className="h-3.5 w-3.5" />
+                <span>🎨 1-Day Contributor Invite</span>
+              </button>
             </div>
+
+            {/* EMAIL PREVIEW CARD 1: CELEBRANT BIRTHDAY SURPRISE */}
+            {modalEmailType === "celebrant" && (
+              <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner animate-in fade-in duration-150">
+                <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
+                  <div><strong>To:</strong> {simulationModalJob.email || "recipient@example.com"}</div>
+                  <div><strong>Subject:</strong> {generateCelebrantBirthdayEmailSubject(simulationModalJob)}</div>
+                  <div><strong>Time:</strong> 10:00 AM on Birthday Date</div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-4 shadow-xs space-y-3 text-xs text-[#241621]">
+                  <div className="font-display text-sm font-bold text-[#E4603C]">
+                    🎉 Happy {simulationModalJob.occasion}, {simulationModalJob.recipient}! 🎂
+                  </div>
+                  <p className="text-[#594855] leading-relaxed">
+                    Today is all about YOU! Wishing you a sensational {simulationModalJob.occasion} filled with joy, health, and memorable celebrations!
+                  </p>
+                  <p className="text-[#594855] leading-relaxed">
+                    🎁 <strong>SURPRISE!</strong> Your team and loved ones at{" "}
+                    <strong>{simulationModalJob.organizerName || "SocioDex"}</strong> have secretly created a living digital memory page just for you!
+                  </p>
+                  {simulationModalJob.customNote && (
+                    <p className="italic bg-[#FFFDF9] p-2.5 rounded-xl border border-[#241621]/10 text-[11px] text-[#594855]">
+                      "{simulationModalJob.customNote}"
+                    </p>
+                  )}
+
+                  <div className="p-3 rounded-xl bg-[#FAF6F0] border border-[#E4603C]/20 text-center space-y-1.5">
+                    <div className="text-[11px] font-bold text-[#E4603C]">
+                      💌 Living Keepsake Memory Page
+                    </div>
+                    <div className="font-mono text-xs text-blue-700 font-semibold underline truncate">
+                      {getKeepsakeUrl(simulationSlug || simulationModalJob.createdMemorySlug)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* EMAIL PREVIEW CARD 2: 1-DAY SECRET CONTRIBUTOR INVITATION */}
+            {modalEmailType === "contributor" && (
+              <div className="rounded-2xl bg-[#EFF6FF] p-4 space-y-3 border border-blue-200 shadow-inner animate-in fade-in duration-150">
+                <div className="text-[11px] text-blue-900 space-y-1 pb-2 border-b border-blue-200 font-mono">
+                  <div><strong>To:</strong> Organizer ({simulationModalJob.organizerEmail || "you"}) + {simulationModalJob.contributorEmails?.length || 0} Contributors</div>
+                  <div><strong>Subject:</strong> {generateContributorEmailSubject(simulationModalJob)}</div>
+                  <div><strong>Time:</strong> 10:00 AM (1 Day Before Birthday)</div>
+                </div>
+
+                <div className="bg-white rounded-2xl p-4 shadow-xs space-y-3 text-xs text-[#241621]">
+                  <div className="font-display text-sm font-bold text-blue-800">
+                    🎨 Shh... Secret Celebration! Add your wishes & photos before tomorrow's reveal!
+                  </div>
+                  <p className="text-[#594855] leading-relaxed">
+                    <strong>{simulationModalJob.recipient}'s {simulationModalJob.occasion} is TOMORROW!</strong> 🎂 We are secretly putting together a living memory page to surprise them tomorrow at 10:00 AM.
+                  </p>
+                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-center space-y-1.5">
+                    <div className="text-[11px] font-bold text-blue-800">
+                      👉 Secret Collaboration Link (Add Wishes & Photos)
+                    </div>
+                    <div className="font-mono text-xs text-blue-700 font-semibold underline truncate">
+                      {getKeepsakeUrl(simulationSlug || simulationModalJob.createdMemorySlug)}
+                    </div>
+                  </div>
+                  <p className="text-[11px] text-[#594855] leading-relaxed">
+                    💡 <em>Please add your wishes early and invite other coworkers/friends so everyone's love is ready!</em>
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Direct 1-Click Action Buttons */}
             <div className="space-y-3">
@@ -1572,58 +1823,31 @@ function SchedulerPage() {
               {/* 100% Autonomous Silent Trigger Button */}
               <button
                 type="button"
-                onClick={() => handleExecuteAutonomousSilentDispatch(simulationModalJob)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] py-3 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-98"
+                onClick={() => handleExecuteAutonomousSilentDispatch(simulationModalJob, modalEmailType)}
+                className={`w-full inline-flex items-center justify-center gap-2 rounded-full py-3 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-98 ${
+                  modalEmailType === "celebrant"
+                    ? "bg-[#E4603C] hover:bg-[#c94b29]"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
               >
                 <Zap className="h-4 w-4 fill-white" />
-                <span>⚡ Fire 100% Autonomous Silent Dispatch (Resend API)</span>
+                <span>
+                  {modalEmailType === "celebrant"
+                    ? "⚡ Test Birthday Reveal Email (Resend API)"
+                    : "🎨 Test 1-Day Contributor Invite Email (Resend API)"}
+                </span>
               </button>
-
-              {/* Email Options */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <a
-                  href={getGmailComposeUrl(
-                    simulationModalJob.email,
-                    generateEmailSubject(simulationModalJob),
-                    generateEmailBody(
-                      simulationModalJob,
-                      simulationSlug || simulationModalJob.createdMemorySlug
-                    )
-                  )}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#241621] hover:bg-black py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
-                >
-                  <Mail className="h-3.5 w-3.5" />
-                  <span>Send via Gmail Web</span>
-                </a>
-
-                <a
-                  href={getMailtoUrl(
-                    simulationModalJob.email,
-                    generateEmailSubject(simulationModalJob),
-                    generateEmailBody(
-                      simulationModalJob,
-                      simulationSlug || simulationModalJob.createdMemorySlug
-                    )
-                  )}
-                  className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] py-2.5 text-xs font-bold text-[#241621] transition cursor-pointer"
-                >
-                  <Mail className="h-3.5 w-3.5 text-[#594855]" />
-                  <span>Open in Mail App</span>
-                </a>
-              </div>
 
               <div className="flex gap-2 pt-1 border-t border-[#241621]/10">
                 <button
                   type="button"
                   onClick={() => {
-                    const text = generateEmailBody(
-                      simulationModalJob,
-                      simulationSlug || simulationModalJob.createdMemorySlug
-                    );
+                    const text =
+                      modalEmailType === "celebrant"
+                        ? generateCelebrantBirthdayEmailBody(simulationModalJob, simulationSlug || simulationModalJob.createdMemorySlug)
+                        : generateContributorEmailBody(simulationModalJob, simulationSlug || simulationModalJob.createdMemorySlug);
                     navigator.clipboard.writeText(text);
-                    toast.success("Email content copied to clipboard!");
+                    toast.success("Email text copied to clipboard!");
                   }}
                   className="flex-1 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] py-2.5 text-xs font-bold text-[#241621] transition cursor-pointer"
                 >

@@ -149,8 +149,13 @@ export type ScheduledMemoryJob = {
   email?: string;
   department?: string;
   organizerName?: string;
+  organizerEmail?: string;
+  contributorEmails?: string[];
+  contributorDispatchTime?: string; // HH:mm (defaults to 10:00 AM on day before)
+  contributorEmailsDispatched?: boolean;
+  celebrantEmailDispatched?: boolean;
   eventDate: string; // YYYY-MM-DD
-  scheduledTime?: string; // HH:mm
+  scheduledTime?: string; // HH:mm (defaults to 10:00 AM on event day)
   themeId: string;
   customNote?: string;
   notifyOneDayBefore: boolean;
