@@ -83,13 +83,23 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
         : "") ||
       "";
 
-    const activeFromNumber =
+    let rawFrom =
       data.fromNumber ||
       (typeof process !== "undefined" ? process.env?.VITE_TWILIO_FROM_NUMBER : undefined) ||
       (typeof import.meta !== "undefined" && import.meta.env
         ? (import.meta.env.VITE_TWILIO_FROM_NUMBER as string)
         : "") ||
       "+14155238886";
+
+    let cleanFrom = rawFrom.trim();
+    if (!cleanFrom.startsWith("+")) {
+      cleanFrom = "+" + cleanFrom.replace(/[^0-9]/g, "");
+    }
+
+    let cleanTo = data.toPhone.replace(/[^0-9]/g, "");
+    if (cleanTo.length === 10 && /^[6-9]/.test(cleanTo)) {
+      cleanTo = "91" + cleanTo;
+    }
 
     if (!activeAccountSid || !activeAuthToken) {
       return {
@@ -105,8 +115,8 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
       const basicAuth = btoa(`${activeAccountSid}:${activeAuthToken}`);
 
       const bodyParams = new URLSearchParams();
-      bodyParams.append("From", `whatsapp:${activeFromNumber}`);
-      bodyParams.append("To", `whatsapp:+${data.toPhone}`);
+      bodyParams.append("From", `whatsapp:${cleanFrom}`);
+      bodyParams.append("To", `whatsapp:+${cleanTo}`);
       bodyParams.append("Body", data.messageText);
 
       const response = await fetch(endpoint, {
@@ -125,7 +135,7 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
           errorMsg =
             "Twilio Authentication Failed (401 Authenticate). Please ensure your primary Auth Token is set in Vercel Environment Variables.";
         } else if (resData.code === 63015 || resData.code === 21608 || resData.code === 21654) {
-          errorMsg = `WhatsApp Sandbox Requirement: Send your Twilio join phrase (e.g. 'join <keyword>') to ${activeFromNumber} on WhatsApp from your phone first.`;
+          errorMsg = `WhatsApp Sandbox Requirement (Code ${resData.code}): To receive messages, your phone (+${cleanTo}) must send your Twilio sandbox join phrase (e.g. 'join <keyword>') to ${cleanFrom} on WhatsApp once to open a 24-hour testing session.`;
         }
 
         return {
