@@ -4,16 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
  * Server-Side Dispatch Function for Resend Emails (Bypasses Browser CORS)
  */
 export const serverDispatchEmail = createServerFn({ method: "POST" })
-  .validator(
-    (data: {
-      to: string;
-      subject: string;
-      html: string;
-      apiKey?: string;
-      fromEmail?: string;
-    }) => data
-  )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }: { data: { to: string; subject: string; html: string; apiKey?: string; fromEmail?: string } }) => {
     const activeApiKey =
       data.apiKey ||
       (typeof process !== "undefined" ? process.env?.RESEND_API_KEY || process.env?.VITE_RESEND_API_KEY : undefined) ||
@@ -75,16 +66,7 @@ export const serverDispatchEmail = createServerFn({ method: "POST" })
  * Server-Side Dispatch Function for Twilio WhatsApp (Bypasses Browser CORS & Handles Auth)
  */
 export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
-  .validator(
-    (data: {
-      toPhone: string;
-      messageText: string;
-      accountSid?: string;
-      authToken?: string;
-      fromNumber?: string;
-    }) => data
-  )
-  .handler(async ({ data }) => {
+  .handler(async ({ data }: { data: { toPhone: string; messageText: string; accountSid?: string; authToken?: string; fromNumber?: string } }) => {
     const activeAccountSid =
       data.accountSid ||
       (typeof process !== "undefined" ? process.env?.TWILIO_ACCOUNT_SID || process.env?.VITE_TWILIO_ACCOUNT_SID : undefined) ||
