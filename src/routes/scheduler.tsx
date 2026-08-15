@@ -143,8 +143,18 @@ function SchedulerPage() {
   const addScheduledJob = useStore((s) => s.addScheduledJob);
   const addScheduledJobsBatch = useStore((s) => s.addScheduledJobsBatch);
   const deleteScheduledJob = useStore((s) => s.deleteScheduledJob);
+  const clearAllScheduledJobs = useStore((s) => s.clearAllScheduledJobs);
   const triggerScheduledJobNow = useStore((s) => s.triggerScheduledJobNow);
   const navigate = useNavigate();
+
+  // Auto-cleanup legacy mock demo events on mount
+  useEffect(() => {
+    ["job-priya", "job-arjun", "job-sarah"].forEach((demoId) => {
+      if (scheduledJobs[demoId]) {
+        deleteScheduledJob(demoId);
+      }
+    });
+  }, []);
 
   // Active Tab: 3 Clean Tabs ("individual" | "corporate" | "queue")
   const [activeTab, setActiveTab] = useState<"individual" | "corporate" | "queue">("individual");
@@ -1374,10 +1384,26 @@ function SchedulerPage() {
               >
                 Created / Live ({jobsList.filter((j) => j.status === "created").length})
               </button>
+
+              {jobsList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (window.confirm("Are you sure you want to clear all scheduled events from the queue?")) {
+                      clearAllScheduledJobs();
+                      toast.success("All scheduled events cleared.");
+                    }
+                  }}
+                  className="ml-auto inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1 rounded-full border border-red-200 transition cursor-pointer shadow-2xs"
+                >
+                  <Trash2 className="h-3 w-3" />
+                  <span>Clear All Events ({jobsList.length})</span>
+                </button>
+              )}
             </div>
 
             <div className="text-[11px] text-[#594855] font-medium px-2">
-              💡 Background engine sends <strong>Contributor Invites 1-day before @ 10:00 AM</strong> and <strong>Surprise Keepsakes on Birthday @ 10:00 AM</strong>.
+              💡 Background engine sends <strong>Contributor Invites 1-day before @ 10:00 AM</strong> and <strong>Surprise Keepsakes on Event Day @ 10:00 AM</strong>.
             </div>
           </div>
 

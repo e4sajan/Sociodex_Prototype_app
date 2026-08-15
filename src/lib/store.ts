@@ -188,6 +188,7 @@ type State = {
   addScheduledJobsBatch: (jobs: ScheduledMemoryJob[]) => void;
   updateScheduledJob: (id: string, patch: Partial<ScheduledMemoryJob>) => void;
   deleteScheduledJob: (id: string) => void;
+  clearAllScheduledJobs: () => void;
   triggerScheduledJobNow: (id: string) => string | null;
 
   setMemory: (
@@ -293,63 +294,6 @@ const createDefaultMemoryData = (
   blockedUsers: [],
 });
 
-const DEFAULT_SCHEDULED_JOBS: Record<string, ScheduledMemoryJob> = {
-  "job-priya": {
-    id: "job-priya",
-    occasion: "Birthday Celebration",
-    recipient: "Priya Sharma",
-    whatsapp: "+91 98765 43210",
-    email: "priya.sharma@acme.corp",
-    department: "Product Design",
-    organizerName: "Acme People Team",
-    eventDate: "2026-08-28",
-    scheduledTime: "09:00",
-    themeId: "rose-elegance",
-    customNote: "Happy Birthday Priya! Wishing you a sensational year ahead filled with creativity, joy, and incredible milestones! 🎉🎂",
-    notifyOneDayBefore: true,
-    autoDispatchOnDate: true,
-    status: "scheduled",
-    createdAt: new Date().toISOString(),
-    isCorporate: true,
-  },
-  "job-arjun": {
-    id: "job-arjun",
-    occasion: "3rd Work Anniversary",
-    recipient: "Arjun Verma",
-    whatsapp: "+91 98123 45678",
-    email: "arjun.verma@acme.corp",
-    department: "Core Engineering",
-    organizerName: "HR Culture Team",
-    eventDate: "2026-09-02",
-    scheduledTime: "10:00",
-    themeId: "floral-sage",
-    customNote: "Congratulations Arjun on completing 3 amazing years with Acme Corp! Thank you for your leadership and stellar contributions. 🚀✨",
-    notifyOneDayBefore: true,
-    autoDispatchOnDate: true,
-    status: "scheduled",
-    createdAt: new Date().toISOString(),
-    isCorporate: true,
-  },
-  "job-sarah": {
-    id: "job-sarah",
-    occasion: "Farewell Keepsake",
-    recipient: "Sarah Lin",
-    whatsapp: "+1 415 555 0192",
-    email: "sarah.lin@acme.corp",
-    department: "Marketing & Growth",
-    organizerName: "David Kim",
-    eventDate: "2026-09-10",
-    scheduledTime: "09:30",
-    themeId: "champagne-gold",
-    customNote: "Wishing you the absolute best on your next exciting chapter Sarah! We will miss your vibrant energy and warmth! 🌸🥂",
-    notifyOneDayBefore: true,
-    autoDispatchOnDate: true,
-    status: "scheduled",
-    createdAt: new Date().toISOString(),
-    isCorporate: true,
-  },
-};
-
 export const useStore = create<State>()(
   persist(
     (set) => ({
@@ -359,7 +303,7 @@ export const useStore = create<State>()(
       memories: {},
       guests: [],
       currentUser: null,
-      scheduledJobs: DEFAULT_SCHEDULED_JOBS,
+      scheduledJobs: {},
 
       login: (u) => set({ currentUser: u }),
       logout: () => set({ currentUser: null }),
@@ -401,6 +345,11 @@ export const useStore = create<State>()(
           delete next[id];
           return { scheduledJobs: next };
         }),
+
+      clearAllScheduledJobs: () =>
+        set(() => ({
+          scheduledJobs: {},
+        })),
 
       triggerScheduledJobNow: (id) => {
         let createdSlug: string | null = null;
