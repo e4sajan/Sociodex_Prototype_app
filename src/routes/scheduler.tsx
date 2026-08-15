@@ -59,7 +59,7 @@ export const Route = createFileRoute("/scheduler")({
       {
         name: "description",
         content:
-          "Schedule celebration memory pages with 1-day advance contributor invites (10:00 AM) and birthday surprise keepsake auto-dispatch (10:00 AM) via Resend API.",
+          "Schedule celebration memory pages with 1-day advance contributor invites (10:00 AM) and birthday surprise keepsake auto-dispatch (10:00 AM) via events@sociodex.com.",
       },
     ],
   }),
@@ -137,13 +137,6 @@ function getGmailComposeUrl(email?: string, subject?: string, body?: string): st
   return `https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${b}`;
 }
 
-function getMailtoUrl(email?: string, subject?: string, body?: string): string {
-  const to = email || "";
-  const su = encodeURIComponent(subject || "");
-  const b = encodeURIComponent(body || "");
-  return `mailto:${to}?subject=${su}&body=${b}`;
-}
-
 function SchedulerPage() {
   const currentUser = useStore((s) => s.currentUser);
   const scheduledJobs = useStore((s) => s.scheduledJobs || {});
@@ -153,8 +146,8 @@ function SchedulerPage() {
   const triggerScheduledJobNow = useStore((s) => s.triggerScheduledJobNow);
   const navigate = useNavigate();
 
-  // Active Tab: "individual" (1st Priority) | "corporate" | "queue" | "engine"
-  const [activeTab, setActiveTab] = useState<"individual" | "corporate" | "queue" | "engine">("individual");
+  // Active Tab: 3 Clean Tabs ("individual" | "corporate" | "queue")
+  const [activeTab, setActiveTab] = useState<"individual" | "corporate" | "queue">("individual");
 
   // Queue Filter: "all" | "scheduled" | "created"
   const [queueFilter, setQueueFilter] = useState<"all" | "scheduled" | "created">("all");
@@ -162,11 +155,11 @@ function SchedulerPage() {
   // ── INDIVIDUAL FORM STATE (1st Priority) ──
   const [indOccasion, setIndOccasion] = useState(OCCASIONS[0]);
   const [indRecipient, setIndRecipient] = useState("");
-  const [indEmail, setIndEmail] = useState("");
+  const [indEmail, setIndEmail] = useState(""); // Non-mandatory (optional)
   const [indDate, setIndDate] = useState("");
   const [indTime, setIndTime] = useState("10:00"); // 10:00 AM Morning Birthday Reveal Default
   const [indOrganizer, setIndOrganizer] = useState(currentUser?.name || "Organizer");
-  const [indOrganizerEmail, setIndOrganizerEmail] = useState(currentUser?.email || "e4sajan@gmail.com");
+  const [indOrganizerEmail, setIndOrganizerEmail] = useState(currentUser?.email || "e4sajan@gmail.com"); // Mandatory
   const [indContributors, setIndContributors] = useState("");
   const [indContributorTime, setIndContributorTime] = useState("10:00"); // 10:00 AM Day Before Default
   const [indThemeId, setIndThemeId] = useState(THEMES[0].id);
@@ -197,7 +190,7 @@ function SchedulerPage() {
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ── AUTONOMOUS API CONFIGURATION STATE (Tab 4) ──
+  // ── AUTONOMOUS API CONFIGURATION STATE (Background Resend Engine) ──
   const [apiConfig, setApiConfig] = useState<AutonomousApiConfig>(loadAutonomousApiConfig);
   const [dispatchLogs, setDispatchLogs] = useState<DispatchResult[]>([]);
   const [isDispatching, setIsDispatching] = useState(false);
@@ -270,22 +263,25 @@ function SchedulerPage() {
           );
         }
 
-        // PHASE 2: Birthday Date at 10:00 AM -> Send Surprise Keepsake Reveal to Celebrant
+        // PHASE 2: Birthday Date at 10:00 AM -> Send Surprise Keepsake Reveal to Celebrant (if email provided)
         if (
           job.status === "scheduled" &&
           job.autoDispatchOnDate &&
-          job.email &&
           job.eventDate <= todayStr &&
           (job.scheduledTime || "10:00") <= currentTimeStr &&
           !job.celebrantEmailDispatched
         ) {
           const slug = triggerScheduledJobNow(job.id);
-          const emailSub = generateCelebrantBirthdayEmailSubject(job);
-          const emailBody = generateCelebrantBirthdayEmailBody(job, slug || "celebration-preview");
-          const res = await sendAutonomousEmail(job.email, emailSub, emailBody, apiConfig);
-          if (res.success) {
+          if (job.email) {
+            const emailSub = generateCelebrantBirthdayEmailSubject(job);
+            const emailBody = generateCelebrantBirthdayEmailBody(job, slug || "celebration-preview");
+            const res = await sendAutonomousEmail(job.email, emailSub, emailBody, apiConfig);
+            if (res.success) {
+              job.celebrantEmailDispatched = true;
+              toast.success(`🎂 Auto-dispatched 10:00 AM surprise birthday email to ${job.recipient} (${job.email})!`);
+            }
+          } else {
             job.celebrantEmailDispatched = true;
-            toast.success(`🎂 Auto-dispatched 10:00 AM surprise birthday email to ${job.recipient} (${job.email})!`);
           }
         }
       }
@@ -295,12 +291,6 @@ function SchedulerPage() {
     const interval = setInterval(runAutonomousSchedulerEngine, 30000);
     return () => clearInterval(interval);
   }, [scheduledJobs, apiConfig]);
-
-  const handleSaveApiConfig = (newConfig: AutonomousApiConfig) => {
-    setApiConfig(newConfig);
-    saveAutonomousApiConfig(newConfig);
-    toast.success("Autonomous Email API delivery configuration saved!");
-  };
 
   const requestNotificationPermission = async () => {
     if (typeof window !== "undefined" && "Notification" in window) {
@@ -406,7 +396,7 @@ function SchedulerPage() {
         organizerEmail: orgEmail,
         contributors,
         customNote,
-        isValid: Boolean(name && date && email),
+        isValid: Boolean(name && date && orgEmail),
       });
     }
 
@@ -451,7 +441,7 @@ function SchedulerPage() {
         id: `job-corp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         occasion: r.occasion,
         recipient: r.name,
-        email: r.email,
+        email: r.email || undefined,
         department: r.department,
         organizerName: r.organizer || corpCompanyName,
         organizerEmail: r.organizerEmail || currentUser?.email || "hr@acme.corp",
@@ -477,8 +467,8 @@ function SchedulerPage() {
 
   const handleScheduleIndividual = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!indRecipient.trim() || !indDate || !indEmail.trim()) {
-      toast.error("Please fill in recipient name, event date, and email address.");
+    if (!indRecipient.trim() || !indDate || !indOrganizerEmail.trim()) {
+      toast.error("Please fill in recipient name, event date, and organizer email address.");
       return;
     }
 
@@ -493,7 +483,7 @@ function SchedulerPage() {
       id: `job-ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       occasion: indOccasion,
       recipient: indRecipient.trim(),
-      email: indEmail.trim(),
+      email: indEmail.trim() || undefined,
       organizerName: indOrganizer.trim() || currentUser?.name || "Organizer",
       organizerEmail: indOrganizerEmail.trim() || currentUser?.email || "e4sajan@gmail.com",
       contributorEmails: contributorList,
@@ -510,7 +500,7 @@ function SchedulerPage() {
     };
 
     addScheduledJob(newJob);
-    toast.success(`Scheduled automatic 2-phase celebration page for ${newJob.recipient}!`);
+    toast.success(`Scheduled celebration keepsake for ${newJob.recipient}!`);
 
     // Reset form
     setIndRecipient("");
@@ -528,7 +518,6 @@ function SchedulerPage() {
     setSimulationSlug(slug || job.createdMemorySlug || null);
     toast.success(`Generated live memory page for ${job.recipient}!`);
 
-    // Fire a browser notification if permitted
     if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
       new Notification(`🎂 Live Memory Page: ${job.recipient}'s ${job.occasion}`, {
         body: `Your memory page is ready! Live link: ${getKeepsakeUrl(slug || job.createdMemorySlug)}`,
@@ -550,7 +539,6 @@ function SchedulerPage() {
     const newLogs: DispatchResult[] = [];
 
     if (targetType === "celebrant") {
-      // 1. Send Birthday Morning Surprise Email to Celebrant
       const targetEmail = myTestEmail.trim() || targetJob.email;
       if (targetEmail) {
         const emailSub = generateCelebrantBirthdayEmailSubject(targetJob);
@@ -562,9 +550,10 @@ function SchedulerPage() {
         } else {
           toast.error(`[Celebrant Reveal Email] ${result.details}`);
         }
+      } else {
+        toast.error("No email address configured for celebrant.");
       }
     } else {
-      // 2. Send 1-Day Secret Contributor Invite Email to Organiser + Contributors
       const emailSub = generateContributorEmailSubject(targetJob);
       const emailBody = generateContributorEmailBody(targetJob, targetSlug);
       const recipientList = [
@@ -576,9 +565,9 @@ function SchedulerPage() {
         const result = await sendAutonomousEmail(email, emailSub, emailBody, apiConfig);
         newLogs.push(result);
         if (result.success) {
-          toast.success(`[Contributor Invite Email to ${email}] ${result.details}`);
+          toast.success(`[Contributor Invite to ${email}] ${result.details}`);
         } else {
-          toast.error(`[Contributor Invite Email to ${email}] ${result.details}`);
+          toast.error(`[Contributor Invite to ${email}] ${result.details}`);
         }
       }
     }
@@ -601,8 +590,8 @@ function SchedulerPage() {
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 pt-6 pb-28 sm:py-8 sm:px-6">
-      {/* ── HEADER ── */}
+    <div className="mx-auto max-w-5xl px-4 pt-6 pb-28 sm:py-8 sm:px-6">
+      {/* ── CLEAN HEADER ── */}
       <div className="mb-6 flex flex-col justify-between gap-4 border-b border-[#241621]/10 pb-5 sm:flex-row sm:items-center">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -611,10 +600,10 @@ function SchedulerPage() {
             </span>
           </div>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight text-[#241621]">
-            Auto-Schedule Celebrations
+            Celebration Scheduler
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-[#594855] max-w-2xl">
-            Auto-send <strong>1-Day Secret Contributor Invites (10:00 AM)</strong> to plan & collect memories, then surprise the celebrant with their <strong>Official Keepsake Email on their Birthday (10:00 AM)</strong>.
+            Auto-send <strong>1-Day Secret Contributor Invites (10:00 AM)</strong> to collect wishes & photos, and reveal the <strong>Official Keepsake on Birthday (10:00 AM)</strong>.
           </p>
         </div>
 
@@ -640,8 +629,8 @@ function SchedulerPage() {
         </div>
       </div>
 
-      {/* ── 4 TABS BAR (Individual 1st, Corporate 2nd, Queue 3rd, Email API 4th) ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+      {/* ── 3 CLEAN TABS BAR (Individual 1st, Corporate 2nd, Queue 3rd) ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-8">
         {/* 1ST TAB: INDIVIDUAL EVENT SCHEDULER (DEFAULT / PRIMARY) */}
         <button
           onClick={() => setActiveTab("individual")}
@@ -667,7 +656,7 @@ function SchedulerPage() {
               Schedule Event Page
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              2-phase automated emails for birthday & milestone
+              2-phase auto emails for birthday & milestone
             </div>
           </div>
         </button>
@@ -731,36 +720,6 @@ function SchedulerPage() {
             </div>
           </div>
         </button>
-
-        {/* 4TH TAB: 100% AUTONOMOUS ZERO-TOUCH EMAIL API */}
-        <button
-          onClick={() => setActiveTab("engine")}
-          className={`p-4 rounded-2xl border text-left transition-all cursor-pointer select-none flex items-start gap-3.5 ${
-            activeTab === "engine"
-              ? "bg-[#FFFDF9] border-[#E4603C] shadow-md ring-2 ring-[#E4603C]/20"
-              : "bg-white border-[#241621]/10 hover:border-[#E4603C]/40"
-          }`}
-        >
-          <div className="h-10 w-10 rounded-xl bg-orange-500/10 text-[#E4603C] flex items-center justify-center shrink-0 text-xl">
-            ⚡
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
-                4. Zero-Touch Email
-              </span>
-              <span className="text-[10px] font-bold bg-green-600 text-white px-2 py-0.5 rounded-full">
-                Active 🟢
-              </span>
-            </div>
-            <div className="font-display text-base font-bold text-[#241621] mt-0.5 truncate">
-              Resend Email API
-            </div>
-            <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              100% Silent Background Delivery Gateway
-            </div>
-          </div>
-        </button>
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
@@ -779,42 +738,42 @@ function SchedulerPage() {
               Schedule a Memory Page
             </h2>
             <p className="text-xs text-[#594855] mt-0.5">
-              1) Sends <strong>secret collaboration email (10:00 AM day before)</strong> to contributors to collect wishes & photos. 2) Sends <strong>surprise celebration keepsake email (10:00 AM on birthday)</strong> to the birthday person.
+              1) Sends <strong>secret contributor invitation (10:00 AM day before)</strong> to collect wishes & photos. 2) Sends <strong>surprise celebration keepsake email (10:00 AM on birthday)</strong> to the birthday person.
             </p>
           </div>
 
           {/* 2-PHASE WORKFLOW VISUAL TIMELINE */}
-          <div className="grid gap-3 sm:grid-cols-2 p-4 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10">
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#241621]/5 shadow-2xs">
-              <div className="h-8 w-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+          <div className="grid gap-3 sm:grid-cols-2 p-4 rounded-2xl bg-[#FAF6F0] border border-[#241621]/10">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#241621]/8 shadow-2xs">
+              <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
                 1
               </div>
               <div className="min-w-0">
-                <div className="text-[11px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
-                  <HeartHandshake className="h-3 w-3" /> 1 Day Before (10:00 AM)
+                <div className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
+                  <HeartHandshake className="h-3 w-3" /> 1 Day Before · 10:00 AM
                 </div>
                 <div className="font-bold text-xs text-[#241621] mt-0.5">
                   Secret Contributor & Organizer Invite
                 </div>
                 <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
-                  Invites teammates & friends to secretly add wishes, videos, photos, and invite others.
+                  Invites teammates & friends to secretly add wishes, photos, and invite others.
                 </div>
               </div>
             </div>
 
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-white border border-[#241621]/5 shadow-2xs">
-              <div className="h-8 w-8 rounded-full bg-orange-100 text-[#E4603C] flex items-center justify-center font-bold text-xs shrink-0">
+            <div className="flex items-start gap-3 p-3.5 rounded-xl bg-white border border-[#241621]/8 shadow-2xs">
+              <div className="h-7 w-7 rounded-full bg-orange-100 text-[#E4603C] flex items-center justify-center font-bold text-xs shrink-0">
                 2
               </div>
               <div className="min-w-0">
-                <div className="text-[11px] font-bold text-[#E4603C] uppercase tracking-wider flex items-center gap-1">
-                  <Gift className="h-3 w-3" /> Birthday Morning (10:00 AM)
+                <div className="text-[10px] font-bold text-[#E4603C] uppercase tracking-wider flex items-center gap-1">
+                  <Gift className="h-3 w-3" /> Birthday Morning · 10:00 AM
                 </div>
                 <div className="font-bold text-xs text-[#241621] mt-0.5">
-                  Surprise Keepsake Reveal Email
+                  Surprise Keepsake Reveal
                 </div>
                 <div className="text-[11px] text-[#594855] mt-0.5 leading-snug">
-                  Celebrant receives their finished living memory page full of personal messages!
+                  Celebrant receives their finished living memory page full of love & memories!
                 </div>
               </div>
             </div>
@@ -823,13 +782,13 @@ function SchedulerPage() {
           <div className="grid gap-5 sm:grid-cols-2">
             {/* OCCASION & CELEBRANT DETAILS */}
             <div className="sm:col-span-2 pt-2 border-t border-[#241621]/10">
-              <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-3">
-                <Gift className="h-4 w-4 text-[#E4603C]" /> Celebrant & Event Details
+              <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-1">
+                <Gift className="h-4 w-4 text-[#E4603C]" /> 1. Celebrant & Event Details
               </h3>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">Occasion Type *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">Occasion Type *</label>
               <select
                 value={indOccasion}
                 onChange={(e) => setIndOccasion(e.target.value)}
@@ -844,7 +803,7 @@ function SchedulerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">Birthday Person's Name *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">Birthday Person's Name *</label>
               <input
                 value={indRecipient}
                 onChange={(e) => setIndRecipient(e.target.value)}
@@ -855,27 +814,7 @@ function SchedulerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Birthday Person's Email Address *
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={indEmail}
-                  onChange={(e) => setIndEmail(e.target.value)}
-                  placeholder="e.g. maya.iyer@example.com"
-                  required
-                  className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
-                />
-                <Mail className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
-              </div>
-              <span className="text-[10px] text-[#594855] mt-1 block">
-                ☀️ Receives the finished surprise keepsake email at 10:00 AM on their birthday.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">Birthday / Event Date *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">Birthday / Event Date *</label>
               <input
                 type="date"
                 value={indDate}
@@ -885,50 +824,71 @@ function SchedulerPage() {
               />
             </div>
 
+            <div>
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">
+                Birthday Person's Email <span className="text-[11px] font-normal text-[#594855]">(Optional)</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="email"
+                  value={indEmail}
+                  onChange={(e) => setIndEmail(e.target.value)}
+                  placeholder="e.g. maya.iyer@example.com (Optional)"
+                  className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
+                />
+                <Mail className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
+              </div>
+              <span className="text-[10px] text-[#594855] mt-1 block">
+                💡 Optional: If provided, celebrant receives the surprise keepsake email directly at 10:00 AM on their birthday.
+              </span>
+            </div>
+
             {/* ORGANIZER & SECRET CONTRIBUTORS SECTION */}
             <div className="sm:col-span-2 pt-4 border-t border-[#241621]/10">
               <h3 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5 mb-1">
-                <Users className="h-4 w-4 text-blue-600" /> Organizer & Secret Contributors (1-Day Advance Planning)
+                <Users className="h-4 w-4 text-blue-600" /> 2. Organizer & Secret Contributors (1-Day Advance Planning)
               </h3>
-              <p className="text-[11px] text-[#594855] mb-3">
-                These people will automatically receive an invitation email 1 day before at 10:00 AM to secretly add wishes and photos.
+              <p className="text-[11px] text-[#594855] mb-2">
+                These collaborators will automatically receive an invite 1 day before at 10:00 AM to secretly add wishes and photos.
               </p>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Organizer / Sender Name
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">
+                Organizer / Sender Name *
               </label>
               <input
                 value={indOrganizer}
                 onChange={(e) => setIndOrganizer(e.target.value)}
-                placeholder="e.g. Neha & Friends / Acme People Team"
+                placeholder="e.g. Sajan Dansena / Acme People Team"
+                required
                 className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C]"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Organizer Email Address (Default: Logged-in User)
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">
+                Organizer Email Address * <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded">Mandatory</span>
               </label>
               <div className="relative">
                 <input
                   type="email"
                   value={indOrganizerEmail}
                   onChange={(e) => setIndOrganizerEmail(e.target.value)}
-                  placeholder="e.g. your-email@example.com"
+                  placeholder="e.g. e4sajan@gmail.com"
+                  required
                   className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
                 />
                 <User className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
               </div>
               <span className="text-[10px] text-[#594855] mt-1 block">
-                🔔 Receives 1-day advance reminder & collaboration tracking links.
+                🔔 Receives 1-day advance reminder (10:00 AM) & memory page admin links.
               </span>
             </div>
 
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Teammates & Contributors Email IDs (Separate with commas)
+              <label className="block text-xs font-bold text-[#241621] mb-1.5">
+                Teammates & Contributors Email IDs <span className="text-[11px] font-normal text-[#594855]">(Optional, separate with commas)</span>
               </label>
               <textarea
                 value={indContributors}
@@ -942,8 +902,9 @@ function SchedulerPage() {
               </span>
             </div>
 
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-[#241621] mb-1">Keepsake Visual Theme</label>
+            {/* THEME & GREETING NOTE */}
+            <div className="sm:col-span-2 pt-2 border-t border-[#241621]/10">
+              <label className="block text-xs font-bold text-[#241621] mb-2">3. Keepsake Visual Theme</label>
               <div className="flex flex-wrap gap-2.5">
                 {THEMES.map((t) => (
                   <button
@@ -952,11 +913,11 @@ function SchedulerPage() {
                     onClick={() => setIndThemeId(t.id)}
                     className={`flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition cursor-pointer ${
                       indThemeId === t.id
-                        ? "border-[#E4603C] ring-2 ring-[#E4603C]/20 bg-white"
+                        ? "border-[#E4603C] ring-2 ring-[#E4603C]/20 bg-white shadow-2xs"
                         : "border-[#241621]/15 bg-white hover:bg-[#FAF6F0]"
                     }`}
                   >
-                    <span className="h-3.5 w-3.5 rounded-full" style={{ background: t.accent }} />
+                    <span className="h-3.5 w-3.5 rounded-full shadow-2xs" style={{ background: t.accent }} />
                     <span>{t.name}</span>
                   </button>
                 ))}
@@ -964,7 +925,7 @@ function SchedulerPage() {
             </div>
 
             <div className="sm:col-span-2">
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-xs font-bold text-[#241621]">
                   Preset Welcome Greeting / Organizer Note
                 </label>
@@ -979,13 +940,14 @@ function SchedulerPage() {
               <textarea
                 value={indCustomNote}
                 onChange={(e) => setIndCustomNote(e.target.value)}
-                rows={3}
+                rows={2}
                 placeholder="e.g. Wishing you a wonderful birthday filled with joy, health, and laughter! 🥳✨"
                 className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C] resize-none"
               />
             </div>
           </div>
 
+          {/* AUTOMATION CHECKBOXES */}
           <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-2.5 border border-[#241621]/10 text-xs">
             <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
               <input
@@ -1007,7 +969,7 @@ function SchedulerPage() {
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                🎂 <strong>Phase 2 (Birthday at 10:00 AM):</strong> Automatically send official surprise memory page email to the celebrant
+                🎂 <strong>Phase 2 (Birthday at 10:00 AM):</strong> Automatically generate celebration memory page and email surprise keepsake link
               </span>
             </label>
           </div>
@@ -1018,7 +980,7 @@ function SchedulerPage() {
               className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-8 py-3 text-sm font-bold text-white shadow-md transition-all cursor-pointer active:scale-95"
             >
               <Calendar className="h-4 w-4" />
-              <span>Schedule 2-Phase Automated Memory Page</span>
+              <span>Schedule Celebration Keepsake</span>
             </button>
           </div>
         </form>
@@ -1097,7 +1059,7 @@ function SchedulerPage() {
                 Drop your Employee Spreadsheet here
               </h3>
               <p className="text-xs text-[#594855] mt-1 max-w-sm mx-auto">
-                Supports `.csv` files formatted with columns for Name, Occasion, Date, Employee Email, and Contributor Emails.
+                Supports `.csv` files formatted with columns for Name, Occasion, Date, Employee Email, Organizer Email, and Contributor Emails.
               </p>
 
               <input
@@ -1151,7 +1113,7 @@ function SchedulerPage() {
                       <th className="p-3">Event Date</th>
                       <th className="p-3">Employee Email</th>
                       <th className="p-3">Department</th>
-                      <th className="p-3">Organizer</th>
+                      <th className="p-3">Organizer Email</th>
                       <th className="p-3">Contributors</th>
                       <th className="p-3 text-center">Status</th>
                     </tr>
@@ -1162,9 +1124,9 @@ function SchedulerPage() {
                         <td className="p-3 font-bold text-[#241621]">{row.name}</td>
                         <td className="p-3 font-semibold text-[#E4603C]">{row.occasion}</td>
                         <td className="p-3 font-mono">{row.date}</td>
-                        <td className="p-3 font-mono text-[#594855]">{row.email}</td>
+                        <td className="p-3 font-mono text-[#594855]">{row.email || "—"}</td>
                         <td className="p-3">{row.department}</td>
-                        <td className="p-3">{row.organizer}</td>
+                        <td className="p-3 font-mono text-[#594855]">{row.organizerEmail}</td>
                         <td className="p-3 font-mono text-[10px] text-[#594855] max-w-[150px] truncate">{row.contributors || "None"}</td>
                         <td className="p-3 text-center">
                           {row.isValid ? (
@@ -1373,23 +1335,21 @@ function SchedulerPage() {
 
                     {/* Contact & 2-Phase Timeline Rules */}
                     <div className="rounded-xl bg-[#FAF6F0]/70 p-3 text-xs space-y-2 text-[#594855]">
-                      {job.email && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 font-medium truncate">
-                            <Gift className="h-3.5 w-3.5 text-[#E4603C] shrink-0" />
-                            <span className="font-bold text-[#241621]">Celebrant:</span> {job.email}
-                          </div>
-                          <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
-                            10:00 AM Birthday
-                          </span>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 font-medium truncate">
+                          <Gift className="h-3.5 w-3.5 text-[#E4603C] shrink-0" />
+                          <span className="font-bold text-[#241621]">Celebrant:</span> {job.email || "(No email - manual share)"}
                         </div>
-                      )}
+                        <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
+                          10:00 AM Birthday
+                        </span>
+                      </div>
 
                       {(job.organizerEmail || (job.contributorEmails && job.contributorEmails.length > 0)) && (
                         <div className="flex items-center justify-between pt-1 border-t border-[#241621]/5">
                           <div className="flex items-center gap-1.5 font-medium truncate text-[11px]">
                             <Users className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                            <span className="font-bold text-[#241621]">Contributors:</span> {1 + (job.contributorEmails?.length || 0)} people
+                            <span className="font-bold text-[#241621]">Contributors:</span> {1 + (job.contributorEmails?.length || 0)} people ({job.organizerEmail || "Organizer"})
                           </div>
                           <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
                             10:00 AM Day Before
@@ -1462,224 +1422,6 @@ function SchedulerPage() {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* SECTION 4: 100% AUTONOMOUS ZERO-TOUCH EMAIL API GATEWAY       */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === "engine" && (
-        <div className="space-y-6 animate-in fade-in duration-200">
-          {/* Main Explainer Hero */}
-          <div className="rounded-3xl border border-orange-200 bg-gradient-to-br from-[#FFFDF9] to-white p-6 sm:p-8 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-orange-100 pb-5">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C] flex items-center gap-1">
-                  <Zap className="h-3.5 w-3.5" /> 100% Autonomous Zero-Touch Architecture
-                </span>
-                <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#241621] mt-0.5">
-                  Autonomous 2-Phase Email Gateway
-                </h2>
-                <p className="text-xs text-[#594855] mt-1 max-w-2xl">
-                  Dispatches <strong>Phase 1: Secret Contributor Invites (10:00 AM Day Before)</strong> and <strong>Phase 2: Birthday Surprise Keepsakes (10:00 AM on Birthday)</strong> completely silently using server-side Resend API.
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 text-green-800 text-xs font-bold border border-green-300">
-                  <CheckCircle className="h-3.5 w-3.5 text-green-600" /> Resend API Active & Verified
-                </span>
-              </div>
-            </div>
-
-            {/* 3 Core Pillars of Full Automation */}
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
-                  🎨
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">1. Phase 1: Contributor Invites</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Sends secret collaboration invitations 1 day prior at 10:00 AM to organizer & contributors so everyone can upload photos and memories before the reveal.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-[#E4603C]/15 text-[#E4603C] flex items-center justify-center font-bold text-sm">
-                  🎂
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">2. Phase 2: Birthday Keepsake</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  On the morning of the birthday at 10:00 AM, the celebrant receives the surprise keepsake email with wishes, photos, and messages directly in their inbox.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">
-                  ⚡
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">3. Resend Serverless Engine</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Executes via serverless RPC functions to protect API keys and ensure zero browser CORS blocks.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* API Credentials Configuration Panel */}
-          <div className="rounded-3xl border border-[#241621]/12 bg-white p-6 sm:p-8 shadow-xs space-y-6">
-            <div className="flex items-center justify-between border-b border-[#241621]/10 pb-4">
-              <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-[#E4603C]" />
-                <div>
-                  <h3 className="font-display text-lg font-bold text-[#241621]">
-                    Email Provider Configuration
-                  </h3>
-                  <p className="text-xs text-[#594855]">
-                    Managed securely via environment variables and server settings.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => handleSaveApiConfig(apiConfig)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-4 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
-              >
-                <Key className="h-3.5 w-3.5" />
-                <span>Save Settings</span>
-              </button>
-            </div>
-
-            {/* Email Provider Config */}
-            <div className="p-5 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-display text-sm font-bold text-[#241621] flex items-center gap-2">
-                  <span className="text-base">✉️</span> Resend Transactional Email API
-                </h4>
-                <span className="text-[10px] font-bold uppercase bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300">
-                  Connected 🟢
-                </span>
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Resend API Key</label>
-                  <input
-                    type="password"
-                    value={apiConfig.resendApiKey || ""}
-                    onChange={(e) => setApiConfig({ ...apiConfig, resendApiKey: e.target.value })}
-                    placeholder="re_••••••••••••••••••••••••••••••••"
-                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-[#E4603C]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Official Sender Email Address</label>
-                  <input
-                    value={apiConfig.resendFromEmail || "SocioDex Celebrations <events@sociodex.com>"}
-                    onChange={(e) => setApiConfig({ ...apiConfig, resendFromEmail: e.target.value })}
-                    placeholder="SocioDex Celebrations <events@sociodex.com>"
-                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-[#E4603C]"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Live Zero-Touch Silent Dispatch Tester */}
-          <div className="rounded-3xl border border-[#241621]/12 bg-[#FFFDF9] p-6 sm:p-8 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#241621]/10 pb-4">
-              <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
-                  Live Dispatch Simulation & Real API Trigger
-                </span>
-                <h3 className="font-display text-xl font-bold text-[#241621]">
-                  Test 100% Silent Background Email Dispatch
-                </h3>
-                <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-300 text-green-800 text-[10px] font-bold px-2.5 py-0.5">
-                    ✉️ Active Provider: RESEND API
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  disabled={isDispatching}
-                  onClick={() => handleExecuteAutonomousSilentDispatch(undefined, "contributor")}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-blue-600 bg-blue-50 hover:bg-blue-100 disabled:opacity-50 px-4 py-2 text-xs font-bold text-blue-800 transition cursor-pointer"
-                >
-                  <Users className="h-3.5 w-3.5" />
-                  <span>Test 1-Day Contributor Invite</span>
-                </button>
-
-                <button
-                  type="button"
-                  disabled={isDispatching}
-                  onClick={() => handleExecuteAutonomousSilentDispatch(undefined, "celebrant")}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] disabled:opacity-50 px-5 py-2 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-95"
-                >
-                  <Zap className="h-3.5 w-3.5 fill-white" />
-                  <span>Test Birthday Reveal</span>
-                </button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Target Email Address for Test Dispatch
-              </label>
-              <input
-                type="email"
-                value={myTestEmail}
-                onChange={(e) => setMyTestEmail(e.target.value)}
-                placeholder="e.g. you@example.com"
-                className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-[#E4603C]"
-              />
-            </div>
-
-            {/* Live API Response Console Logs */}
-            {dispatchLogs.length > 0 && (
-              <div className="rounded-2xl bg-[#1E141D] text-white p-4 space-y-2 border border-black/20 font-mono text-xs shadow-inner">
-                <div className="flex items-center justify-between text-neutral-400 border-b border-neutral-700 pb-2 text-[11px]">
-                  <span className="flex items-center gap-1.5 text-green-400">
-                    <Terminal className="h-3.5 w-3.5" /> API Dispatch Log Stream
-                  </span>
-                  <button
-                    onClick={() => setDispatchLogs([])}
-                    className="text-neutral-400 hover:text-white text-[10px] cursor-pointer"
-                  >
-                    Clear Console
-                  </button>
-                </div>
-
-                <div className="space-y-2 max-h-48 overflow-y-auto pt-1">
-                  {dispatchLogs.map((log, index) => (
-                    <div key={index} className="text-[11px] leading-relaxed">
-                      <span className="text-neutral-500">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{" "}
-                      <span
-                        className={`font-bold ${
-                          log.success ? "text-green-400" : "text-red-400"
-                        }`}
-                      >
-                        [{log.channel.toUpperCase()} · {log.provider}]
-                      </span>{" "}
-                      <span className="text-neutral-300">To: {log.recipient}</span> —{" "}
-                      <span className={log.success ? "text-neutral-100" : "text-red-300"}>
-                        {log.details}
-                      </span>
-                      {log.messageId && (
-                        <span className="text-yellow-300 text-[10px] block">
-                          └ Resend Message ID: {log.messageId}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* ───────────────────────────────────────────────────────────── */}
       {/* 2-PHASE EMAIL PREVIEW & DIRECT DISPATCH MODAL                 */}
       {/* ───────────────────────────────────────────────────────────── */}
       {simulationModalJob && (
@@ -1702,7 +1444,7 @@ function SchedulerPage() {
                     2-Phase Automated Email Dispatch
                   </h3>
                   <p className="text-[11px] text-[#594855]">
-                    Recipient: {simulationModalJob.recipient} ({simulationModalJob.email})
+                    Recipient: {simulationModalJob.recipient} {simulationModalJob.email ? `(${simulationModalJob.email})` : ""}
                   </p>
                 </div>
               </div>
@@ -1750,7 +1492,7 @@ function SchedulerPage() {
               <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner animate-in fade-in duration-150">
                 <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
                   <div><strong>From:</strong> SocioDex Celebrations &lt;events@sociodex.com&gt;</div>
-                  <div><strong>To:</strong> {simulationModalJob.email || "recipient@example.com"}</div>
+                  <div><strong>To:</strong> {simulationModalJob.email || "(No email provided)"}</div>
                   <div><strong>Subject:</strong> {generateCelebrantBirthdayEmailSubject(simulationModalJob)}</div>
                   <div><strong>Time:</strong> 10:00 AM on Birthday Date</div>
                 </div>
