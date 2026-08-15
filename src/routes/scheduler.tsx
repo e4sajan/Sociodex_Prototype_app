@@ -134,7 +134,7 @@ function SchedulerPage() {
   const [indRecipient, setIndRecipient] = useState("");
   const [indEmail, setIndEmail] = useState("");
   const [indDate, setIndDate] = useState("");
-  const [indTime, setIndTime] = useState("09:00");
+  const [indTime, setIndTime] = useState("10:00"); // 10:00 AM Morning Default
   const [indOrganizer, setIndOrganizer] = useState(currentUser?.name || "");
   const [indThemeId, setIndThemeId] = useState(THEMES[0].id);
   const [indCustomNote, setIndCustomNote] = useState("");
@@ -182,6 +182,39 @@ function SchedulerPage() {
       setNotificationsAllowed(Notification.permission === "granted");
     }
   }, []);
+
+  // ── AUTONOMOUS BIRTHDAY & CELEBRATION DISPATCH RUNNER (10:00 AM Auto-Email) ──
+  useEffect(() => {
+    const checkAndDispatchScheduledEmails = async () => {
+      const now = new Date();
+      const todayStr = now.toISOString().split("T")[0]; // YYYY-MM-DD
+      const currentHours = now.getHours().toString().padStart(2, "0");
+      const currentMinutes = now.getMinutes().toString().padStart(2, "0");
+      const currentTimeStr = `${currentHours}:${currentMinutes}`;
+
+      for (const job of Object.values(scheduledJobs)) {
+        if (
+          job.status === "scheduled" &&
+          job.autoDispatchOnDate &&
+          job.email &&
+          job.eventDate <= todayStr &&
+          (job.scheduledTime || "10:00") <= currentTimeStr
+        ) {
+          const slug = triggerScheduledJobNow(job.id);
+          const emailSub = generateEmailSubject(job);
+          const emailBody = generateEmailBody(job, slug || "celebration-preview");
+          const res = await sendAutonomousEmail(job.email, emailSub, emailBody, apiConfig);
+          if (res.success) {
+            toast.success(`🎂 Auto-dispatched 10:00 AM celebration email to ${job.recipient} (${job.email})!`);
+          }
+        }
+      }
+    };
+
+    checkAndDispatchScheduledEmails();
+    const interval = setInterval(checkAndDispatchScheduledEmails, 30000);
+    return () => clearInterval(interval);
+  }, [scheduledJobs, apiConfig]);
 
   const handleSaveApiConfig = (newConfig: AutonomousApiConfig) => {
     setApiConfig(newConfig);
@@ -677,7 +710,7 @@ function SchedulerPage() {
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">Event Date *</label>
+              <label className="block text-xs font-bold text-[#241621] mb-1">Birthday / Event Date *</label>
               <input
                 type="date"
                 value={indDate}
@@ -688,13 +721,34 @@ function SchedulerPage() {
             </div>
 
             <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-xs font-bold text-[#241621]">
+                  ⏰ Auto-Email Dispatch Time
+                </label>
+                <span className="text-[10px] font-bold bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
+                  10:00 AM Default
+                </span>
+              </div>
+              <input
+                type="time"
+                value={indTime}
+                onChange={(e) => setIndTime(e.target.value)}
+                required
+                className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C]"
+              />
+              <span className="text-[10px] text-[#594855] mt-1 block">
+                ☀️ Celebrant automatically receives their keepsake email at this time on their birthday.
+              </span>
+            </div>
+
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-[#241621] mb-1">
                 Organizer / Sender Name
               </label>
               <input
                 value={indOrganizer}
                 onChange={(e) => setIndOrganizer(e.target.value)}
-                placeholder="e.g. Neha & Friends"
+                placeholder="e.g. Neha & Friends / Acme People Team"
                 className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 text-xs font-semibold outline-none focus:border-[#E4603C]"
               />
             </div>
@@ -743,17 +797,7 @@ function SchedulerPage() {
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-2 border border-[#241621]/10 text-xs">
-            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
-              <input
-                type="checkbox"
-                checked={indNotifyBefore}
-                onChange={(e) => setIndNotifyBefore(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#E4603C]"
-              />
-              <span>🔔 Send 1-day advance notification to organizer to collect wishes & photos early</span>
-            </label>
-
+          <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-2.5 border border-[#241621]/10 text-xs">
             <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
               <input
                 type="checkbox"
@@ -762,7 +806,19 @@ function SchedulerPage() {
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                ✉️ Automatically generate live memory page and dispatch official Email keepsake on the event date
+                ✉️ <strong>Autonomous Birthday Delivery:</strong> Automatically send official keepsake email to the celebrant on their birthday at <strong>{indTime || "10:00 AM"}</strong> morning
+              </span>
+            </label>
+
+            <label className="flex items-center gap-2.5 cursor-pointer font-bold text-[#241621]">
+              <input
+                type="checkbox"
+                checked={indNotifyBefore}
+                onChange={(e) => setIndNotifyBefore(e.target.checked)}
+                className="h-4 w-4 rounded accent-[#E4603C]"
+              />
+              <span>
+                🔔 <strong>1-Day Advance Reminder:</strong> Notify organizer 1 day before at 9:00 AM to collect photos & messages early
               </span>
             </label>
           </div>
