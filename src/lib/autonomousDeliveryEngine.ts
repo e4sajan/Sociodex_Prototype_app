@@ -66,7 +66,7 @@ export const serverDispatchEmail = createServerFn({ method: "POST" })
  * Server-Side Dispatch Function for Twilio WhatsApp (Bypasses Browser CORS & Handles Auth)
  */
 export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: { toPhone: string; messageText: string; accountSid?: string; authToken?: string; fromNumber?: string } }) => {
+  .handler(async ({ data }: { data: { toPhone: string; messageText: string; accountSid?: string; authToken?: string; fromNumber?: string; contentSid?: string; contentVariables?: string } }) => {
     const activeAccountSid =
       data.accountSid ||
       (typeof process !== "undefined" ? process.env?.TWILIO_ACCOUNT_SID || process.env?.VITE_TWILIO_ACCOUNT_SID : undefined) ||
@@ -89,7 +89,7 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
       (typeof import.meta !== "undefined" && import.meta.env
         ? (import.meta.env.VITE_TWILIO_FROM_NUMBER as string)
         : "") ||
-      "+14155238886";
+      "+17372508034";
 
     let cleanFrom = rawFrom.trim();
     if (!cleanFrom.startsWith("+")) {
@@ -100,6 +100,13 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
     if (cleanTo.length === 10 && /^[6-9]/.test(cleanTo)) {
       cleanTo = "91" + cleanTo;
     }
+
+    const activeContentSid =
+      data.contentSid ||
+      (typeof process !== "undefined" ? process.env?.TWILIO_CONTENT_SID || process.env?.VITE_TWILIO_CONTENT_SID : undefined) ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_CONTENT_SID as string) || (import.meta.env.TWILIO_CONTENT_SID as string)
+        : "");
 
     if (!activeAccountSid || !activeAuthToken) {
       return {
@@ -117,7 +124,15 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
       const bodyParams = new URLSearchParams();
       bodyParams.append("From", `whatsapp:${cleanFrom}`);
       bodyParams.append("To", `whatsapp:+${cleanTo}`);
-      bodyParams.append("Body", data.messageText);
+
+      if (activeContentSid) {
+        bodyParams.append("ContentSid", activeContentSid);
+        if (data.contentVariables) {
+          bodyParams.append("ContentVariables", data.contentVariables);
+        }
+      } else {
+        bodyParams.append("Body", data.messageText);
+      }
 
       const response = await fetch(endpoint, {
         method: "POST",
@@ -135,7 +150,7 @@ export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
           errorMsg =
             "Twilio Authentication Failed (401 Authenticate). Please ensure your primary Auth Token is set in Vercel Environment Variables.";
         } else if (resData.code === 63015 || resData.code === 21608 || resData.code === 21654) {
-          errorMsg = `WhatsApp Sandbox Requirement (Code ${resData.code}): To receive messages, your phone (+${cleanTo}) must send your Twilio sandbox join phrase (e.g. 'join <keyword>') to ${cleanFrom} on WhatsApp once to open a 24-hour testing session.`;
+          errorMsg = `WhatsApp Policy Requirement (Code ${resData.code}): To receive freeform messages, your phone (+${cleanTo}) must send your Twilio sandbox join phrase to ${cleanFrom} on WhatsApp, OR configure an approved Twilio Content Template SID (HX...).`;
         }
 
         return {
