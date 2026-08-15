@@ -5,7 +5,6 @@ import { OCCASIONS, THEMES } from "@/lib/data";
 import {
   loadAutonomousApiConfig,
   saveAutonomousApiConfig,
-  sendAutonomousWhatsApp,
   sendAutonomousEmail,
   type AutonomousApiConfig,
   type DispatchResult,
@@ -32,7 +31,6 @@ import {
   Play,
   Building2,
   User,
-  Phone,
   ShieldCheck,
   Layers,
   ArrowRight,
@@ -46,6 +44,8 @@ import {
   Terminal,
   Server,
   Lock,
+  Inbox,
+  CheckCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -56,27 +56,22 @@ export const Route = createFileRoute("/scheduler")({
       {
         name: "description",
         content:
-          "Automate celebration memory pages for birthdays, weddings, anniversaries, and corporate employee milestones with 1-day advance reminders and 100% autonomous WhatsApp/Email auto-dispatch.",
+          "Automate celebration memory pages for birthdays, weddings, anniversaries, and corporate employee milestones with 1-day advance reminders and 100% autonomous Email auto-dispatch via Resend API.",
       },
     ],
   }),
   component: SchedulerPage,
 });
 
-// CSV Sample Data for Download & Demo
-const SAMPLE_CSV_TEMPLATE = `Employee Name,Occasion Type,Event Date,WhatsApp Number,Email Address,Department,Organizer Name,Custom Greeting Note
-Priya Sharma,Birthday Celebration,2026-08-28,+919876543210,priya.sharma@acme.corp,Product Design,Acme People Team,Happy Birthday Priya! Wishing you a sensational year filled with creativity and joy! 🎉
-Arjun Verma,3rd Work Anniversary,2026-09-02,+919812345678,arjun.verma@acme.corp,Core Engineering,HR Culture Team,Congratulations Arjun on 3 stellar years with Acme! Thank you for your leadership! 🚀
-Sarah Lin,Farewell Celebration,2026-09-10,+14155550192,sarah.lin@acme.corp,Marketing & Growth,David Kim,Wishing you the absolute best in your next chapter Sarah! You will be missed! 🌸
-Vikram Mehta,Birthday Celebration,2026-09-18,+919833344455,vikram.mehta@acme.corp,Operations,Acme People Team,Wishing you a fantastic birthday Vikram! Have a wonderful celebration! 🎂
-Ananya Roy,Promotion Milestone,2026-09-25,+919877788899,ananya.roy@acme.corp,Data & AI,Engineering Lead,Kudos on your well-deserved promotion Ananya! So proud of your achievements! 🌟`;
+// CSV Sample Data for Download & Demo (Email-Focused)
+const SAMPLE_CSV_TEMPLATE = `Employee Name,Occasion Type,Event Date,Email Address,Department,Organizer Name,Custom Greeting Note
+Priya Sharma,Birthday Celebration,2026-08-28,priya.sharma@acme.corp,Product Design,Acme People Team,Happy Birthday Priya! Wishing you a sensational year filled with creativity and joy! 🎉
+Arjun Verma,3rd Work Anniversary,2026-09-02,arjun.verma@acme.corp,Core Engineering,HR Culture Team,Congratulations Arjun on 3 stellar years with Acme! Thank you for your leadership! 🚀
+Sarah Lin,Farewell Celebration,2026-09-10,sarah.lin@acme.corp,Marketing & Growth,David Kim,Wishing you the absolute best in your next chapter Sarah! You will be missed! 🌸
+Vikram Mehta,Birthday Celebration,2026-09-18,vikram.mehta@acme.corp,Operations,Acme People Team,Wishing you a fantastic birthday Vikram! Have a wonderful celebration! 🎂
+Ananya Roy,Promotion Milestone,2026-09-25,ananya.roy@acme.corp,Data & AI,Engineering Lead,Kudos on your well-deserved promotion Ananya! So proud of your achievements! 🌟`;
 
 // ── DELIVERY HELPER UTILITIES ──
-
-function cleanPhoneNumber(phone?: string): string {
-  if (!phone) return "";
-  return phone.replace(/[^0-9]/g, "");
-}
 
 function getKeepsakeUrl(slug?: string): string {
   if (!slug) return "https://sociodex.app/m/preview";
@@ -84,18 +79,6 @@ function getKeepsakeUrl(slug?: string): string {
     return `${window.location.origin}/m/${slug}`;
   }
   return `https://sociodex.app/m/${slug}`;
-}
-
-function generateWhatsAppMessage(job: ScheduledMemoryJob, slug?: string): string {
-  const url = getKeepsakeUrl(slug || job.createdMemorySlug);
-  return `🎉 *Happy ${job.occasion}, ${job.recipient}!* 🎂
-
-Your team at *${job.organizerName || "SocioDex"}* has created a living digital keepsake just for you!
-
-💌 *Open your Memory Page & Wishes:*
-${url}
-
-✨ Read personal wishes, view team photos, and relive memories. Scan the QR or click above to open!`;
 }
 
 function generateEmailSubject(job: ScheduledMemoryJob): string {
@@ -115,15 +98,6 @@ ${job.customNote ? `"${job.customNote}"\n\n` : ""}✨ Feel free to add your own 
 
 Warm wishes,
 ${job.organizerName || "SocioDex Celebrations"}`;
-}
-
-function getWhatsAppDirectUrl(phone?: string, text?: string): string {
-  const cleanPhone = cleanPhoneNumber(phone);
-  const encodedText = encodeURIComponent(text || "");
-  if (cleanPhone) {
-    return `https://api.whatsapp.com/send?phone=${cleanPhone}&text=${encodedText}`;
-  }
-  return `https://api.whatsapp.com/send?text=${encodedText}`;
 }
 
 function getGmailComposeUrl(email?: string, subject?: string, body?: string): string {
@@ -158,7 +132,6 @@ function SchedulerPage() {
   // ── INDIVIDUAL FORM STATE (1st Priority) ──
   const [indOccasion, setIndOccasion] = useState(OCCASIONS[0]);
   const [indRecipient, setIndRecipient] = useState("");
-  const [indWhatsapp, setIndWhatsapp] = useState("");
   const [indEmail, setIndEmail] = useState("");
   const [indDate, setIndDate] = useState("");
   const [indTime, setIndTime] = useState("09:00");
@@ -175,7 +148,6 @@ function SchedulerPage() {
       name: string;
       occasion: string;
       date: string;
-      whatsapp: string;
       email: string;
       department: string;
       organizer: string;
@@ -195,9 +167,8 @@ function SchedulerPage() {
   const [dispatchLogs, setDispatchLogs] = useState<DispatchResult[]>([]);
   const [isDispatching, setIsDispatching] = useState(false);
 
-  // Direct Self-Test fields
-  const [myTestPhone, setMyTestPhone] = useState("");
-  const [myTestEmail, setMyTestEmail] = useState(currentUser?.email || "");
+  // Direct Self-Test field for Email
+  const [myTestEmail, setMyTestEmail] = useState(currentUser?.email || "e4sajan@gmail.com");
 
   // Modal simulation state
   const [simulationModalJob, setSimulationModalJob] = useState<ScheduledMemoryJob | null>(null);
@@ -215,7 +186,7 @@ function SchedulerPage() {
   const handleSaveApiConfig = (newConfig: AutonomousApiConfig) => {
     setApiConfig(newConfig);
     saveAutonomousApiConfig(newConfig);
-    toast.success("Autonomous API delivery configuration saved!");
+    toast.success("Autonomous Email API delivery configuration saved!");
   };
 
   const requestNotificationPermission = async () => {
@@ -258,81 +229,112 @@ function SchedulerPage() {
     toast.success("Sample employee CSV template downloaded!");
   };
 
-  // Parse CSV text into row items
-  const parseCSVContent = (text: string) => {
-    const lines = text
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    if (lines.length < 2) {
-      toast.error("File is empty or missing data rows.");
-      return;
-    }
-
-    const rows: typeof importedRows = [];
-    for (let i = 1; i < lines.length; i++) {
-      const line = lines[i];
-      const cols = line.split(",").map((c) => c.replace(/^["']|["']$/g, "").trim());
-      if (cols.length >= 3 && cols[0]) {
-        const name = cols[0];
-        const occasion = cols[1] || "Birthday Celebration";
-        const date = cols[2] || new Date().toISOString().split("T")[0];
-        const whatsapp = cols[3] || "";
-        const email = cols[4] || "";
-        const department = cols[5] || "General";
-        const organizer = cols[6] || corpCompanyName || "HR Team";
-        const customNote = cols[7] || "";
-
-        rows.push({
-          id: `row-${Date.now()}-${i}`,
-          name,
-          occasion,
-          date,
-          whatsapp,
-          email,
-          department,
-          organizer,
-          customNote,
-          isValid: Boolean(name && date),
-        });
-      }
-    }
-
+  // Demo company load
+  const loadDemoRoster = () => {
+    const rows = parseCSVContent(SAMPLE_CSV_TEMPLATE);
     setImportedRows(rows);
-    toast.success(`Successfully parsed ${rows.length} employee records!`);
+    setCorpCompanyName("Acme Global Technologies");
+    toast.success(`Loaded 5 demo employees for Acme Global!`);
   };
 
-  const handleFileUpload = (file: File) => {
+  // Parse CSV
+  const parseCSVContent = (content: string) => {
+    const lines = content.split(/\r\n|\n/).filter((l) => l.trim().length > 0);
+    if (lines.length <= 1) return [];
+
+    const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+    const nameIdx = headers.findIndex((h) => h.includes("name") || h.includes("employee"));
+    const occIdx = headers.findIndex((h) => h.includes("occasion") || h.includes("event") || h.includes("type"));
+    const dateIdx = headers.findIndex((h) => h.includes("date"));
+    const emailIdx = headers.findIndex((h) => h.includes("email") || h.includes("mail"));
+    const deptIdx = headers.findIndex((h) => h.includes("department") || h.includes("dept") || h.includes("team"));
+    const orgIdx = headers.findIndex((h) => h.includes("organizer") || h.includes("sender") || h.includes("hr"));
+    const noteIdx = headers.findIndex((h) => h.includes("note") || h.includes("greeting") || h.includes("wish") || h.includes("custom"));
+
+    const parsed = [];
+    for (let i = 1; i < lines.length; i++) {
+      const rowText = lines[i];
+      // Basic CSV token parser handling quotes
+      const values: string[] = [];
+      let inQuotes = false;
+      let curVal = "";
+      for (let c = 0; c < rowText.length; c++) {
+        const char = rowText[c];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+          values.push(curVal.trim());
+          curVal = "";
+        } else {
+          curVal += char;
+        }
+      }
+      values.push(curVal.trim());
+
+      const name = values[nameIdx >= 0 ? nameIdx : 0] || `Employee #${i}`;
+      const occasion = values[occIdx >= 0 ? occIdx : 1] || "Birthday Celebration";
+      const date = values[dateIdx >= 0 ? dateIdx : 2] || "";
+      const email = values[emailIdx >= 0 ? emailIdx : 3] || "";
+      const dept = values[deptIdx >= 0 ? deptIdx : 4] || "General Team";
+      const org = values[orgIdx >= 0 ? orgIdx : 5] || "People Operations";
+      const customNote = values[noteIdx >= 0 ? noteIdx : 6] || "";
+
+      parsed.push({
+        id: `row-${i}-${Date.now()}`,
+        name,
+        occasion,
+        date,
+        email,
+        department: dept,
+        organizer: org,
+        customNote,
+        isValid: Boolean(name && date && email),
+      });
+    }
+
+    return parsed;
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
     const reader = new FileReader();
-    reader.onload = (e) => {
-      const content = e.target?.result as string;
-      parseCSVContent(content);
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const rows = parseCSVContent(content);
+        if (rows.length === 0) {
+          toast.error("No valid rows found in CSV. Please verify column headers.");
+          return;
+        }
+        setImportedRows(rows);
+        toast.success(`Successfully imported ${rows.length} employee milestones!`);
+      } catch (err) {
+        toast.error("Failed to parse spreadsheet file. Please use a clean .csv file.");
+      }
     };
     reader.readAsText(file);
   };
 
-  const loadDemoRoster = () => {
-    parseCSVContent(SAMPLE_CSV_TEMPLATE);
-  };
-
-  // Batch Submit Corporate Roster
   const handleScheduleBatch = () => {
-    if (importedRows.length === 0) return;
+    const validRows = importedRows.filter((r) => r.isValid);
+    if (validRows.length === 0) {
+      toast.error("No valid rows to schedule.");
+      return;
+    }
 
-    const newJobs: ScheduledMemoryJob[] = importedRows.map((r) => ({
+    const batchJobs: ScheduledMemoryJob[] = validRows.map((r) => ({
       id: `job-corp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       occasion: r.occasion,
       recipient: r.name,
-      whatsapp: r.whatsapp,
       email: r.email,
       department: r.department,
       organizerName: r.organizer || corpCompanyName,
       eventDate: r.date,
       scheduledTime: "09:00",
       themeId: corpThemeId,
-      customNote:
-        r.customNote ||
-        `Warmest congratulations from all of us at ${corpCompanyName} on your ${r.occasion}! Thank you for being a wonderful part of our team! ✨🎉`,
+      customNote: r.customNote,
       notifyOneDayBefore: corpNotifyBefore,
       autoDispatchOnDate: corpAutoDispatch,
       status: "scheduled",
@@ -340,17 +342,16 @@ function SchedulerPage() {
       isCorporate: true,
     }));
 
-    addScheduledJobsBatch(newJobs);
+    addScheduledJobsBatch(batchJobs);
+    toast.success(`Successfully scheduled ${batchJobs.length} automated celebration pages!`);
     setImportedRows([]);
-    toast.success(`Scheduled ${newJobs.length} employee memory pages!`);
     setActiveTab("queue");
   };
 
-  // Submit Individual Event Schedule
   const handleScheduleIndividual = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!indRecipient.trim() || !indDate) {
-      toast.error("Please fill in recipient name and event date.");
+    if (!indRecipient.trim() || !indDate || !indEmail.trim()) {
+      toast.error("Please fill in recipient name, event date, and email address.");
       return;
     }
 
@@ -358,7 +359,6 @@ function SchedulerPage() {
       id: `job-ind-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       occasion: indOccasion,
       recipient: indRecipient.trim(),
-      whatsapp: indWhatsapp.trim(),
       email: indEmail.trim(),
       organizerName: indOrganizer.trim() || currentUser?.name || "Organizer",
       eventDate: indDate,
@@ -373,11 +373,10 @@ function SchedulerPage() {
     };
 
     addScheduledJob(newJob);
-    toast.success(`Scheduled automatic page for ${newJob.recipient}!`);
+    toast.success(`Scheduled automatic celebration page for ${newJob.recipient}!`);
 
     // Reset form
     setIndRecipient("");
-    setIndWhatsapp("");
     setIndEmail("");
     setIndDate("");
     setIndCustomNote("");
@@ -400,7 +399,7 @@ function SchedulerPage() {
     }
   };
 
-  // 100% Autonomous Silent Dispatch Action (Trigger Real REST APIs without human opening chat apps)
+  // 100% Autonomous Silent Email Dispatch Action (Resend API)
   const handleExecuteAutonomousSilentDispatch = async (job?: ScheduledMemoryJob) => {
     const targetJob = job || simulationModalJob || jobsList[0];
     if (!targetJob) {
@@ -410,25 +409,12 @@ function SchedulerPage() {
 
     setIsDispatching(true);
     const targetSlug = targetJob.createdMemorySlug || triggerScheduledJobNow(targetJob.id) || "celebration-preview";
-    const waText = generateWhatsAppMessage(targetJob, targetSlug);
     const emailSub = generateEmailSubject(targetJob);
     const emailBody = generateEmailBody(targetJob, targetSlug);
 
     const newLogs: DispatchResult[] = [];
 
-    // 1. WhatsApp Autonomous Dispatch
-    const targetPhone = myTestPhone.trim() || targetJob.whatsapp;
-    if (targetPhone) {
-      const waResult = await sendAutonomousWhatsApp(targetPhone, waText, apiConfig);
-      newLogs.push(waResult);
-      if (waResult.success) {
-        toast.success(`[WhatsApp API] ${waResult.details}`);
-      } else {
-        toast.error(`[WhatsApp API] ${waResult.details}`);
-      }
-    }
-
-    // 2. Email Autonomous Dispatch
+    // Email Autonomous Dispatch via Resend API
     const targetEmail = myTestEmail.trim() || targetJob.email;
     if (targetEmail) {
       const emailResult = await sendAutonomousEmail(targetEmail, emailSub, emailBody, apiConfig);
@@ -438,6 +424,8 @@ function SchedulerPage() {
       } else {
         toast.error(`[Email API] ${emailResult.details}`);
       }
+    } else {
+      toast.error("Please provide a valid recipient email address.");
     }
 
     setDispatchLogs((prev) => [...newLogs, ...prev]);
@@ -471,7 +459,7 @@ function SchedulerPage() {
           </h1>
           <p className="mt-1 text-xs sm:text-sm text-[#594855] max-w-2xl">
             Schedule celebration page creation ahead of time with <strong>100% Autonomous Zero-Touch Dispatch</strong> via
-            Twilio/Meta WhatsApp APIs, Resend Email APIs, and instant client deep-links.
+            Resend Email API and instant keepsake delivery.
           </p>
         </div>
 
@@ -497,7 +485,7 @@ function SchedulerPage() {
         </div>
       </div>
 
-      {/* ── 4 TABS BAR (Individual 1st, Corporate 2nd, Queue 3rd, 100% API Setup 4th) ── */}
+      {/* ── 4 TABS BAR (Individual 1st, Corporate 2nd, Queue 3rd, Email API 4th) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
         {/* 1ST TAB: INDIVIDUAL EVENT SCHEDULER (DEFAULT / PRIMARY) */}
         <button
@@ -584,12 +572,12 @@ function SchedulerPage() {
               Scheduled Queue ({jobsList.length})
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              Trigger, send WhatsApp & Email links instantly
+              Trigger & dispatch Email keepsake links
             </div>
           </div>
         </button>
 
-        {/* 4TH TAB: 100% AUTONOMOUS ZERO-TOUCH API GATEWAY */}
+        {/* 4TH TAB: 100% AUTONOMOUS ZERO-TOUCH EMAIL API */}
         <button
           onClick={() => setActiveTab("engine")}
           className={`p-4 rounded-2xl border text-left transition-all cursor-pointer select-none flex items-start gap-3.5 ${
@@ -598,23 +586,23 @@ function SchedulerPage() {
               : "bg-white border-[#241621]/10 hover:border-[#E4603C]/40"
           }`}
         >
-          <div className="h-10 w-10 rounded-xl bg-purple-600/10 text-purple-700 flex items-center justify-center shrink-0 text-xl">
+          <div className="h-10 w-10 rounded-xl bg-orange-500/10 text-[#E4603C] flex items-center justify-center shrink-0 text-xl">
             ⚡
           </div>
           <div className="min-w-0">
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
-                4. Zero-Touch APIs
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
+                4. Zero-Touch Email
               </span>
-              <span className="text-[10px] font-bold bg-purple-600 text-white px-2 py-0.5 rounded-full">
-                100% Auto
+              <span className="text-[10px] font-bold bg-green-600 text-white px-2 py-0.5 rounded-full">
+                Active 🟢
               </span>
             </div>
             <div className="font-display text-base font-bold text-[#241621] mt-0.5 truncate">
-              WhatsApp & Email APIs
+              Resend Email API
             </div>
             <div className="text-[11px] text-[#594855] mt-0.5 leading-tight">
-              Connect Twilio/Resend for silent background dispatch
+              100% Silent Background Delivery Gateway
             </div>
           </div>
         </button>
@@ -637,7 +625,7 @@ function SchedulerPage() {
             </h2>
             <p className="text-xs text-[#594855] mt-0.5">
               Set up a celebration page in advance. On the event date, live keepsake links are automatically
-              prepared and dispatched to the recipient's WhatsApp and Email.
+              prepared and dispatched directly to the recipient's email address.
             </p>
           </div>
 
@@ -668,40 +656,23 @@ function SchedulerPage() {
               />
             </div>
 
-            <div>
+            <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-[#241621] mb-1">
-                Recipient WhatsApp Number (with Country Code)
-              </label>
-              <div className="relative">
-                <input
-                  value={indWhatsapp}
-                  onChange={(e) => setIndWhatsapp(e.target.value)}
-                  placeholder="e.g. +91 98765 43210 or 9876543210"
-                  className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
-                />
-                <Phone className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
-              </div>
-              <span className="text-[10px] text-[#594855] mt-1 block">
-                💡 Enables 1-click WhatsApp chat launch & background Twilio/Meta API dispatch.
-              </span>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[#241621] mb-1">
-                Recipient Email Address
+                Recipient Email Address *
               </label>
               <div className="relative">
                 <input
                   type="email"
                   value={indEmail}
                   onChange={(e) => setIndEmail(e.target.value)}
-                  placeholder="e.g. maya@example.com"
+                  placeholder="e.g. maya.iyer@example.com"
+                  required
                   className="w-full rounded-xl border border-[#241621]/15 bg-[#FFFDF9] p-3 pl-9 text-xs font-semibold outline-none focus:border-[#E4603C]"
                 />
                 <Mail className="absolute left-3 top-3.5 h-3.5 w-3.5 text-[#594855]" />
               </div>
               <span className="text-[10px] text-[#594855] mt-1 block">
-                💡 Enables Gmail Web, Mail App & background Resend/Brevo API delivery.
+                💡 Enables 100% autonomous background delivery via connected Resend Email API on the event date.
               </span>
             </div>
 
@@ -791,8 +762,7 @@ function SchedulerPage() {
                 className="h-4 w-4 rounded accent-[#E4603C]"
               />
               <span>
-                📱 Automatically generate live memory page and dispatch WhatsApp message + Email on the
-                event date
+                ✉️ Automatically generate live memory page and dispatch official Email keepsake on the event date
               </span>
             </label>
           </div>
@@ -826,7 +796,7 @@ function SchedulerPage() {
                 </h2>
                 <p className="text-xs text-[#594855] mt-0.5">
                   Upload an Excel (`.xlsx`, `.xls`) or `.csv` spreadsheet containing employee names,
-                  occasions, dates, and WhatsApp/Email details.
+                  occasions, dates, and work email addresses.
                 </p>
               </div>
 
@@ -850,19 +820,7 @@ function SchedulerPage() {
               </div>
             </div>
 
-            {/* Drag & Drop File Target */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv, .xlsx, .xls, text/csv"
-              hidden
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  handleFileUpload(e.target.files[0]);
-                }
-              }}
-            />
-
+            {/* Drag & Drop Upload Zone */}
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -872,111 +830,106 @@ function SchedulerPage() {
               onDrop={(e) => {
                 e.preventDefault();
                 setIsDragging(false);
-                if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                  handleFileUpload(e.dataTransfer.files[0]);
+                const file = e.dataTransfer.files?.[0];
+                if (file) {
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const content = event.target?.result as string;
+                    const rows = parseCSVContent(content);
+                    setImportedRows(rows);
+                    toast.success(`Imported ${rows.length} rows from ${file.name}!`);
+                  };
+                  reader.readAsText(file);
                 }
               }}
-              onClick={() => fileInputRef.current?.click()}
-              className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-3 ${
+              className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all ${
                 isDragging
-                  ? "border-[#E4603C] bg-[#E4603C]/5"
-                  : "border-[#241621]/20 bg-[#FAF6F0]/40 hover:border-[#E4603C]/60 hover:bg-[#FAF6F0]"
+                  ? "border-[#E4603C] bg-[#FAF6F0]"
+                  : "border-[#241621]/20 bg-[#FFFDF9] hover:border-[#E4603C]/50"
               }`}
             >
-              <div className="h-14 w-14 rounded-2xl bg-white border border-[#241621]/10 flex items-center justify-center text-3xl shadow-xs">
-                📊
-              </div>
-              <div>
-                <h3 className="font-display text-base font-bold text-[#241621]">
-                  Click to browse or drag & drop employee spreadsheet
-                </h3>
-                <p className="text-xs text-[#594855] mt-1">
-                  Supported formats: CSV, Excel (.xlsx, .xls). Columns are auto-detected.
-                </p>
-              </div>
+              <FileSpreadsheet className="mx-auto h-10 w-10 text-[#E4603C] mb-2" />
+              <h3 className="font-display text-base font-bold text-[#241621]">
+                Drop your Employee Spreadsheet here
+              </h3>
+              <p className="text-xs text-[#594855] mt-1 max-w-sm mx-auto">
+                Supports `.csv` files formatted with columns for Name, Occasion, Date, and Email Address.
+              </p>
+
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#241621] hover:bg-black px-5 py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                <span>Browse Computer Files</span>
+              </button>
             </div>
           </div>
 
-          {/* Parsed Preview Table & Configuration */}
+          {/* Imported Data Table */}
           {importedRows.length > 0 && (
-            <div className="rounded-3xl border border-[#241621]/12 bg-white p-6 shadow-xs space-y-6 animate-in fade-in slide-in-from-top-3 duration-300">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#241621]/10 pb-4">
+            <div className="rounded-3xl border border-[#241621]/12 bg-white p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex items-center justify-between border-b border-[#241621]/10 pb-4">
                 <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
-                    Review & Batch Schedule
-                  </span>
-                  <h3 className="font-display text-xl font-bold text-[#241621]">
-                    Parsed Employee Roster ({importedRows.length} Events)
+                  <h3 className="font-display text-lg font-bold text-[#241621]">
+                    Imported Employee Milestones ({importedRows.length} Rows)
                   </h3>
+                  <p className="text-xs text-[#594855]">
+                    Review the roster below before confirming schedule creation.
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setImportedRows([])}
-                    className="text-xs font-bold text-red-600 hover:underline cursor-pointer"
-                  >
-                    Clear Roster
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setImportedRows([])}
+                  className="text-xs font-bold text-red-600 hover:underline cursor-pointer"
+                >
+                  Clear Table
+                </button>
               </div>
 
-              {/* Roster Table */}
+              {/* Table */}
               <div className="overflow-x-auto rounded-2xl border border-[#241621]/10">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-[#FAF6F0] text-[#594855] font-bold border-b border-[#241621]/10">
+                  <thead className="bg-[#FAF6F0] text-[#241621] font-bold border-b border-[#241621]/10 uppercase text-[10px] tracking-wider">
                     <tr>
-                      <th className="p-3">#</th>
-                      <th className="p-3">Employee</th>
+                      <th className="p-3">Employee Name</th>
                       <th className="p-3">Occasion</th>
                       <th className="p-3">Event Date</th>
-                      <th className="p-3">WhatsApp</th>
-                      <th className="p-3">Email</th>
+                      <th className="p-3">Email Address</th>
                       <th className="p-3">Department</th>
-                      <th className="p-3 text-right">Action</th>
+                      <th className="p-3">Organizer</th>
+                      <th className="p-3 text-center">Status</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-[#241621]/5 bg-white">
-                    {importedRows.map((r, i) => (
-                      <tr key={r.id} className="hover:bg-[#FFFDF9]">
-                        <td className="p-3 font-bold text-[#594855]">{i + 1}</td>
-                        <td className="p-3 font-bold text-[#241621]">
-                          <div className="flex items-center gap-2">
-                            <span className="h-6 w-6 rounded-full bg-[#E4603C]/10 text-[#E4603C] font-bold flex items-center justify-center text-[10px]">
-                              {r.name[0]}
+                  <tbody className="divide-y divide-[#241621]/5">
+                    {importedRows.map((row) => (
+                      <tr key={row.id} className="hover:bg-[#FFFDF9]">
+                        <td className="p-3 font-bold text-[#241621]">{row.name}</td>
+                        <td className="p-3 font-semibold text-[#E4603C]">{row.occasion}</td>
+                        <td className="p-3 font-mono">{row.date}</td>
+                        <td className="p-3 font-mono text-[#594855]">{row.email}</td>
+                        <td className="p-3">{row.department}</td>
+                        <td className="p-3">{row.organizer}</td>
+                        <td className="p-3 text-center">
+                          {row.isValid ? (
+                            <span className="inline-flex items-center gap-1 text-green-700 bg-green-50 px-2 py-0.5 rounded-full font-bold text-[10px] border border-green-200">
+                              <CheckCircle2 className="h-3 w-3" /> Ready
                             </span>
-                            <span>{r.name}</span>
-                          </div>
-                        </td>
-                        <td className="p-3 font-semibold text-[#241621]">{r.occasion}</td>
-                        <td className="p-3 text-[#594855] font-medium">
-                          {new Date(r.date).toLocaleDateString(undefined, {
-                            day: "numeric",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </td>
-                        <td className="p-3 font-mono text-[11px] text-[#241621]">
-                          {r.whatsapp || "—"}
-                        </td>
-                        <td className="p-3 text-[#594855] truncate max-w-[150px]">
-                          {r.email || "—"}
-                        </td>
-                        <td className="p-3 text-[#594855]">
-                          <span className="bg-[#FAF6F0] px-2 py-0.5 rounded-md text-[10px] font-semibold text-[#241621]">
-                            {r.department}
-                          </span>
-                        </td>
-                        <td className="p-3 text-right">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setImportedRows((prev) => prev.filter((item) => item.id !== r.id))
-                            }
-                            className="p-1 rounded-full text-[#594855] hover:text-red-500 transition cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full font-bold text-[10px] border border-amber-200">
+                              <AlertCircle className="h-3 w-3" /> Missing Info
+                            </span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -984,17 +937,15 @@ function SchedulerPage() {
                 </table>
               </div>
 
-              {/* Automation Rules Configuration */}
-              <div className="rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 p-5 space-y-4">
-                <h4 className="font-display text-sm font-bold text-[#241621] flex items-center gap-1.5">
-                  ⚙️ Corporate Automation Settings
+              {/* Corporate Automation Settings */}
+              <div className="rounded-2xl bg-[#FAF6F0] p-5 border border-[#241621]/10 space-y-4">
+                <h4 className="font-display text-sm font-bold text-[#241621]">
+                  Corporate Automation Defaults
                 </h4>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-bold text-[#241621] mb-1">
-                      Company / Organization Name
-                    </label>
+                    <label className="block text-xs font-bold text-[#241621] mb-1">Company Name</label>
                     <input
                       value={corpCompanyName}
                       onChange={(e) => setCorpCompanyName(e.target.value)}
@@ -1030,8 +981,7 @@ function SchedulerPage() {
                       className="h-4 w-4 rounded accent-[#E4603C]"
                     />
                     <span>
-                      🔔 Notify HR & Team 1 day in advance via WhatsApp / Email so coworkers can upload
-                      wishes early
+                      🔔 Notify HR & Team 1 day in advance via Email so coworkers can upload wishes early
                     </span>
                   </label>
 
@@ -1043,8 +993,8 @@ function SchedulerPage() {
                       className="h-4 w-4 rounded accent-[#E4603C]"
                     />
                     <span>
-                      📱 Automatically generate live memory page and dispatch WhatsApp/Email delivery links
-                      for employee on event day
+                      ✉️ Automatically generate live memory page and dispatch official Email keepsake links
+                      for employees on their celebration day
                     </span>
                   </label>
                 </div>
@@ -1111,7 +1061,7 @@ function SchedulerPage() {
 
             <div className="text-[11px] text-[#594855] font-medium px-2">
               💡 Click <strong>"Trigger & Create Now"</strong> to instantly generate the live page &
-              dispatch via WhatsApp / Email.
+              dispatch via Resend Email API.
             </div>
           </div>
 
@@ -1121,8 +1071,6 @@ function SchedulerPage() {
               const eventDateObj = new Date(job.eventDate);
               const isCreated = job.status === "created";
               const slug = job.createdMemorySlug;
-              const waText = generateWhatsAppMessage(job, slug);
-              const waUrl = getWhatsAppDirectUrl(job.whatsapp, waText);
               const emailSubject = generateEmailSubject(job);
               const emailBody = generateEmailBody(job, slug);
               const gmailUrl = getGmailComposeUrl(job.email, emailSubject, emailBody);
@@ -1181,22 +1129,6 @@ function SchedulerPage() {
 
                     {/* Contact & Notification Rules */}
                     <div className="rounded-xl bg-[#FAF6F0]/70 p-3 text-xs space-y-1.5 text-[#594855]">
-                      {job.whatsapp && (
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-1.5 font-medium truncate">
-                            <Phone className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                            <span className="font-bold text-[#241621]">WhatsApp:</span> {job.whatsapp}
-                          </div>
-                          <a
-                            href={waUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1 text-[10px] font-bold text-green-700 hover:underline bg-green-50 px-2 py-0.5 rounded-md border border-green-200"
-                          >
-                            <Send className="h-2.5 w-2.5" /> Send Chat
-                          </a>
-                        </div>
-                      )}
                       {job.email && (
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5 font-medium truncate">
@@ -1250,8 +1182,8 @@ function SchedulerPage() {
                         onClick={() => handleOpenSimulation(job)}
                         className="inline-flex items-center gap-1 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-3 py-1.5 text-xs font-bold text-[#241621] transition cursor-pointer shadow-2xs"
                       >
-                        <MessageSquare className="h-3 w-3 text-green-600" />
-                        <span>Direct Delivery Options</span>
+                        <Mail className="h-3 w-3 text-[#E4603C]" />
+                        <span>Email Keepsake Details</span>
                       </button>
                     </div>
 
@@ -1284,63 +1216,61 @@ function SchedulerPage() {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* SECTION 4: 100% AUTONOMOUS ZERO-TOUCH API GATEWAY & SETUP     */}
+      {/* SECTION 4: 100% AUTONOMOUS ZERO-TOUCH EMAIL API GATEWAY       */}
       {/* ───────────────────────────────────────────────────────────── */}
       {activeTab === "engine" && (
         <div className="space-y-6 animate-in fade-in duration-200">
           {/* Main Explainer Hero */}
-          <div className="rounded-3xl border border-purple-200 bg-gradient-to-br from-[#FAF5FF] to-white p-6 sm:p-8 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-purple-100 pb-5">
+          <div className="rounded-3xl border border-orange-200 bg-gradient-to-br from-[#FFFDF9] to-white p-6 sm:p-8 shadow-xs space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-orange-100 pb-5">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 flex items-center gap-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C] flex items-center gap-1">
                   <Zap className="h-3.5 w-3.5" /> 100% Autonomous Zero-Touch Architecture
                 </span>
                 <h2 className="font-display text-2xl sm:text-3xl font-bold text-[#241621] mt-0.5">
-                  How 100% Zero-Touch Automation Works
+                  Autonomous Email Keepsake Gateway
                 </h2>
                 <p className="text-xs text-[#594855] mt-1 max-w-2xl">
-                  To send messages completely silently in the background <strong>without human intervention</strong> (no clicking links, no opening WhatsApp apps), the system calls server-side REST APIs on the scheduled date & time.
+                  Dispatches celebration keepsake notifications completely silently in the background <strong>without human intervention</strong> using verified server-side Resend API integration.
                 </p>
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-purple-100 text-purple-800 text-xs font-bold">
-                  <Server className="h-3.5 w-3.5" /> REST API Gateway
+                <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-100 text-green-800 text-xs font-bold border border-green-300">
+                  <CheckCircle className="h-3.5 w-3.5 text-green-600" /> Resend API Active & Verified
                 </span>
               </div>
             </div>
 
             {/* 3 Core Pillars of Full Automation */}
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="p-4 rounded-2xl bg-white border border-purple-100 shadow-2xs space-y-2">
-                <div className="h-8 w-8 rounded-xl bg-green-100 text-green-700 flex items-center justify-center font-bold text-sm">
-                  📱
-                </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">1. WhatsApp REST API</h3>
-                <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Requires <strong>Twilio WhatsApp API</strong>, <strong>Meta WhatsApp Cloud API</strong>, or <strong>Green API</strong>.
-                  The server sends an HTTP POST request to deliver the message directly to the recipient's phone silently.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-white border border-purple-100 shadow-2xs space-y-2">
+              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
                 <div className="h-8 w-8 rounded-xl bg-[#E4603C]/15 text-[#E4603C] flex items-center justify-center font-bold text-sm">
                   ✉️
                 </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">2. Transactional Email API</h3>
+                <h3 className="font-display text-sm font-bold text-[#241621]">1. Resend API Engine</h3>
                 <p className="text-[11px] text-[#594855] leading-relaxed">
-                  Requires <strong>Resend</strong> (3,000 free emails/month), <strong>Brevo</strong>, or <strong>SendGrid</strong>.
-                  Dispatches HTML keepsake invitation emails directly to the inbox without needing mail apps.
+                  Connected with official Resend API key. Automatically sends responsive HTML keepsake invitation emails with deep-links directly to the recipient's inbox.
                 </p>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white border border-purple-100 shadow-2xs space-y-2">
+              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
+                <div className="h-8 w-8 rounded-xl bg-orange-100 text-orange-700 flex items-center justify-center font-bold text-sm">
+                  🔒
+                </div>
+                <h3 className="font-display text-sm font-bold text-[#241621]">2. Secure Serverless Proxy</h3>
+                <p className="text-[11px] text-[#594855] leading-relaxed">
+                  Calls are securely executed through serverless RPC functions to protect API keys and ensure zero browser CORS restrictions.
+                </p>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-white border border-[#241621]/10 shadow-2xs space-y-2">
                 <div className="h-8 w-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-sm">
                   🕒
                 </div>
-                <h3 className="font-display text-sm font-bold text-[#241621]">3. Background Cron Job</h3>
+                <h3 className="font-display text-sm font-bold text-[#241621]">3. Advance Reminder Engine</h3>
                 <p className="text-[11px] text-[#594855] leading-relaxed">
-                  A scheduled background runner (e.g. <strong>Supabase Edge Function</strong>, <strong>Vercel Cron</strong>, or <strong>GitHub Actions</strong>) wakes up daily at 9:00 AM, checks scheduled dates, and calls the APIs.
+                  Notifies organizers 1 day in advance so colleagues, friends, and family can contribute memory wishes, voice notes, and photos before the celebration day.
                 </p>
               </div>
             </div>
@@ -1350,13 +1280,13 @@ function SchedulerPage() {
           <div className="rounded-3xl border border-[#241621]/12 bg-white p-6 sm:p-8 shadow-xs space-y-6">
             <div className="flex items-center justify-between border-b border-[#241621]/10 pb-4">
               <div className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-purple-700" />
+                <Settings className="h-5 w-5 text-[#E4603C]" />
                 <div>
                   <h3 className="font-display text-lg font-bold text-[#241621]">
-                    API Credentials & Provider Configuration
+                    Email Provider Configuration
                   </h3>
                   <p className="text-xs text-[#594855]">
-                    Configure your keys below to switch from sandbox simulation to real silent delivery.
+                    Managed securely via environment variables and server settings.
                   </p>
                 </div>
               </div>
@@ -1364,173 +1294,44 @@ function SchedulerPage() {
               <button
                 type="button"
                 onClick={() => handleSaveApiConfig(apiConfig)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-purple-700 hover:bg-purple-800 px-4 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-4 py-2 text-xs font-bold text-white shadow-xs transition cursor-pointer"
               >
                 <Key className="h-3.5 w-3.5" />
-                <span>Save API Settings</span>
+                <span>Save Settings</span>
               </button>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              {/* WhatsApp Provider Config */}
-              <div className="p-5 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-display text-sm font-bold text-[#241621] flex items-center gap-2">
-                    <span className="text-base">📱</span> WhatsApp Background Provider
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
-                    {apiConfig.whatsappProvider}
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-[#241621] mb-1">Select Provider</label>
-                  <select
-                    value={apiConfig.whatsappProvider}
-                    onChange={(e) =>
-                      setApiConfig({ ...apiConfig, whatsappProvider: e.target.value as any })
-                    }
-                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-purple-600"
-                  >
-                    <option value="demo">Demo Sandbox Simulator (Built-in)</option>
-                    <option value="twilio">Twilio WhatsApp API (Recommended)</option>
-                    <option value="greenapi">Green API (Direct WhatsApp QR Gateway)</option>
-                    <option value="webhook">Custom Webhook (Zapier / Make / n8n / Supabase)</option>
-                  </select>
-                </div>
-
-                {apiConfig.whatsappProvider === "twilio" && (
-                  <div className="space-y-3 pt-2 border-t border-[#241621]/10">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Twilio Account SID</label>
-                      <input
-                        value={apiConfig.twilioAccountSid || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, twilioAccountSid: e.target.value })}
-                        placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Twilio Auth Token</label>
-                      <input
-                        type="password"
-                        value={apiConfig.twilioAuthToken || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, twilioAuthToken: e.target.value })}
-                        placeholder="••••••••••••••••••••••••••••••••"
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Twilio From Number</label>
-                      <input
-                        value={apiConfig.twilioFromNumber || "+14155238886"}
-                        onChange={(e) => setApiConfig({ ...apiConfig, twilioFromNumber: e.target.value })}
-                        placeholder="+14155238886 (Sandbox)"
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {apiConfig.whatsappProvider === "greenapi" && (
-                  <div className="space-y-3 pt-2 border-t border-[#241621]/10">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Instance ID</label>
-                      <input
-                        value={apiConfig.greenApiInstanceId || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, greenApiInstanceId: e.target.value })}
-                        placeholder="1101823..."
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">API Token</label>
-                      <input
-                        type="password"
-                        value={apiConfig.greenApiToken || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, greenApiToken: e.target.value })}
-                        placeholder="••••••••••••••••"
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {apiConfig.whatsappProvider === "webhook" && (
-                  <div className="pt-2 border-t border-[#241621]/10">
-                    <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Webhook URL</label>
-                    <input
-                      value={apiConfig.customWebhookUrl || ""}
-                      onChange={(e) => setApiConfig({ ...apiConfig, customWebhookUrl: e.target.value })}
-                      placeholder="https://hooks.zapier.com/hooks/catch/..."
-                      className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                    />
-                  </div>
-                )}
+            {/* Email Provider Config */}
+            <div className="p-5 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="font-display text-sm font-bold text-[#241621] flex items-center gap-2">
+                  <span className="text-base">✉️</span> Resend Transactional Email API
+                </h4>
+                <span className="text-[10px] font-bold uppercase bg-green-100 text-green-800 px-2 py-0.5 rounded-full border border-green-300">
+                  Connected 🟢
+                </span>
               </div>
 
-              {/* Email Provider Config */}
-              <div className="p-5 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-display text-sm font-bold text-[#241621] flex items-center gap-2">
-                    <span className="text-base">✉️</span> Email Background Provider
-                  </h4>
-                  <span className="text-[10px] font-bold uppercase bg-orange-100 text-[#E4603C] px-2 py-0.5 rounded-full">
-                    {apiConfig.emailProvider}
-                  </span>
-                </div>
-
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-xs font-bold text-[#241621] mb-1">Select Provider</label>
-                  <select
-                    value={apiConfig.emailProvider}
-                    onChange={(e) => setApiConfig({ ...apiConfig, emailProvider: e.target.value as any })}
-                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-purple-600"
-                  >
-                    <option value="demo">Demo Sandbox Simulator (Built-in)</option>
-                    <option value="resend">Resend API (Recommended — Free 3,000/mo)</option>
-                    <option value="brevo">Brevo (Sendinblue) API</option>
-                  </select>
+                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Resend API Key</label>
+                  <input
+                    type="password"
+                    value={apiConfig.resendApiKey || ""}
+                    onChange={(e) => setApiConfig({ ...apiConfig, resendApiKey: e.target.value })}
+                    placeholder="re_••••••••••••••••••••••••••••••••"
+                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-[#E4603C]"
+                  />
                 </div>
-
-                {apiConfig.emailProvider === "resend" && (
-                  <div className="space-y-3 pt-2 border-t border-[#241621]/10">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Resend API Key</label>
-                      <input
-                        type="password"
-                        value={apiConfig.resendApiKey || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, resendApiKey: e.target.value })}
-                        placeholder="re_123456789..."
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">From Sender Email</label>
-                      <input
-                        value={apiConfig.resendFromEmail || "onboarding@resend.dev"}
-                        onChange={(e) => setApiConfig({ ...apiConfig, resendFromEmail: e.target.value })}
-                        placeholder="onboarding@resend.dev or celebrations@yourdomain.com"
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {apiConfig.emailProvider === "brevo" && (
-                  <div className="space-y-3 pt-2 border-t border-[#241621]/10">
-                    <div>
-                      <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Brevo API Key</label>
-                      <input
-                        type="password"
-                        value={apiConfig.brevoApiKey || ""}
-                        onChange={(e) => setApiConfig({ ...apiConfig, brevoApiKey: e.target.value })}
-                        placeholder="xkeysib-..."
-                        className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-purple-600"
-                      />
-                    </div>
-                  </div>
-                )}
+                <div>
+                  <label className="block text-[11px] font-bold text-[#241621] mb-0.5">Sender Email / Domain</label>
+                  <input
+                    value={apiConfig.resendFromEmail || "onboarding@resend.dev"}
+                    onChange={(e) => setApiConfig({ ...apiConfig, resendFromEmail: e.target.value })}
+                    placeholder="onboarding@resend.dev or celebrations@yourdomain.com"
+                    className="w-full rounded-xl border border-[#241621]/15 bg-white p-2 text-xs font-mono outline-none focus:border-[#E4603C]"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -1539,18 +1340,15 @@ function SchedulerPage() {
           <div className="rounded-3xl border border-[#241621]/12 bg-[#FFFDF9] p-6 sm:p-8 shadow-xs space-y-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#241621]/10 pb-4">
               <div>
-                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#E4603C]">
                   Live Dispatch Simulation & Real API Trigger
                 </span>
                 <h3 className="font-display text-xl font-bold text-[#241621]">
-                  Test 100% Silent Background Dispatch Right Now
+                  Test 100% Silent Background Email Dispatch
                 </h3>
                 <div className="flex flex-wrap items-center gap-2 mt-1.5">
                   <span className="inline-flex items-center gap-1 rounded-full bg-green-100 border border-green-300 text-green-800 text-[10px] font-bold px-2.5 py-0.5">
-                    📱 WhatsApp: {apiConfig.whatsappProvider.toUpperCase()}
-                  </span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 border border-orange-300 text-orange-800 text-[10px] font-bold px-2.5 py-0.5">
-                    ✉️ Email: {apiConfig.emailProvider.toUpperCase()}
+                    ✉️ Active Provider: RESEND API
                   </span>
                 </div>
               </div>
@@ -1559,38 +1357,24 @@ function SchedulerPage() {
                 type="button"
                 disabled={isDispatching}
                 onClick={() => handleExecuteAutonomousSilentDispatch()}
-                className="inline-flex items-center gap-2 rounded-full bg-purple-700 hover:bg-purple-800 disabled:opacity-50 px-6 py-2.5 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-95"
+                className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] disabled:opacity-50 px-6 py-2.5 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-95"
               >
                 <Zap className="h-4 w-4 fill-white" />
-                <span>{isDispatching ? "Dispatching APIs..." : "⚡ Trigger 100% Silent Dispatch"}</span>
+                <span>{isDispatching ? "Dispatching via Resend..." : "⚡ Trigger Silent Email Dispatch"}</span>
               </button>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-bold text-[#241621] mb-1">
-                  Target WhatsApp Number (with Country Code)
-                </label>
-                <input
-                  value={myTestPhone}
-                  onChange={(e) => setMyTestPhone(e.target.value)}
-                  placeholder="e.g. +91 98765 43210"
-                  className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-purple-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-[#241621] mb-1">
-                  Target Email Address
-                </label>
-                <input
-                  type="email"
-                  value={myTestEmail}
-                  onChange={(e) => setMyTestEmail(e.target.value)}
-                  placeholder="e.g. you@example.com"
-                  className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-purple-600"
-                />
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-[#241621] mb-1">
+                Target Email Address
+              </label>
+              <input
+                type="email"
+                value={myTestEmail}
+                onChange={(e) => setMyTestEmail(e.target.value)}
+                placeholder="e.g. you@example.com"
+                className="w-full rounded-xl border border-[#241621]/15 bg-white p-2.5 text-xs font-semibold outline-none focus:border-[#E4603C]"
+              />
             </div>
 
             {/* Live API Response Console Logs */}
@@ -1625,7 +1409,7 @@ function SchedulerPage() {
                       </span>
                       {log.messageId && (
                         <span className="text-yellow-300 text-[10px] block">
-                          └ Message SID/ID: {log.messageId}
+                          └ Resend Message ID: {log.messageId}
                         </span>
                       )}
                     </div>
@@ -1634,11 +1418,26 @@ function SchedulerPage() {
               </div>
             )}
           </div>
+
+          {/* Future Multi-Channel Roadmap Note */}
+          <div className="rounded-2xl bg-[#FAF6F0] p-4 border border-[#241621]/10 flex items-start gap-3">
+            <div className="h-8 w-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm shrink-0">
+              📱
+            </div>
+            <div>
+              <h4 className="font-display text-xs font-bold text-[#241621]">
+                Multi-Channel Roadmap: WhatsApp & SMS Automation
+              </h4>
+              <p className="text-[11px] text-[#594855] mt-0.5 leading-relaxed">
+                Direct WhatsApp automated messaging is scheduled for the v2.0 Enterprise release with pre-registered Meta Business templates and verified sender IDs.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* WHATSAPP & EMAIL MESSAGE DISPATCH MODAL                       */}
+      {/* EMAIL KEEPSAKE PREVIEW & DIRECT DISPATCH MODAL                */}
       {/* ───────────────────────────────────────────────────────────── */}
       {simulationModalJob && (
         <div
@@ -1652,15 +1451,15 @@ function SchedulerPage() {
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#241621]/10 pb-3.5">
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-green-600 text-white flex items-center justify-center font-bold text-sm">
-                  💬
+                <div className="h-8 w-8 rounded-full bg-[#E4603C] text-white flex items-center justify-center font-bold text-sm">
+                  ✉️
                 </div>
                 <div>
                   <h3 className="font-display text-base font-bold text-[#241621]">
-                    Direct Memory Link Dispatch
+                    Email Keepsake Dispatch
                   </h3>
                   <p className="text-[11px] text-[#594855]">
-                    Recipient: {simulationModalJob.recipient} · {simulationModalJob.whatsapp || simulationModalJob.email || "Contact ready"}
+                    Recipient: {simulationModalJob.recipient} · {simulationModalJob.email || "Email ready"}
                   </p>
                 </div>
               </div>
@@ -1674,68 +1473,57 @@ function SchedulerPage() {
               </button>
             </div>
 
-            {/* WhatsApp Phone Mockup Bubble */}
-            <div className="rounded-2xl bg-[#E5DDD5] p-4 space-y-2 border border-black/10 shadow-inner">
-              <div className="bg-white rounded-2xl rounded-tl-xs p-3.5 shadow-sm space-y-2 text-xs text-[#241621] max-w-sm">
-                <p className="font-bold text-[#E4603C]">
+            {/* Email Preview Card */}
+            <div className="rounded-2xl bg-[#FAF6F0] p-4 space-y-3 border border-[#241621]/10 shadow-inner">
+              <div className="text-[11px] text-[#594855] space-y-1 pb-2 border-b border-[#241621]/10 font-mono">
+                <div><strong>To:</strong> {simulationModalJob.email || "recipient@example.com"}</div>
+                <div><strong>Subject:</strong> {generateEmailSubject(simulationModalJob)}</div>
+                <div><strong>From:</strong> SocioDex Celebrations &lt;onboarding@resend.dev&gt;</div>
+              </div>
+
+              <div className="bg-white rounded-2xl p-4 shadow-xs space-y-3 text-xs text-[#241621]">
+                <div className="font-display text-sm font-bold text-[#E4603C]">
                   🎉 Happy {simulationModalJob.occasion}, {simulationModalJob.recipient}! 🎂
-                </p>
+                </div>
                 <p className="text-[#594855] leading-relaxed">
                   Your team at{" "}
                   <strong>{simulationModalJob.organizerName || "SocioDex"}</strong> has created a
                   special digital memory page to celebrate this special day!
                 </p>
                 {simulationModalJob.customNote && (
-                  <p className="italic bg-[#FFFDF9] p-2 rounded-lg border border-[#241621]/10 text-[11px]">
+                  <p className="italic bg-[#FFFDF9] p-2.5 rounded-xl border border-[#241621]/10 text-[11px] text-[#594855]">
                     "{simulationModalJob.customNote}"
                   </p>
                 )}
-                <div className="p-2.5 rounded-xl bg-[#FAF6F0] border border-[#E4603C]/20 space-y-1">
-                  <div className="text-[10px] font-bold uppercase text-[#E4603C]">
-                    💌 Open Living Keepsake
+
+                <div className="p-3 rounded-xl bg-[#FAF6F0] border border-[#E4603C]/20 text-center space-y-1.5">
+                  <div className="text-[11px] font-bold text-[#E4603C]">
+                    💌 Living Keepsake Memory Page
                   </div>
-                  <div className="font-mono text-[11px] text-blue-700 font-semibold underline truncate">
+                  <div className="font-mono text-xs text-blue-700 font-semibold underline truncate">
                     {getKeepsakeUrl(simulationSlug || simulationModalJob.createdMemorySlug)}
                   </div>
                 </div>
-                <div className="text-[9px] text-[#8C7A87] text-right">09:00 AM · ✓✓ Delivered</div>
               </div>
             </div>
 
             {/* Direct 1-Click Action Buttons */}
             <div className="space-y-3">
               <div className="text-xs font-bold text-[#241621] uppercase tracking-wider">
-                🚀 Delivery Channels:
+                🚀 Dispatch Actions:
               </div>
 
               {/* 100% Autonomous Silent Trigger Button */}
               <button
                 type="button"
                 onClick={() => handleExecuteAutonomousSilentDispatch(simulationModalJob)}
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-purple-700 hover:bg-purple-800 py-3 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-98"
+                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-[#E4603C] hover:bg-[#c94b29] py-3 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-98"
               >
                 <Zap className="h-4 w-4 fill-white" />
-                <span>⚡ Fire 100% Autonomous Silent Dispatch (APIs)</span>
+                <span>⚡ Fire 100% Autonomous Silent Dispatch (Resend API)</span>
               </button>
 
-              {/* WhatsApp Action */}
-              <a
-                href={getWhatsAppDirectUrl(
-                  simulationModalJob.whatsapp,
-                  generateWhatsAppMessage(
-                    simulationModalJob,
-                    simulationSlug || simulationModalJob.createdMemorySlug
-                  )
-                )}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full inline-flex items-center justify-center gap-2 rounded-full bg-green-600 hover:bg-green-700 py-3 text-xs font-bold text-white shadow-md transition cursor-pointer active:scale-98"
-              >
-                <MessageSquare className="h-4 w-4" />
-                <span>Open & Send via WhatsApp Chat (wa.me)</span>
-              </a>
-
-              {/* Email Actions */}
+              {/* Email Options */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <a
                   href={getGmailComposeUrl(
@@ -1748,7 +1536,7 @@ function SchedulerPage() {
                   )}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
+                  className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#241621] hover:bg-black py-2.5 text-xs font-bold text-white shadow-xs transition cursor-pointer"
                 >
                   <Mail className="h-3.5 w-3.5" />
                   <span>Send via Gmail Web</span>
@@ -1774,16 +1562,16 @@ function SchedulerPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const text = generateWhatsAppMessage(
+                    const text = generateEmailBody(
                       simulationModalJob,
                       simulationSlug || simulationModalJob.createdMemorySlug
                     );
                     navigator.clipboard.writeText(text);
-                    toast.success("WhatsApp message copied to clipboard!");
+                    toast.success("Email content copied to clipboard!");
                   }}
                   className="flex-1 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] py-2.5 text-xs font-bold text-[#241621] transition cursor-pointer"
                 >
-                  Copy Message Text
+                  Copy Email Text
                 </button>
 
                 {(simulationSlug || simulationModalJob.createdMemorySlug) && (
@@ -1791,7 +1579,7 @@ function SchedulerPage() {
                     href={`/m/${simulationSlug || simulationModalJob.createdMemorySlug}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-[#241621] hover:bg-black py-2.5 text-xs font-bold text-white transition cursor-pointer"
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-full bg-green-700 hover:bg-green-800 py-2.5 text-xs font-bold text-white transition cursor-pointer"
                   >
                     <span>Open Live Page</span>
                     <ExternalLink className="h-3.5 w-3.5" />
