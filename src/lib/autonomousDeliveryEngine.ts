@@ -47,21 +47,69 @@ export interface DispatchResult {
 const STORAGE_KEY = "sociodex_autonomous_api_config_v1";
 
 export function loadAutonomousApiConfig(): AutonomousApiConfig {
+  const envResendKey =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_RESEND_API_KEY as string | undefined) ||
+        (import.meta.env.RESEND_API_KEY as string | undefined)
+      : undefined;
+
+  const envFromEmail =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string | undefined)
+      : undefined;
+
+  const envTwilioToken =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_TWILIO_AUTH_TOKEN as string | undefined) ||
+        (import.meta.env.VITE_TWILIO_API_KEY_SID as string | undefined) ||
+        (import.meta.env.TWILIO_AUTH_TOKEN as string | undefined)
+      : undefined;
+
+  const envTwilioAccountSid =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_TWILIO_ACCOUNT_SID as string | undefined) ||
+        (import.meta.env.TWILIO_ACCOUNT_SID as string | undefined)
+      : undefined;
+
+  const envTwilioFrom =
+    typeof import.meta !== "undefined" && import.meta.env
+      ? (import.meta.env.VITE_TWILIO_FROM_NUMBER as string | undefined) ||
+        (import.meta.env.TWILIO_FROM_NUMBER as string | undefined)
+      : undefined;
+
+  const defaultConfig: AutonomousApiConfig = {
+    whatsappProvider: envTwilioToken ? "twilio" : "demo",
+    emailProvider: envResendKey ? "resend" : "demo",
+    twilioAccountSid: envTwilioAccountSid || "",
+    twilioAuthToken: envTwilioToken || "",
+    twilioFromNumber: envTwilioFrom || "+14155238886",
+    resendApiKey: envResendKey || "",
+    resendFromEmail: envFromEmail || "onboarding@resend.dev",
+  };
+
   if (typeof window === "undefined") {
-    return { whatsappProvider: "demo", emailProvider: "demo" };
+    return defaultConfig;
   }
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...defaultConfig,
+        ...parsed,
+        twilioAccountSid: parsed.twilioAccountSid || envTwilioAccountSid || "",
+        twilioAuthToken: parsed.twilioAuthToken || envTwilioToken || "",
+        twilioFromNumber: parsed.twilioFromNumber || envTwilioFrom || "+14155238886",
+        resendApiKey: parsed.resendApiKey || envResendKey || "",
+        resendFromEmail: parsed.resendFromEmail || envFromEmail || "onboarding@resend.dev",
+        emailProvider: parsed.emailProvider || (envResendKey ? "resend" : "demo"),
+        whatsappProvider: parsed.whatsappProvider || (envTwilioToken ? "twilio" : "demo"),
+      };
+    }
   } catch (e) {
     console.error("Failed to load API config", e);
   }
-  return {
-    whatsappProvider: "demo",
-    emailProvider: "demo",
-    twilioFromNumber: "+14155238886",
-    resendFromEmail: "celebrations@sociodex.app",
-  };
+  return defaultConfig;
 }
 
 export function saveAutonomousApiConfig(config: AutonomousApiConfig) {
@@ -102,23 +150,49 @@ export async function sendAutonomousWhatsApp(
 
   // 2. TWILIO WHATSAPP API
   if (config.whatsappProvider === "twilio") {
-    if (!config.twilioAccountSid || !config.twilioAuthToken) {
+    const activeAccountSid =
+      config.twilioAccountSid ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_ACCOUNT_SID as string | undefined) ||
+          (import.meta.env.TWILIO_ACCOUNT_SID as string | undefined)
+        : "") ||
+      "";
+
+    const activeAuthToken =
+      config.twilioAuthToken ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_AUTH_TOKEN as string | undefined) ||
+          (import.meta.env.VITE_TWILIO_API_KEY_SID as string | undefined) ||
+          (import.meta.env.TWILIO_AUTH_TOKEN as string | undefined)
+        : "") ||
+      "";
+
+    const activeFromNumber =
+      config.twilioFromNumber ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_TWILIO_FROM_NUMBER as string | undefined)
+        : "") ||
+      "+14155238886";
+
+    if (!activeAccountSid || !activeAuthToken) {
       return {
         success: false,
         provider: "Twilio",
         channel: "whatsapp",
         recipient: cleanPhone,
         timestamp: now,
-        details: "Missing Twilio Account SID or Auth Token in API settings.",
+        details: !activeAccountSid
+          ? "Missing Twilio Account SID (AC...). Please provide your Twilio Account SID in .env or API settings to pair with your API Key/Auth Token."
+          : "Missing Twilio Auth Token/API Key in API settings.",
       };
     }
 
     try {
-      const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${config.twilioAccountSid}/Messages.json`;
-      const basicAuth = btoa(`${config.twilioAccountSid}:${config.twilioAuthToken}`);
+      const endpoint = `https://api.twilio.com/2010-04-01/Accounts/${activeAccountSid}/Messages.json`;
+      const basicAuth = btoa(`${activeAccountSid}:${activeAuthToken}`);
 
       const bodyParams = new URLSearchParams();
-      bodyParams.append("From", `whatsapp:${config.twilioFromNumber || "+14155238886"}`);
+      bodyParams.append("From", `whatsapp:${activeFromNumber}`);
       bodyParams.append("To", `whatsapp:+${cleanPhone}`);
       bodyParams.append("Body", messageText);
 
@@ -296,14 +370,29 @@ export async function sendAutonomousEmail(
 
   // 2. RESEND EMAIL API (Recommended & Instant)
   if (config.emailProvider === "resend") {
-    if (!config.resendApiKey) {
+    const activeApiKey =
+      config.resendApiKey ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_RESEND_API_KEY as string | undefined) ||
+          (import.meta.env.RESEND_API_KEY as string | undefined)
+        : "") ||
+      "";
+
+    const activeFromEmail =
+      config.resendFromEmail ||
+      (typeof import.meta !== "undefined" && import.meta.env
+        ? (import.meta.env.VITE_RESEND_FROM_EMAIL as string | undefined)
+        : "") ||
+      "onboarding@resend.dev";
+
+    if (!activeApiKey) {
       return {
         success: false,
         provider: "Resend API",
         channel: "email",
         recipient: toEmail,
         timestamp: now,
-        details: "Missing Resend API Key in settings.",
+        details: "Missing Resend API Key in settings or environment.",
       };
     }
 
@@ -311,11 +400,11 @@ export async function sendAutonomousEmail(
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${config.resendApiKey}`,
+          Authorization: `Bearer ${activeApiKey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: config.resendFromEmail || "onboarding@resend.dev",
+          from: activeFromEmail,
           to: [toEmail],
           subject: subject,
           html: `<div style="font-family: sans-serif; font-size: 14px; line-height: 1.6; color: #241621; padding: 20px;">${bodyHtml.replace(/\n/g, "<br/>")}</div>`,
