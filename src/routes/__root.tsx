@@ -80,7 +80,6 @@ import { useStore } from "@/lib/store";
 import { useChatStore } from "@/lib/chatStore";
 import { initAuthListener, subscribeToGlobalChat } from "@/lib/supabase";
 import { ChatDrawer } from "@/components/chat/ChatDrawer";
-import { FloatingChatButton } from "@/components/chat/FloatingChatButton";
 import { Toaster } from "sonner";
 
 function RootComponent() {
@@ -125,7 +124,6 @@ function RootComponent() {
         <Outlet />
       </main>
       <ChatDrawer />
-      <FloatingChatButton />
       <Toaster
         position="top-right"
         richColors
