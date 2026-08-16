@@ -1289,6 +1289,40 @@ function PublicMemoryPage() {
     updatePageSettings(activeMemory.slug, { pinnedContributionIds: updated });
   };
 
+  if (fetchError && !activeMemory) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-tr from-[#FBF6EC] via-[#FFFDF9] to-[#F4ECE0] p-4 text-center">
+        <div className="max-w-md w-full bg-white p-8 rounded-3xl border border-[#241621]/10 shadow-lg flex flex-col items-center">
+          <div className="w-16 h-16 rounded-full bg-amber-50 border border-amber-200 flex items-center justify-center text-3xl mb-4">
+            🔍
+          </div>
+          <h2 className="font-display text-xl font-bold text-[#241621] mb-2">Memory Page Not Found</h2>
+          <p className="text-neutral-500 text-xs sm:text-sm mb-6 leading-relaxed">
+            {fetchError}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => setRetryTrigger((r) => r + 1)}
+              className="px-5 py-2 rounded-full bg-[#E4603C] text-white text-xs font-bold shadow-md hover:brightness-110 active:scale-95 transition-all"
+            >
+              Try Again
+            </button>
+            <Link
+              to="/"
+              className="px-5 py-2 rounded-full border border-neutral-200 text-neutral-700 text-xs font-bold hover:bg-neutral-50 transition-all"
+            >
+              Go to Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!activeMemory) {
+    return <KeepsakeLoadingScreen />;
+  }
+
   return (
     <div
       style={{
@@ -1410,34 +1444,63 @@ function PublicMemoryPage() {
                 : `A living scrapbook of warm wishes, photos, and voice notes from ${activeMemory.from} and loved ones. Tap to unwrap.`}
             </p>
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsUnwrapping(true);
-                triggerConfettiBurst();
-                setTimeout(() => {
-                  setIsRevealed(true);
-                  sessionStorage.setItem(`memento-revealed-${slug}`, "true");
-                }, 450);
-              }}
-              style={{
-                width: "100%",
-                padding: "0.85rem",
-                borderRadius: "9999px",
-                background: `linear-gradient(135deg, ${pageTheme.accent} 0%, #1c1917 100%)`,
-                color: "#fff",
-                border: "none",
-                fontWeight: 700,
-                fontSize: "0.88rem",
-                cursor: "pointer",
-                boxShadow: `0 8px 24px ${pageTheme.accent}45`,
-                letterSpacing: "0.05em",
-                textTransform: "uppercase",
-              }}
-              className="select-none active:scale-98 transition-transform"
-            >
-              ✉️ Unwrap Keepsake
-            </button>
+            {isLoading ? (
+              <div
+                style={{
+                  width: "100%",
+                  padding: "0.95rem 1rem",
+                  borderRadius: "9999px",
+                  background: `${pageTheme.accent}12`,
+                  border: `1.5px solid ${pageTheme.accent}35`,
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "0.5rem",
+                }}
+                className="select-none animate-pulse"
+              >
+                <div className="flex items-center gap-2 text-xs font-bold" style={{ color: pageTheme.accent }}>
+                  <Sparkles className="h-4 w-4 animate-spin shrink-0" />
+                  <span>Gathering wishes & photos...</span>
+                </div>
+                <div className="w-4/5 bg-black/5 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full w-2/3 animate-[pulse_1.2s_ease-in-out_infinite]"
+                    style={{ background: `linear-gradient(90deg, ${pageTheme.accent} 0%, #EBC85A 100%)` }}
+                  />
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsUnwrapping(true);
+                  triggerConfettiBurst();
+                  setTimeout(() => {
+                    setIsRevealed(true);
+                    sessionStorage.setItem(`memento-revealed-${slug}`, "true");
+                  }, 450);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "0.85rem",
+                  borderRadius: "9999px",
+                  background: `linear-gradient(135deg, ${pageTheme.accent} 0%, #1c1917 100%)`,
+                  color: "#fff",
+                  border: "none",
+                  fontWeight: 700,
+                  fontSize: "0.88rem",
+                  cursor: "pointer",
+                  boxShadow: `0 8px 24px ${pageTheme.accent}45`,
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+                className="select-none active:scale-98 transition-all hover:scale-[1.02] hover:shadow-xl"
+              >
+                ✉️ Unwrap Keepsake
+              </button>
+            )}
           </div>
         </div>
       )}
