@@ -52,6 +52,7 @@ export const Route = createFileRoute("/tracker")({
 function DashboardPage() {
   const currentUser = useStore((s) => s.currentUser);
   const memories = useStore((s) => s.memories || {});
+  const setMemory = useStore((s) => s.setMemory);
   const addMemory = useStore((s) => s.addMemory);
   const navigate = useNavigate();
 
@@ -77,10 +78,10 @@ function DashboardPage() {
   useEffect(() => {
     if (isSupabaseConfigured && currentUser?.email) {
       fetchUserMemoriesFromSupabase(currentUser.email).then((remoteMemories) => {
-        remoteMemories.forEach((m) => addMemory(m));
+        remoteMemories.forEach((m) => setMemory(m));
       });
     }
-  }, [currentUser?.email, addMemory]);
+  }, [currentUser?.email, setMemory]);
 
   // Seed sample memories if store is empty
   useEffect(() => {
@@ -537,36 +538,55 @@ function MemoryShutterCard({
   // Aggregate unique contributors
   const uniqueContributors = useMemo(() => {
     const seen = new Set<string>();
-    const list: Array<{ name: string; count: number }> = [];
+    const list: Array<{ name: string; avatarColor?: string; count: number }> = [];
 
     (mem.comments || []).forEach((c) => {
-      if (c.author && !seen.has(c.author.toLowerCase())) {
-        seen.add(c.author.toLowerCase());
+      if (c.author && !seen.has(c.author.toLowerCase().trim())) {
+        seen.add(c.author.toLowerCase().trim());
         list.push({ name: c.author, count: 1 });
       }
     });
 
     (mem.contributedMedia || []).forEach((m) => {
-      if (m.contributorName && !seen.has(m.contributorName.toLowerCase())) {
-        seen.add(m.contributorName.toLowerCase());
+      if (m.contributorName && !seen.has(m.contributorName.toLowerCase().trim())) {
+        seen.add(m.contributorName.toLowerCase().trim());
         list.push({ name: m.contributorName, count: 1 });
       }
     });
 
     (mem.contributions || []).forEach((c) => {
-      if (c.contributor_name && !seen.has(c.contributor_name.toLowerCase())) {
-        seen.add(c.contributor_name.toLowerCase());
-        list.push({ name: c.contributor_name, count: 1 });
+      const name = c.contributor_name || "Contributor";
+      if (name && !seen.has(name.toLowerCase().trim())) {
+        seen.add(name.toLowerCase().trim());
+        list.push({
+          name: name,
+          avatarColor: c.contributor_avatar_color || "#E4603C",
+          count: 1,
+        });
       }
     });
 
     return list;
   }, [mem]);
 
-  const collaboratorsCount = mem.collaborators?.length || 1;
-  const commentsCount = (mem.comments?.length || 0) + (mem.wishes?.length || 0);
-  const mediaCount = (mem.contributedMedia?.length || 0) + (mem.photos?.length || 0);
-  const followersCount = mem.followers?.length || 1;
+  const wishContributionsCount = (mem.contributions || []).filter((c) => c.type === "wish").length;
+  const commentsCount = (mem.comments?.length || 0) + (mem.wishes?.length || 0) + wishContributionsCount;
+
+  const mediaContributionsCount = (mem.contributions || []).filter(
+    (c) => c.type === "photo" || c.type === "video" || c.type === "audio"
+  ).length;
+  const mediaCount =
+    (mem.contributedMedia?.length || 0) +
+    (mem.photos?.length || 0) +
+    (mem.videos?.length || 0) +
+    (mem.audios?.length || 0) +
+    mediaContributionsCount;
+
+  const collaboratorsCount = Math.max(
+    mem.collaborators?.length || 0,
+    uniqueContributors.length > 0 ? uniqueContributors.length : 1
+  );
+  const followersCount = Math.max(mem.followers?.length || 0, 1);
 
   return (
     <div
@@ -805,7 +825,10 @@ function MemoryShutterCard({
                     className="p-2 rounded-xl bg-[#FFFDF9] border border-[#241621]/10 flex items-center justify-between text-xs"
                   >
                     <div className="flex items-center gap-2 truncate pr-1">
-                      <span className="h-6 w-6 rounded-full bg-[#E4603C]/15 text-[#E4603C] font-bold flex items-center justify-center text-[11px] shrink-0">
+                      <span
+                        className="h-6 w-6 rounded-full font-bold flex items-center justify-center text-[11px] shrink-0 text-white shadow-2xs"
+                        style={{ backgroundColor: c.avatarColor || "#E4603C" }}
+                      >
                         {c.name[0]?.toUpperCase() || "U"}
                       </span>
                       <span className="font-bold text-[#241621] truncate">{c.name}</span>
@@ -816,7 +839,7 @@ function MemoryShutterCard({
                         useChatStore.getState().openChatWithContributor({
                           name: c.name,
                           avatar: c.name[0]?.toUpperCase() || "👤",
-                          avatarColor: "#E4603C",
+                          avatarColor: c.avatarColor || "#E4603C",
                           memorySlug: mem.slug,
                           memoryTitle: mem.occasion || mem.recipient,
                         });

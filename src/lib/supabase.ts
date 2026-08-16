@@ -238,8 +238,8 @@ export async function fetchUserMemoriesFromSupabase(email: string): Promise<Memo
   try {
     const { data: memories, error } = await supabase
       .from("memory_pages")
-      .select("*")
-      .eq("creator_email", email)
+      .select("*, contributions(*), guests(*)")
+      .ilike("creator_email", email.trim())
       .order("created_at", { ascending: false });
 
     if (error || !memories) {
@@ -257,8 +257,8 @@ export async function fetchUserMemoriesFromSupabase(email: string): Promise<Memo
       themeId: m.theme_id,
       wishes: m.wishes || [],
       photos: m.image_urls || [],
-      audios: [],
-      videos: [],
+      audios: (m.audio_urls || []).map((url: string, i: number) => ({ id: `audio-${i}`, name: `Audio ${i + 1}`, url })),
+      videos: (m.video_urls || []).map((url: string, i: number) => ({ id: `video-${i}`, name: `Video ${i + 1}`, url })),
       visibility: "public",
       allowedActions: { addPhotos: true, addVideos: true, addComments: true },
       collaborators: [],
@@ -269,7 +269,18 @@ export async function fetchUserMemoriesFromSupabase(email: string): Promise<Memo
       autoApprove: true,
       pinnedContributionIds: [],
       expiresAt: null,
-      contributions: [],
+      contributions: (m.contributions || []).map((c: any) => ({
+        id: c.id,
+        memory_page_id: c.memory_page_id,
+        contributor_id: c.contributor_id || "",
+        contributor_name: c.contributor_name,
+        contributor_avatar_color: c.contributor_avatar_color || "#E4603C",
+        type: c.type,
+        content_text: c.content_text,
+        media_urls: c.media_urls || [],
+        status: c.status || "approved",
+        created_at: c.created_at,
+      })),
       reactions: [],
       replies: [],
     }));
