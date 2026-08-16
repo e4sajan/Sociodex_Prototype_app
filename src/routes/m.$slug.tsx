@@ -22,6 +22,7 @@ import {
   sendEmailMagicLink,
   isSupabaseConfigured,
 } from "@/lib/supabase";
+import { compressImageFile } from "@/lib/imageCompressor";
 import {
   Check,
   X,
@@ -71,14 +72,16 @@ export const Route = createFileRoute("/m/$slug")({
     const currentMemories = useStore.getState().memories || {};
     const fallback = useStore.getState().memory;
     const existing = currentMemories[slug] || (fallback?.slug === slug ? fallback : null);
-    if (existing) {
+
+    // If local memory has photos and contributions, return immediately for instant paint
+    if (existing && existing.photos && existing.photos.length > 0) {
       return { memory: existing };
     }
 
     // 2. Fetch from Supabase backend if configured
     if (isSupabaseConfigured) {
       try {
-        const remoteData = await fetchMemoryFromSupabase(slug);
+        const remoteData = await fetchMemoryFromSupabase(slug, 8000);
         if (remoteData && remoteData.slug) {
           useStore.getState().setMemory(remoteData as any);
           return { memory: remoteData };
@@ -87,7 +90,7 @@ export const Route = createFileRoute("/m/$slug")({
         console.error("[Route Loader] Error prefetching memory:", err);
       }
     }
-    return { memory: null };
+    return { memory: existing || null };
   },
   pendingComponent: KeepsakeLoadingScreen,
   component: PublicMemoryPage,
@@ -517,42 +520,42 @@ function PublicMemoryPage() {
     }
   }, [loaderData, slug, memories, setMemory]);
 
-  // Fetch memory from Supabase and subscribe to Realtime (non-blocking if activeMemory is available)
+  // Fetch memory from Supabase and subscribe to Realtime (non-blocking SWR sync)
   useEffect(() => {
     let isMounted = true;
     let unsubscribeMemory: (() => void) | undefined;
     let unsubscribeChat: (() => void) | undefined;
     let realtimeTimer: NodeJS.Timeout | undefined;
 
-    if (activeMemory) {
+    if (activeMemory && ((activeMemory.photos && activeMemory.photos.length > 0) || (activeMemory.contributions && activeMemory.contributions.length > 0))) {
       setIsLoading(false);
       setFetchError(null);
     } else {
-      setIsLoading(true);
+      setIsLoading(!activeMemory);
     }
 
     if (isSupabaseConfigured && slug) {
-      // If we don't have activeMemory from store or loader, fetch it
-      if (!activeMemory) {
-        fetchMemoryFromSupabase(slug)
-          .then((remoteData) => {
-            if (!isMounted) return;
-            if (remoteData && remoteData.slug) {
-              setMemory(remoteData as any);
-              setFetchError(null);
-            }
-          })
-          .catch((err) => {
-            if (!isMounted) return;
-            console.error("[PublicMemoryPage] Supabase fetch error:", err);
+      // SWR: Always fetch fresh data from Supabase in the background to ensure photos & posts are loaded
+      fetchMemoryFromSupabase(slug, 9000)
+        .then((remoteData) => {
+          if (!isMounted) return;
+          if (remoteData && remoteData.slug) {
+            setMemory(remoteData as any);
+            setFetchError(null);
+          }
+        })
+        .catch((err) => {
+          if (!isMounted) return;
+          console.error("[PublicMemoryPage] Supabase fetch error:", err);
+          if (!activeMemory) {
             setFetchError("Unable to connect to server. Please check your internet connection.");
-          })
-          .finally(() => {
-            if (isMounted) {
-              setIsLoading(false);
-            }
-          });
-      }
+          }
+        })
+        .finally(() => {
+          if (isMounted) {
+            setIsLoading(false);
+          }
+        });
 
       // Defer real-time WebSocket connections slightly so initial DOM, fonts, and photos paint first
       realtimeTimer = setTimeout(() => {
@@ -581,7 +584,7 @@ function PublicMemoryPage() {
     } else {
       setIsLoading(false);
     }
-  }, [slug, retryTrigger, Boolean(activeMemory), setMemory, addSimulatedContribution]);
+  }, [slug, retryTrigger, setMemory, addSimulatedContribution]);
 
   // Local UI States
   const [tab, setTab] = useState<"all" | "wishes" | "photos" | "audios" | "videos">("all");
@@ -987,8 +990,8 @@ function PublicMemoryPage() {
     }
   };
 
-  // Real Photo Upload via FileReader
-  const handleRealPhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Real Photo Upload with client-side image compression
+  const handleRealPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -997,19 +1000,24 @@ function PublicMemoryPage() {
       return;
     }
 
-    Array.from(files).forEach((file) => {
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(`${file.name} is larger than 10MB.`);
-        return;
+    for (const file of Array.from(files)) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`${file.name} is larger than 20MB.`);
+        continue;
       }
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          setContribFiles((prev) => [...prev, reader.result as string]);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+      try {
+        const compressed = await compressImageFile(file, 1200, 1200, 0.78);
+        setContribFiles((prev) => [...prev, compressed]);
+      } catch {
+        const reader = new FileReader();
+        reader.onload = () => {
+          if (typeof reader.result === "string") {
+            setContribFiles((prev) => [...prev, reader.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+      }
+    }
 
     toast.success(`${files.length} photo(s) attached!`);
     e.target.value = "";

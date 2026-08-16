@@ -175,7 +175,7 @@ export function initAuthListener(onUserChanged: (session: UserSession | null, ev
 /**
  * Fetch a memory page and its live contributions from Supabase with timeout protection
  */
-export async function fetchMemoryFromSupabase(slug: string, timeoutMs: number = 3500): Promise<Partial<MemoryData> | null> {
+export async function fetchMemoryFromSupabase(slug: string, timeoutMs: number = 9000): Promise<Partial<MemoryData> | null> {
   if (!isSupabaseConfigured || !slug) return null;
 
   try {

@@ -4,6 +4,7 @@ import QRCode from "qrcode";
 import { OCCASIONS, THEMES } from "@/lib/data";
 import { useStore, type MemoryData } from "@/lib/store";
 import { saveMemoryToSupabase, isSupabaseConfigured } from "@/lib/supabase";
+import { compressImageFile } from "@/lib/imageCompressor";
 import {
   Check,
   Plus,
@@ -93,14 +94,17 @@ function MemoryCreator() {
   const [isCorporate, setIsCorporate] = useState(false);
   const [corporateLogo, setCorporateLogo] = useState("");
 
-  const handleLogoUpload = (files: FileList | null) => {
+  const handleLogoUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    const reader = new FileReader();
-    reader.onload = () => {
-      setCorporateLogo(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const compressed = await compressImageFile(file, 600, 600, 0.85);
+      setCorporateLogo(compressed);
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => setCorporateLogo(reader.result as string);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handlePageTypeSelect = (type: "wish" | "invite") => {
@@ -123,13 +127,18 @@ function MemoryCreator() {
     return baseValid;
   };
 
-  const handlePhotos = (files: FileList | null) => {
+  const handlePhotos = async (files: FileList | null) => {
     if (!files) return;
-    Array.from(files).forEach((f) => {
-      const r = new FileReader();
-      r.onload = () => setPhotos((p) => [...p, r.result as string]);
-      r.readAsDataURL(f);
-    });
+    for (const f of Array.from(files)) {
+      try {
+        const compressed = await compressImageFile(f, 1200, 1200, 0.78);
+        setPhotos((p) => [...p, compressed]);
+      } catch {
+        const r = new FileReader();
+        r.onload = () => setPhotos((p) => [...p, r.result as string]);
+        r.readAsDataURL(f);
+      }
+    }
   };
 
   const handleAudio = (files: FileList | null) => {
@@ -228,9 +237,11 @@ function MemoryCreator() {
       console.log("[handleCreate] QR generated, setting state");
       setMemory(data);
       if (isSupabaseConfigured) {
-        saveMemoryToSupabase(data).catch((err) =>
-          console.error("[Creator] Supabase sync error:", err)
-        );
+        try {
+          await saveMemoryToSupabase(data);
+        } catch (err) {
+          console.error("[Creator] Supabase sync error:", err);
+        }
       }
       setQrUrl(generatedQr);
       setCreated(data);
