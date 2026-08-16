@@ -181,7 +181,7 @@ export async function fetchMemoryFromSupabase(slug: string, timeoutMs: number = 
   try {
     const fetchPromise = supabase
       .from("memory_pages")
-      .select("*, contributions(*), guests(id, first_name, last_name, email, rsvp)")
+      .select("*, contributions(*), guests(*)")
       .eq("slug", slug)
       .single();
 
