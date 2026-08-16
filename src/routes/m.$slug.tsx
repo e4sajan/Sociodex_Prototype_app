@@ -73,15 +73,15 @@ export const Route = createFileRoute("/m/$slug")({
     const fallback = useStore.getState().memory;
     const existing = currentMemories[slug] || (fallback?.slug === slug ? fallback : null);
 
-    // If local memory has photos and contributions, return immediately for instant paint
-    if (existing && existing.photos && existing.photos.length > 0) {
-      return { memory: existing };
+    // If local memory already has fresh contributions, still prefetch in background or return
+    if (existing && existing.contributions && existing.contributions.length > 0) {
+      // Background revalidate will ensure fresh sync
     }
 
     // 2. Fetch from Supabase backend if configured
     if (isSupabaseConfigured) {
       try {
-        const remoteData = await fetchMemoryFromSupabase(slug, 8000);
+        const remoteData = await fetchMemoryFromSupabase(slug, 20000);
         if (remoteData && remoteData.slug) {
           useStore.getState().setMemory(remoteData as any);
           return { memory: remoteData };
@@ -514,11 +514,9 @@ function PublicMemoryPage() {
   // Sync loader data into Zustand store immediately on mount
   useEffect(() => {
     if (loaderData?.memory && loaderData.memory.slug === slug) {
-      if (!memories[slug]) {
-        setMemory(loaderData.memory as any);
-      }
+      setMemory(loaderData.memory as any);
     }
-  }, [loaderData, slug, memories, setMemory]);
+  }, [loaderData, slug, setMemory]);
 
   // Fetch memory from Supabase and subscribe to Realtime (non-blocking SWR sync)
   useEffect(() => {
@@ -536,7 +534,7 @@ function PublicMemoryPage() {
 
     if (isSupabaseConfigured && slug) {
       // SWR: Always fetch fresh data from Supabase in the background to ensure photos & posts are loaded
-      fetchMemoryFromSupabase(slug, 9000)
+      fetchMemoryFromSupabase(slug, 25000)
         .then((remoteData) => {
           if (!isMounted) return;
           if (remoteData && remoteData.slug) {
