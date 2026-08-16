@@ -2,6 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useStore } from "@/lib/store";
 import { useState, useEffect } from "react";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
+import { DeviceShowcase } from "@/components/showcase/DeviceShowcase";
+import { HeroDeliverablesStage } from "@/components/showcase/HeroDeliverablesStage";
+import { CelebrationStrapCarousel } from "@/components/showcase/CelebrationStrapCarousel";
+import { AudienceStrapCarousel } from "@/components/showcase/AudienceStrapCarousel";
 import {
   Sparkles,
   ArrowRight,
@@ -183,43 +187,43 @@ function SocioDexLandingPage() {
 
 
       {/* ── 4. SECTION 1: HERO SECTION ── */}
-      <header className="relative pt-12 pb-20 px-4 max-w-7xl mx-auto sm:px-6 lg:px-8 lg:pt-20 lg:pb-28">
+      <header className="relative pt-10 pb-16 px-4 max-w-6xl mx-auto sm:px-6 lg:px-8 lg:pt-16 lg:pb-24">
         <div className="absolute top-10 left-1/3 w-96 h-96 bg-[#EBC85A]/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute top-35 right-10 w-80 h-80 bg-[#E4603C]/10 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="grid gap-12 lg:grid-cols-2 items-center relative z-10">
+        <div className="grid gap-6 lg:gap-8 lg:grid-cols-12 items-center relative z-10">
           {/* Left Content */}
-          <div className="space-y-8 text-center lg:text-left fade-up">
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#E4603C]/20 bg-[#FFFDF9] px-4 py-1.5 text-xs font-bold text-[#E4603C] shadow-xs">
+          <div className="lg:col-span-6 space-y-6 text-center lg:text-left fade-up">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#E4603C]/20 bg-[#FFFDF9] px-3.5 py-1 text-xs font-bold text-[#E4603C] shadow-xs">
               <Sparkles className="h-3.5 w-3.5 animate-pulse text-[#E4603C]" />
               <span>Permanent Homes for Life's Moments</span>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-3">
               <h1
-                className="font-display text-4xl sm:text-6xl lg:text-7xl font-bold tracking-tight text-[#241621] leading-[1.08]"
+                className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#241621] leading-[1.1]"
                 style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
               >
                 Celebrations,{" "}
-                <span className="italic text-[#E4603C] underline decoration-[#EBC85A] decoration-wavy underline-offset-8">
+                <span className="text-[#E4603C]">
                   Reimagined.
                 </span>
               </h1>
 
-              <p className="text-[#6B5A66] text-base sm:text-lg max-w-xl mx-auto lg:mx-0 leading-relaxed font-medium">
+              <p className="text-[#6B5A66] text-base sm:text-lg max-w-lg mx-auto lg:mx-0 leading-relaxed font-medium">
                 Create beautiful interactive memory pages for birthdays, weddings, farewells,
                 anniversaries and every moment worth remembering.
               </p>
             </div>
 
             {/* CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-1">
               <button
                 onClick={() => {
                   if (currentUser) navigate({ to: "/creator" });
                   else setShowAuthModal(true);
                 }}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-8 py-4 text-sm font-bold text-white shadow-lg shadow-[#E4603C]/25 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 rounded-full bg-[#E4603C] hover:bg-[#c94b29] px-7 py-3.5 text-sm font-bold text-white shadow-lg shadow-[#E4603C]/25 cursor-pointer transition-all active:scale-95 hover:scale-[1.02]"
               >
                 <span>{currentUser ? "Launch Creator" : "Sign In"}</span>
                 <ArrowRight className="h-4 w-4" />
@@ -227,7 +231,7 @@ function SocioDexLandingPage() {
 
               <button
                 onClick={() => setShowDemoModal(true)}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-7 py-4 text-sm font-bold text-[#241621] shadow-xs cursor-pointer transition-all active:scale-95"
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full border border-[#241621]/15 bg-white hover:bg-[#FAF6F0] px-6 py-3.5 text-sm font-bold text-[#241621] shadow-xs cursor-pointer transition-all active:scale-95"
               >
                 <Play className="h-4 w-4 text-[#E4603C] fill-[#E4603C]" />
                 <span>Watch Demo</span>
@@ -235,18 +239,18 @@ function SocioDexLandingPage() {
             </div>
 
             {/* Social Proof */}
-            <div className="pt-4 flex items-center justify-center lg:justify-start gap-3">
+            <div className="pt-2 flex items-center justify-center lg:justify-start gap-3">
               <div className="flex -space-x-2 overflow-hidden">
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#E4603C] text-white text-xs font-bold ring-2 ring-white">
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#E4603C] text-white text-xs font-bold ring-2 ring-white">
                   AM
                 </div>
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#EBC85A] text-[#241621] text-xs font-bold ring-2 ring-white">
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#EBC85A] text-[#241621] text-xs font-bold ring-2 ring-white">
                   SK
                 </div>
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#5C3A50] text-white text-xs font-bold ring-2 ring-white">
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#5C3A50] text-white text-xs font-bold ring-2 ring-white">
                   RL
                 </div>
-                <div className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#C94B29] text-white text-xs font-bold ring-2 ring-white">
+                <div className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#C94B29] text-white text-xs font-bold ring-2 ring-white">
                   JD
                 </div>
               </div>
@@ -257,86 +261,9 @@ function SocioDexLandingPage() {
             </div>
           </div>
 
-          {/* Right Visual Stage */}
-          <div className="relative mx-auto max-w-lg w-full lg:max-w-none flex justify-center fade-up lg:pl-6">
-            <div className="relative w-full max-w-[480px]">
-              {/* Main Photo Card */}
-              <div className="rounded-[2.2rem] bg-white border border-[#241621]/10 p-4 shadow-[0_24px_60px_rgba(36,22,33,0.12)] relative z-10 transition-transform duration-500 hover:scale-[1.01]">
-                <div className="relative aspect-[4/3] w-full rounded-[1.6rem] overflow-hidden bg-[#FAF6F0] mb-4">
-                  <img
-                    src="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=800"
-                    alt="Sarah's 30th Birthday"
-                    loading="lazy"
-                    decoding="async"
-                    className="w-full h-full object-cover"
-                  />
-                  <span className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-[#E4603C] shadow-xs">
-                    🎂 Birthday Memory
-                  </span>
-                </div>
-
-                <div className="px-2">
-                  <h4
-                    className="font-display text-xl font-bold text-[#241621]"
-                    style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-                  >
-                    Sarah's 30th Birthday ✨
-                  </h4>
-                  <p className="text-xs text-[#6B5A66] mt-0.5 font-medium">
-                    Golden Hour Backyard Party — July 2026
-                  </p>
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-[#241621]/8 flex items-center justify-between px-2 text-xs">
-                  <button
-                    onClick={handleHeroLikeClick}
-                    className={`inline-flex items-center gap-1.5 font-bold transition-transform active:scale-125 cursor-pointer ${
-                      isHeroLiked ? "text-[#E4603C]" : "text-[#241621]/70 hover:text-[#E4603C]"
-                    }`}
-                  >
-                    <Heart className={`h-4 w-4 ${isHeroLiked ? "fill-[#E4603C]" : ""}`} />
-                    <span>{heroLikes} Wishes</span>
-                  </button>
-                  <span className="text-[#6B5A66] font-semibold">48 Photos Added</span>
-                </div>
-              </div>
-
-              {/* Floating Invite Badge Card */}
-              <div className="absolute -top-6 -left-6 z-20 rounded-2xl bg-white border border-[#241621]/10 p-3.5 shadow-xl max-w-[200px] hidden sm:block animate-bounce-slow">
-                <span className="text-[9px] font-extrabold uppercase tracking-wider text-[#E4603C] block mb-1">
-                  Digital Invitation
-                </span>
-                <h5 className="text-xs font-bold text-[#241621]">Maya & Alex's Wedding 💍</h5>
-                <span className="text-[10px] text-[#6B5A66] mt-1 block font-medium">
-                  💌 128 RSVPs Confirmed
-                </span>
-              </div>
-
-              {/* Floating Wish Bubble Card */}
-              <div className="absolute -bottom-8 -right-6 z-20 rounded-2xl bg-[#FFFDF9] border border-[#241621]/10 p-4 shadow-xl max-w-[260px] hidden sm:block">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="h-7 w-7 rounded-full bg-[#E4603C] text-white text-[10px] font-bold flex items-center justify-center">
-                    DV
-                  </div>
-                  <div>
-                    <h5 className="text-xs font-bold text-[#241621]">David Vance</h5>
-                    <span className="text-[9px] text-[#6B5A66]">2m ago</span>
-                  </div>
-                </div>
-                <p className="text-xs text-[#6B5A66] leading-relaxed italic">
-                  "So glad we could celebrate this milestone together! Check out the polaroid photos
-                  I uploaded 📸"
-                </p>
-              </div>
-
-              {/* Floating Reaction Badges */}
-              <div className="absolute top-1/2 -right-10 z-20 bg-white border border-[#241621]/10 p-2.5 rounded-2xl shadow-lg text-2xl animate-pulse">
-                🥳
-              </div>
-              <div className="absolute top-1/3 -left-10 z-20 bg-white border border-[#241621]/10 p-2.5 rounded-2xl shadow-lg text-2xl animate-pulse">
-                💖
-              </div>
-            </div>
+          {/* Right Visual Stage: All 4 SocioDex Deliverables Live Together */}
+          <div className="lg:col-span-6 relative w-full flex justify-center lg:justify-start fade-up">
+            <HeroDeliverablesStage />
           </div>
         </div>
       </header>
@@ -433,330 +360,30 @@ function SocioDexLandingPage() {
         </div>
       </section>
 
-      {/* ── 6. SECTION 3: THE SOLUTION (INTERACTIVE MOCKUP) ── */}
-      <section id="solution" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#FAF6F0] relative">
-        <div className="max-w-6xl mx-auto text-center space-y-12">
-          <div className="space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
-              Introducing SocioDex
-            </span>
+      {/* ── 6. SECTION 3: THE SOLUTION (MULTI-DEVICE & POSTCARD SHOWCASE) ── */}
+      <DeviceShowcase />
 
-            <div className="flex justify-center pt-2">
-              <div className="h-14 w-14 rounded-3xl bg-[#E4603C] flex items-center justify-center text-white text-2xl shadow-md">
-                ✨
-              </div>
-            </div>
-
-            <h2
-              className="font-display text-3xl sm:text-5xl font-bold text-[#241621]"
-              style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-            >
-              Meet SocioDex.
-            </h2>
-            <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
-              A place where every celebration gets its own living digital home.
-            </p>
-          </div>
-
-          {/* Interactive Mac-style Mockup Stage */}
-          <div className="rounded-3xl border border-[#241621]/15 bg-white shadow-[0_32px_80px_rgba(36,22,33,0.1)] overflow-hidden text-left max-w-4xl mx-auto">
-            {/* Header bar */}
-            <div className="bg-[#FAF6F0] border-b border-[#241621]/10 px-4 py-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-red-400 inline-block" />
-                <span className="h-3 w-3 rounded-full bg-amber-400 inline-block" />
-                <span className="h-3 w-3 rounded-full bg-green-400 inline-block" />
-              </div>
-              <div className="bg-white border border-[#241621]/10 rounded-full px-4 py-1 text-xs font-sans text-[#6B5A66] flex items-center gap-2">
-                <Lock className="h-3 w-3 text-green-600" />
-                <span>sociodex.app/sarah-turns-30</span>
-              </div>
-              <div className="w-12" />
-            </div>
-
-            {/* Body */}
-            <div className="p-6 space-y-6">
-              {/* Banner */}
-              <div className="relative rounded-2xl overflow-hidden aspect-[3/1] bg-[#241621] text-white">
-                <img
-                  src="https://images.unsplash.com/photo-1513151233558-d860c5398176?auto=format&fit=crop&q=80&w=1000"
-                  alt="Sarah's 30th"
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover opacity-60"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent p-6 flex flex-col justify-end">
-                  <h3
-                    className="font-display text-2xl sm:text-3xl font-bold text-white"
-                    style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-                  >
-                    Sarah's 30th Milestone Celebration ✨
-                  </h3>
-                  <p className="text-xs text-white/80 mt-1">
-                    Preserved by 42 friends • 186 Memories Captured
-                  </p>
-                </div>
-              </div>
-
-              {/* Tabs */}
-              <div className="flex items-center gap-2 border-b border-[#241621]/10 pb-3 overflow-x-auto">
-                {[
-                  { id: "all", label: "✨ All Memories" },
-                  { id: "photos", label: "📸 Photos & Videos" },
-                  { id: "wishes", label: "💌 Wish Wall" },
-                  { id: "rsvps", label: "🥂 Guests & RSVPs" },
-                ].map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => setMockupTab(t.id as any)}
-                    className={`px-4 py-2 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                      mockupTab === t.id
-                        ? "bg-[#E4603C] text-white shadow-xs"
-                        : "text-[#6B5A66] hover:bg-[#FAF6F0]"
-                    }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Content Grid */}
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="md:col-span-2 space-y-4">
-                  {(mockupTab === "all" || mockupTab === "wishes") && (
-                    <div className="rounded-2xl border border-[#241621]/10 p-4 bg-[#FFFDF9] space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-[#E4603C] text-white text-xs font-bold flex items-center justify-center">
-                          EM
-                        </div>
-                        <div>
-                          <h5 className="text-xs font-bold text-[#241621]">Emma Watson</h5>
-                          <span className="text-[10px] text-[#6B5A66]">Wrote a wish • 10m ago</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-[#241621] leading-relaxed">
-                        "Happy 30th Sarah! From college dorms to this amazing milestone, so proud of
-                        everything you've achieved. Here's to 30 more years of adventures! 🎉🥂"
-                      </p>
-                      <button
-                        onClick={() =>
-                          setMockupLikes((prev) => ({ ...prev, emma: prev.emma + 1 }))
-                        }
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E4603C] hover:scale-105 transition-transform cursor-pointer"
-                      >
-                        <Heart className="h-3.5 w-3.5 fill-[#E4603C]" />
-                        <span>{mockupLikes.emma} Likes</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {(mockupTab === "all" || mockupTab === "photos") && (
-                    <div className="rounded-2xl border border-[#241621]/10 p-4 bg-[#FFFDF9] space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-[#5C3A50] text-white text-xs font-bold flex items-center justify-center">
-                          JL
-                        </div>
-                        <div>
-                          <h5 className="text-xs font-bold text-[#241621]">Jason Lee</h5>
-                          <span className="text-[10px] text-[#6B5A66]">
-                            Uploaded 2 photos • 25m ago
-                          </span>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 rounded-xl overflow-hidden h-36">
-                        <img
-                          src="https://images.unsplash.com/photo-1530103862676-de8c9debad1d?auto=format&fit=crop&q=80&w=400"
-                          alt="Photo 1"
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover"
-                        />
-                        <img
-                          src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=400"
-                          alt="Photo 2"
-                          loading="lazy"
-                          decoding="async"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      <button
-                        onClick={() =>
-                          setMockupLikes((prev) => ({ ...prev, jason: prev.jason + 1 }))
-                        }
-                        className="inline-flex items-center gap-1.5 text-xs font-bold text-[#E4603C] hover:scale-105 transition-transform cursor-pointer"
-                      >
-                        <Heart className="h-3.5 w-3.5 fill-[#E4603C]" />
-                        <span>{mockupLikes.jason} Likes</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {mockupTab === "rsvps" && (
-                    <div className="rounded-2xl border border-[#241621]/10 p-4 bg-[#FFFDF9] space-y-3">
-                      <h4 className="text-xs font-bold text-[#241621]">Event RSVPs Confirmed</h4>
-                      <div className="space-y-2 text-xs">
-                        <div className="flex justify-between items-center py-1 border-b border-[#241621]/5">
-                          <span className="font-medium">Alex Rivera</span>
-                          <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            Attending
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-1 border-b border-[#241621]/5">
-                          <span className="font-medium">Chloe Vance</span>
-                          <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            Attending
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center py-1">
-                          <span className="font-medium">Marcus Bell</span>
-                          <span className="text-green-700 bg-green-50 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                            Attending
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sidebar Column */}
-                <div className="space-y-4">
-                  <div className="rounded-2xl border border-[#241621]/10 p-4 bg-[#FAF6F0] space-y-3">
-                    <h4 className="text-xs font-bold text-[#241621] uppercase tracking-wider">
-                      Memory Wall Stats
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex justify-between">
-                        <span className="text-[#6B5A66]">Total Wishes</span>
-                        <strong className="text-[#241621]">84 Messages</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#6B5A66]">Media Uploaded</span>
-                        <strong className="text-[#241621]">142 Photos & Videos</strong>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-[#6B5A66]">Forever Link</span>
-                        <strong className="text-[#E4603C]">Active Forever</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="rounded-2xl border border-[#241621]/10 p-4 bg-[#FAF6F0] space-y-3">
-                    <h4 className="text-xs font-bold text-[#241621] uppercase tracking-wider">
-                      Confirmed Guests
-                    </h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex items-center justify-between">
-                        <span>Alex Rivera</span>
-                        <span className="text-green-600 text-[10px] font-bold">Attending</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Chloe Vance</span>
-                        <span className="text-green-600 text-[10px] font-bold">Attending</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span>Marcus Bell</span>
-                        <span className="text-green-600 text-[10px] font-bold">Attending</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── 7. SECTION 4: CELEBRATE ANYTHING ── */}
-      <section id="celebrate" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center space-y-12">
-          <div className="space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
+      {/* ── 7. SECTION 4: CELEBRATE ANYTHING (Single Revolving Strap Carousel) ── */}
+      <section id="celebrate" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+        <div className="text-center space-y-8">
+          <div className="space-y-2.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-3.5 py-1 rounded-full">
               Versatile Memory Pages
             </span>
             <h2
-              className="font-display text-3xl sm:text-5xl font-bold text-[#241621]"
+              className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#241621]"
               style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
             >
               Celebrate anything.
             </h2>
-            <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
+            <p className="text-xs sm:text-sm text-[#6B5A66] max-w-md mx-auto font-medium">
               Custom themes, smart layouts, and tailored guestbooks designed for life's biggest
               milestones.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4 text-left">
-            {[
-              {
-                pill: "Popular",
-                emoji: "🎂",
-                title: "Birthdays",
-                desc: "Turn birthday messages into a vibrant digital guestbook with photos and voice notes.",
-              },
-              {
-                pill: "Luxury",
-                emoji: "💍",
-                title: "Weddings",
-                desc: "Collect wedding wishes, guest RSVPs, and live photo streams from every table in one place.",
-              },
-              {
-                pill: "Teams",
-                emoji: "🏢",
-                title: "Corporate Events",
-                desc: "Celebrate product launches, team milestones, and annual retreats with your company.",
-              },
-              {
-                pill: "Milestone",
-                emoji: "🎓",
-                title: "Graduations",
-                desc: "Preserve memories, group photos, and advice for graduates from family and friends.",
-              },
-              {
-                pill: "Joyful",
-                emoji: "👶",
-                title: "Baby Showers",
-                desc: "Welcome the new arrival with heartfelt wishes, registry links, and ultrasound memories.",
-              },
-              {
-                pill: "Love",
-                emoji: "❤️",
-                title: "Anniversaries",
-                desc: "Look back at decades of love with a timeline of photos and messages from loved ones.",
-              },
-              {
-                pill: "Heartfelt",
-                emoji: "🎉",
-                title: "Farewells",
-                desc: "Replace paper cards with a permanent digital farewell book for departing colleagues.",
-              },
-              {
-                pill: "Family",
-                emoji: "👨‍👩‍👧",
-                title: "Reunions",
-                desc: "Bring generations together to document family history, recipes, and gathering photos.",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className="group rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs hover:shadow-xl hover:border-[#E4603C]/40 transition-all duration-300 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="text-3xl">{item.emoji}</div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest bg-[#E4603C]/10 text-[#E4603C] px-3 py-1 rounded-full">
-                      {item.pill}
-                    </span>
-                  </div>
-                  <h3 className="font-display text-xl font-bold text-[#241621] mb-2">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-[#6B5A66] leading-relaxed font-medium">
-                    {item.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {/* Single Revolving Strap Ribbon with Left/Right Buttons */}
+          <CelebrationStrapCarousel />
         </div>
       </section>
 
@@ -1190,67 +817,26 @@ function SocioDexLandingPage() {
         </div>
       </section>
 
-      {/* ── 11. SECTION 8: WHO IT'S FOR ── */}
-      <section id="who-its-for" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center space-y-12">
-          <div className="space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
+      {/* ── 11. SECTION 8: WHO IT'S FOR (Continuous Revolving Strap) ── */}
+      <section id="who-its-for" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+        <div className="text-center space-y-8">
+          <div className="space-y-2.5">
+            <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-3.5 py-1 rounded-full">
               Built for Everyone
             </span>
             <h2
-              className="font-display text-3xl sm:text-5xl font-bold text-[#241621]"
+              className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-[#241621]"
               style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
             >
               Who SocioDex is for.
             </h2>
-            <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
+            <p className="text-xs sm:text-sm text-[#6B5A66] max-w-md mx-auto font-medium">
               Whether you're planning an intimate gathering or a major corporate milestone.
             </p>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 text-left">
-            {[
-              {
-                emoji: "🏡",
-                title: "Families",
-                desc: "Archive birthdays, anniversaries, baby milestones, and family reunions in one shared space.",
-              },
-              {
-                emoji: "🥂",
-                title: "Friend Groups",
-                desc: "Collect hilarious photos, inside jokes, and heartfelt wishes for friend birthdays & trips.",
-              },
-              {
-                emoji: "💼",
-                title: "Companies",
-                desc: "Give departing teammates memorable farewell walls and celebrate company work anniversaries.",
-              },
-              {
-                emoji: "🎓",
-                title: "Schools & Alumni",
-                desc: "Gather graduation wishes, yearbook memories, and reunion photos effortlessly.",
-              },
-              {
-                emoji: "🌐",
-                title: "Communities",
-                desc: "Document local festivals, volunteer milestones, and club anniversaries together.",
-              },
-              {
-                emoji: "✨",
-                title: "Event Organizers",
-                desc: "Offer clients a premium digital memory souvenir for weddings, galas, and parties.",
-              },
-            ].map((item, idx) => (
-              <div
-                key={idx}
-                className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs hover:shadow-xl transition-all duration-300 space-y-3"
-              >
-                <div className="text-3xl">{item.emoji}</div>
-                <h3 className="font-display text-xl font-bold text-[#241621]">{item.title}</h3>
-                <p className="text-xs text-[#6B5A66] leading-relaxed font-medium">{item.desc}</p>
-              </div>
-            ))}
-          </div>
+          {/* Continuous Revolving Audience Ribbon */}
+          <AudienceStrapCarousel />
         </div>
       </section>
 
