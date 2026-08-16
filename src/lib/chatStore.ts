@@ -367,16 +367,16 @@ export const useChatStore = create<ChatStore>()(
 
         // If Supabase database table exists, also attempt persistence
         if (isSupabaseConfigured && currentUser?.id) {
-          supabase
-            .from("messages")
-            .insert({
-              conversation_id: conversationId,
-              sender_id: currentUser.id,
-              content,
-              media_url: mediaUrl || null,
-            })
-            .then(() => {})
-            .catch(() => {});
+          Promise.resolve(
+            supabase
+              .from("messages")
+              .insert({
+                conversation_id: conversationId,
+                sender_id: currentUser.id,
+                content,
+                media_url: mediaUrl || null,
+              })
+          ).catch(() => {});
         }
       },
 

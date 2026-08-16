@@ -3,8 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 /**
  * Server-Side Dispatch Function for Resend Emails (Bypasses Browser CORS)
  */
-export const serverDispatchEmail = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: { to: string; subject: string; html: string; apiKey?: string; fromEmail?: string } }) => {
+export const serverDispatchEmail = (createServerFn({ method: "POST" }) as any).handler(
+  async ({ data }: { data: { to: string; subject: string; html: string; apiKey?: string; fromEmail?: string } }) => {
     const activeApiKey =
       data.apiKey ||
       (typeof process !== "undefined" ? process.env?.RESEND_API_KEY || process.env?.VITE_RESEND_API_KEY : undefined) ||
@@ -60,13 +60,14 @@ export const serverDispatchEmail = createServerFn({ method: "POST" })
         error: err.message || "Failed to connect to Resend API.",
       };
     }
-  });
+  }
+);
 
 /**
  * Server-Side Dispatch Function for Twilio WhatsApp (Bypasses Browser CORS & Handles Auth)
  */
-export const serverDispatchWhatsAppTwilio = createServerFn({ method: "POST" })
-  .handler(async ({ data }: { data: { toPhone: string; messageText: string; accountSid?: string; authToken?: string; fromNumber?: string; contentSid?: string; contentVariables?: string } }) => {
+export const serverDispatchWhatsAppTwilio = (createServerFn({ method: "POST" }) as any).handler(
+  async ({ data }: { data: { toPhone: string; messageText: string; accountSid?: string; authToken?: string; fromNumber?: string; contentSid?: string; contentVariables?: string } }) => {
     const activeAccountSid =
       data.accountSid ||
       (typeof process !== "undefined" ? process.env?.TWILIO_ACCOUNT_SID || process.env?.VITE_TWILIO_ACCOUNT_SID : undefined) ||

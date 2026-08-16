@@ -227,10 +227,11 @@ function SchedulerPage() {
 
   // Update default organizer email when logged-in user changes
   useEffect(() => {
-    if (currentUser?.email) {
+    const userEmail = currentUser?.email;
+    if (userEmail) {
       setTeamEmails((prev) => {
         if (prev.length === 0 || !prev[0]) {
-          return [currentUser.email, ...prev.slice(1)];
+          return [userEmail, ...prev.slice(1)];
         }
         return prev;
       });
