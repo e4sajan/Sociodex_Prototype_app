@@ -33,3 +33,5 @@ export function SocioDexLogo({
     </div>
   );
 }
+
+export { SocioDexIcon } from "./SocioDexIcon";

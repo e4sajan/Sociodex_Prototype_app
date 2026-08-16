@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none">
+  <rect width="128" height="128" rx="28" fill="#FFFDF9" stroke="#241621" stroke-width="2" stroke-opacity="0.08" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Baloo+2:wght@800&amp;display=swap');
+    .sd-app-text {
+      font-family: 'Baloo 2', system-ui, -apple-system, sans-serif;
+      font-weight: 800;
+      font-size: 66px;
+      fill: #241621;
+      letter-spacing: 2px;
+    }
+  </style>
+  <text x="64" y="70" text-anchor="middle" class="sd-app-text">SD</text>
+  <path d="M 26 80 C 40 106, 88 106, 102 80" stroke="#241621" stroke-width="9" stroke-linecap="round" fill="none" />
+</svg>
