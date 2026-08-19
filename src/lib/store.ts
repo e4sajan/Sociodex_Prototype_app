@@ -91,6 +91,7 @@ export type SimulatedReply = {
 export type MemoryData = {
   slug: string;
   occasion: string;
+  customHeading?: string;
   recipient: string;
   from: string;
   date: string;

@@ -20,6 +20,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import type { MemoryData } from "@/lib/store";
+import { formatMemoryHeading } from "@/lib/occasionUtils";
 import { SocioDexLogo } from "@/components/SocioDexLogo";
 import { toast } from "sonner";
 
@@ -220,7 +221,14 @@ export function PostcardModal({ memory, isOpen, onClose }: PostcardModalProps) {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const logoSrc = `${origin}/sociodex-logo-dark.png`;
 
-      const safeOccasion = memory.occasion || "Celebration Memory";
+      const headingInfo = formatMemoryHeading({
+        occasion: memory.occasion,
+        recipient: memory.recipient,
+        customHeading: memory.customHeading,
+        isInvitation: memory.isInvitation,
+        coupleNames: memory.coupleNames,
+      });
+      const safeOccasion = headingInfo.fullTitle || memory.customHeading || memory.occasion || "Celebration Memory";
       const safeRecipient = memory.recipient || "";
       const safeCreator = creatorName || "";
       const safeNote =
@@ -892,27 +900,42 @@ function PostcardContent({
         </div>
 
         {/* Heading / Memory Occasion */}
-        <div>
-          <h2
-            className="font-display font-bold leading-tight line-clamp-2"
-            style={{
-              color: theme.text,
-              fontSize: isPortrait ? "1.25rem" : "1.35rem",
-            }}
-          >
-            {memory.occasion}
-          </h2>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] sm:text-xs">
-            <span style={{ color: theme.subtext }}>
-              For: <strong style={{ color: theme.text }}>{memory.recipient}</strong>
-            </span>
-            {creatorName && (
-              <span style={{ color: theme.subtext }}>
-                • From: <strong style={{ color: theme.text }}>{creatorName}</strong>
-              </span>
-            )}
-          </div>
-        </div>
+        {(() => {
+          const headingInfo = formatMemoryHeading({
+            occasion: memory.occasion,
+            recipient: memory.recipient,
+            customHeading: memory.customHeading,
+            isInvitation: memory.isInvitation,
+            coupleNames: memory.coupleNames,
+          });
+          const displayTitle = headingInfo.fullTitle || memory.customHeading || memory.occasion;
+
+          return (
+            <div>
+              <h2
+                className="font-display font-bold leading-tight line-clamp-2"
+                style={{
+                  color: theme.text,
+                  fontSize: isPortrait ? "1.25rem" : "1.35rem",
+                }}
+              >
+                {displayTitle}
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] sm:text-xs">
+                {memory.recipient && !displayTitle.toLowerCase().includes(memory.recipient.toLowerCase()) && (
+                  <span style={{ color: theme.subtext }}>
+                    For: <strong style={{ color: theme.text }}>{memory.recipient}</strong>
+                  </span>
+                )}
+                {creatorName && (
+                  <span style={{ color: theme.subtext }}>
+                    {memory.recipient && !displayTitle.toLowerCase().includes(memory.recipient.toLowerCase()) ? "• " : ""}From: <strong style={{ color: theme.text }}>{creatorName}</strong>
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* ── 2. CENTER SECTION (QR CODE + SCAN INSTRUCTIONS + NOTE) ── */}

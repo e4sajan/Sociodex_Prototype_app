@@ -23,6 +23,7 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase";
 import { compressImageFile } from "@/lib/imageCompressor";
+import { formatMemoryHeading, getOccasionIcon } from "@/lib/occasionUtils";
 import {
   Check,
   X,
@@ -438,27 +439,6 @@ function FunctionalAudioPlayer({ src, name }: { src?: string; name: string }) {
     </div>
   );
 }
-
-const getOccasionIcon = (occasion: string) => {
-  switch (occasion.toLowerCase()) {
-    case "wedding":
-      return "💍";
-    case "baby shower":
-      return "🍼";
-    case "birthday":
-      return "🎂";
-    case "anniversary":
-      return "🥂";
-    case "housewarming":
-      return "🏡";
-    case "farewell":
-      return "🌿";
-    case "thank you":
-      return "🙏";
-    default:
-      return "✨";
-  }
-};
 
 /* ─── Main Public Memory Page Component ─── */
 function PublicMemoryPage() {
@@ -1733,50 +1713,87 @@ function PublicMemoryPage() {
             </div>
           )}
 
-          {/* Occasion Badge */}
-          <span
-            className="inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-xs font-bold text-white shadow-xs mb-3.5"
-            style={{ backgroundColor: pageTheme.accent }}
-          >
-            {activeMemory.isCorporate ? "💼" : getOccasionIcon(activeMemory.occasion)} {activeMemory.occasion}
-          </span>
+          {/* Occasion Badge & Smart Heading */}
+          {(() => {
+            const formatted = formatMemoryHeading({
+              occasion: activeMemory.occasion,
+              recipient: activeMemory.recipient,
+              customHeading: activeMemory.customHeading,
+              isInvitation: activeMemory.isInvitation,
+              coupleNames: activeMemory.coupleNames,
+            });
 
-          {activeMemory.isInvitation ? (
-            <>
-              <span className="text-[10px] font-bold uppercase tracking-widest text-[#594855] block mb-1.5">
-                CORDIALLY INVITING YOU TO CELEBRATE
-              </span>
-              <h1
-                className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-neutral-900 leading-tight"
-                style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
-              >
-                The {activeMemory.occasion} of
-                <br />
-                <span style={{ color: pageTheme.accent }} className="block mt-1">
-                  {activeMemory.coupleNames || activeMemory.recipient}
+            return (
+              <>
+                {/* Occasion Badge */}
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-4 py-1 text-xs font-bold text-white shadow-xs mb-3.5"
+                  style={{ backgroundColor: pageTheme.accent }}
+                >
+                  {activeMemory.isCorporate ? "💼" : formatted.badgeIcon} {formatted.badgeLabel}
                 </span>
-              </h1>
-              <p className="text-neutral-500 text-xs sm:text-sm mt-3.5 max-w-md mx-auto leading-relaxed">
-                Hosted with love by <strong className="text-neutral-800 font-semibold">{activeMemory.from}</strong>
-              </p>
-            </>
-          ) : (
-            <>
-              <h1
-                className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-neutral-900 leading-tight"
-                style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
-              >
-                Happy {activeMemory.occasion},
-                <br />
-                <span style={{ color: pageTheme.accent }} className="block mt-1">
-                  {activeMemory.recipient}
-                </span>
-              </h1>
-              <p className="text-neutral-500 text-xs sm:text-sm mt-3.5 max-w-md mx-auto leading-relaxed">
-                With love from <strong className="text-neutral-800 font-semibold">{activeMemory.from}</strong>
-              </p>
-            </>
-          )}
+
+                {activeMemory.isInvitation ? (
+                  <>
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[#594855] block mb-1.5">
+                      {formatted.prefix || "CORDIALLY INVITING YOU TO CELEBRATE"}
+                    </span>
+                    <h1
+                      className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-neutral-900 leading-tight"
+                      style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
+                    >
+                      {formatted.mainText ? (
+                        <>
+                          {formatted.mainText}
+                          {formatted.highlightText && (
+                            <span style={{ color: pageTheme.accent }} className="block mt-1">
+                              {formatted.highlightText}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {formatted.prefix}
+                          <br />
+                          <span style={{ color: pageTheme.accent }} className="block mt-1">
+                            {formatted.highlightText || activeMemory.coupleNames || activeMemory.recipient}
+                          </span>
+                        </>
+                      )}
+                    </h1>
+                    <p className="text-neutral-500 text-xs sm:text-sm mt-3.5 max-w-md mx-auto leading-relaxed">
+                      Hosted with love by <strong className="text-neutral-800 font-semibold">{activeMemory.from}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h1
+                      className="font-display text-3xl sm:text-5xl font-bold tracking-tight text-neutral-900 leading-tight"
+                      style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
+                    >
+                      {formatted.prefix && (
+                        <>
+                          {formatted.prefix}
+                          <br />
+                        </>
+                      )}
+                      {formatted.mainText && (
+                        <span>{formatted.mainText}</span>
+                      )}
+                      {formatted.highlightText && (
+                        <span style={{ color: pageTheme.accent }} className="block mt-1">
+                          {formatted.highlightText}
+                        </span>
+                      )}
+                    </h1>
+                    <p className="text-neutral-500 text-xs sm:text-sm mt-3.5 max-w-md mx-auto leading-relaxed">
+                      With love from <strong className="text-neutral-800 font-semibold">{activeMemory.from}</strong>
+                    </p>
+                  </>
+                )}
+              </>
+            );
+          })()}
 
           <div className="flex items-center justify-center gap-2 text-xs font-semibold text-[#594855] mt-3">
             <Calendar className="h-3.5 w-3.5 text-[#C17F5A]" />

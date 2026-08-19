@@ -658,7 +658,7 @@ function MemoryShutterCard({
         {/* Title and Recipient */}
         <div>
           <h3 className="font-display text-lg sm:text-xl font-bold text-[#241621] leading-snug">
-            {mem.occasion}
+            {mem.customHeading || mem.occasion}
           </h3>
           <p className="text-xs sm:text-sm text-[#594855] font-medium mt-0.5">
             For: <strong className="text-[#241621]">{mem.recipient}</strong>

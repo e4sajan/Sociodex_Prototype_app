@@ -5,6 +5,7 @@ import { OCCASIONS, THEMES } from "@/lib/data";
 import { useStore, type MemoryData } from "@/lib/store";
 import { saveMemoryToSupabase, isSupabaseConfigured } from "@/lib/supabase";
 import { compressImageFile } from "@/lib/imageCompressor";
+import { formatMemoryHeading, getOccasionIcon } from "@/lib/occasionUtils";
 import {
   Check,
   Plus,
@@ -22,6 +23,21 @@ import {
   Share2,
   AlertCircle,
   Printer,
+  Sparkles,
+  ArrowRight,
+  ArrowLeft,
+  Calendar,
+  Layers,
+  Heart,
+  Palette,
+  Eye,
+  Smartphone,
+  CreditCard,
+  Shield,
+  Users,
+  Lock,
+  Globe,
+  CheckCircle2,
 } from "lucide-react";
 import { PostcardModal } from "@/components/PostcardModal";
 
@@ -51,16 +67,23 @@ function MemoryCreator() {
     }
   }, [currentUser, navigate]);
 
-  // Creator Mode State
+  // ── Step Navigation State (1: Details, 2: Wishes & Media, 3: Template & Launch) ──
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
+
+  // ── Step 1: Basic Details ──
   const [pageType, setPageType] = useState<"wish" | "invite">("wish");
-
   const [occasion, setOccasion] = useState(OCCASIONS[0]);
+  const [customHeading, setCustomHeading] = useState("");
   const [recipient, setRecipient] = useState("");
-  const [from, setFrom] = useState("");
+  const [from, setFrom] = useState(currentUser?.name || "");
   const [date, setDate] = useState("");
-  const [themeId, setThemeId] = useState(THEMES[0].id);
 
-  // Invitation fields state
+  const isCustomOccasion =
+    occasion === "Other" ||
+    occasion === "Other (Custom Heading)" ||
+    occasion.toLowerCase().startsWith("other");
+
+  // Invitation specific fields
   const isInvitation = pageType === "invite";
   const [coupleNames, setCoupleNames] = useState("");
   const [venueName, setVenueName] = useState("");
@@ -72,27 +95,35 @@ function MemoryCreator() {
     { time: "", event: "" },
   ]);
 
-  // Optional pre-filled personal wish for Wish Book mode
-  const [hostWish, setHostWish] = useState("");
+  // Corporate Mode
+  const [isCorporate, setIsCorporate] = useState(false);
+  const [corporateLogo, setCorporateLogo] = useState("");
 
+  // ── Step 2: Wishes & Media ──
+  const [hostWish, setHostWish] = useState("");
   const [photos, setPhotos] = useState<string[]>([]);
   const [lightbox, setLightbox] = useState<string | null>(null);
-
   const [audios, setAudios] = useState<{ id: string; name: string; url: string }[]>([]);
   const [videos, setVideos] = useState<{ id: string; name: string; url: string }[]>([]);
   const [recording, setRecording] = useState(false);
+
+  // ── Step 3: Design Template & Privacy ──
+  const [themeId, setThemeId] = useState(THEMES[0].id);
+  const [contributionMode, setContributionMode] = useState<"open" | "guests" | "closed">("open");
+
+  // ── Final Created State & UI ──
   const [created, setCreated] = useState<MemoryData | null>(null);
   const [qrUrl, setQrUrl] = useState("");
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [showMobilePreviewModal, setShowMobilePreviewModal] = useState(false);
 
   const photoInput = useRef<HTMLInputElement>(null);
   const audioInput = useRef<HTMLInputElement>(null);
   const videoInput = useRef<HTMLInputElement>(null);
   const logoInput = useRef<HTMLInputElement>(null);
 
-  const [isCorporate, setIsCorporate] = useState(false);
-  const [corporateLogo, setCorporateLogo] = useState("");
+  const activeTheme = THEMES.find((t) => t.id === themeId) || THEMES[0];
 
   const handleLogoUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -116,16 +147,24 @@ function MemoryCreator() {
     }
   };
 
-  const isValid = () => {
+  // Validation for Step 1
+  const isStep1Valid = () => {
+    if (isCustomOccasion && !customHeading.trim() && !recipient.trim()) {
+      return false;
+    }
     const baseValid = isInvitation
       ? coupleNames.trim() && from.trim() && date
-      : recipient.trim() && from.trim() && date;
-    
+      : (isCustomOccasion ? (customHeading.trim() || recipient.trim()) : recipient.trim()) &&
+        from.trim() &&
+        date;
+
     if (isCorporate && !corporateLogo) {
       return false;
     }
-    return baseValid;
+    return Boolean(baseValid);
   };
+
+  const isValid = () => isStep1Valid();
 
   const handlePhotos = async (files: FileList | null) => {
     if (!files) return;
@@ -180,14 +219,23 @@ function MemoryCreator() {
     setCreating(true);
     console.log("[handleCreate] starting", { recipient, coupleNames, from, date, hostWish });
     try {
-      const displayName = isInvitation ? coupleNames.trim() : recipient.trim();
-      const slug =
-        (displayName.toLowerCase().replace(/[^a-z0-9]+/g, "-") || "memory") +
-        "-" +
-        Math.random().toString(36).slice(2, 6);
+      const finalOccasion = isCustomOccasion
+        ? customHeading.trim() || "Special Memory"
+        : occasion;
+      const displayName = isInvitation
+        ? coupleNames.trim()
+        : recipient.trim() || (isCustomOccasion ? customHeading.trim() : "");
+      const cleanSlugSource =
+        (customHeading.trim() || displayName || "memory")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "") || "memory";
+      const slug = `${cleanSlugSource.slice(0, 32)}-${Math.random().toString(36).slice(2, 6)}`;
+
       const data: MemoryData = {
         slug,
-        occasion,
+        occasion: finalOccasion,
+        customHeading: customHeading.trim() || undefined,
         recipient: displayName,
         from: from.trim(),
         creatorName: currentUser?.name || from.trim(),
@@ -215,8 +263,7 @@ function MemoryCreator() {
         comments: [],
         contributedMedia: [],
         collaborationRequests: [],
-        // Community defaults
-        contributionMode: "open",
+        contributionMode,
         autoApprove: true,
         pinnedContributionIds: [],
         expiresAt: null,
@@ -226,13 +273,14 @@ function MemoryCreator() {
         isCorporate,
         corporateLogo,
       };
+
       const url =
         typeof window !== "undefined" ? `${window.location.origin}/m/${slug}` : `/m/${slug}`;
       console.log("[handleCreate] generating QR for", url);
       const generatedQr = await QRCode.toDataURL(url, {
         margin: 1,
         width: 360,
-        color: { dark: "#E4603C", light: "#FFFDF9" },
+        color: { dark: activeTheme.accent || "#E4603C", light: "#FFFDF9" },
       });
       console.log("[handleCreate] QR generated, setting state");
       setMemory(data);
@@ -262,559 +310,1339 @@ function MemoryCreator() {
     );
 
   return (
-    <div className="mx-auto max-w-4xl px-4 pt-8 pb-24 sm:px-6">
-      <div className="mb-6 fade-up">
-        <h1 className="font-display text-4xl sm:text-5xl">Create a memory page</h1>
-        <p className="mt-2 text-muted-foreground font-medium text-neutral-500">
-          A gorgeous interactive space to share details, collect RSVPs, and preserve warm thoughts.
+    <div className="mx-auto max-w-7xl px-3 sm:px-6 pt-4 sm:pt-6 pb-28 lg:pb-24">
+      {/* Header & Tagline */}
+      <div className="mb-4 sm:mb-6">
+        <span className="text-[10px] sm:text-[11px] font-extrabold uppercase tracking-widest text-[#E4603C] block mb-0.5 sm:mb-1">
+          Interactive Memory Creator
+        </span>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="font-display text-2xl sm:text-4xl lg:text-5xl font-bold text-neutral-900 leading-tight">
+            Create Memory Page
+          </h1>
+          {/* Desktop Live Sync Badge */}
+          <div className="hidden lg:flex items-center gap-1.5 text-xs text-neutral-500 font-medium bg-white px-3 py-1.5 rounded-full border border-neutral-200/80 shadow-2xs">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Real-time Live Sync</span>
+          </div>
+        </div>
+        <p className="mt-1 text-xs sm:text-sm text-neutral-500 font-medium max-w-xl">
+          3 quick steps to craft a living memory page with wishes, photos, and music.
         </p>
       </div>
 
-      <div className="space-y-6 fade-up">
-        {/* Card 1: Page Type Selector */}
-        <div className="card-soft p-5 sm:p-6 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
-          <div className="text-center mb-4">
-            <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-1">
-              Creation Mode
-            </span>
-            <h2 className="font-display text-xl font-semibold text-neutral-800">
-              What kind of page are you creating?
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <button
-              type="button"
-              onClick={() => handlePageTypeSelect("wish")}
-              className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all cursor-pointer select-none ${
-                pageType === "wish"
-                  ? "border-[#E4603C] bg-[#F4ECE0]/10 ring-2 ring-[#E4603C]/25"
-                  : "border-border bg-white hover:bg-neutral-50/50"
-              }`}
-            >
-              <span className="text-3xl shrink-0">🎂</span>
-              <div className="min-w-0">
-                <strong className="text-sm font-bold text-neutral-800 block">
-                  Wish & Memory Book
-                </strong>
-                <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug max-w-[240px]">
-                  Digital scrapbook for birthdays, farewells, or milestone wishes.
-                </p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handlePageTypeSelect("invite")}
-              className={`flex items-center gap-4 p-4 rounded-xl border text-left transition-all cursor-pointer select-none ${
-                pageType === "invite"
-                  ? "border-[#E4603C] bg-[#F4ECE0]/10 ring-2 ring-[#E4603C]/25"
-                  : "border-border bg-white hover:bg-neutral-50/50"
-              }`}
-            >
-              <span className="text-3xl shrink-0">💌</span>
-              <div className="min-w-0">
-                <strong className="text-sm font-bold text-neutral-800 block">
-                  Event Invitation Card
-                </strong>
-                <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug max-w-[240px]">
-                  Event page for weddings or anniversaries with schedule, maps, & RSVPs.
-                </p>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Corporate Mode Toggle & Logo Upload */}
-        <div className="card-soft p-5 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
-          <input
-            ref={logoInput}
-            type="file"
-            accept="image/*"
-            hidden
-            onChange={(e) => handleLogoUpload(e.target.files)}
+      {/* ─── 3-STEP WIZARD PROGRESS BAR (Optimized for Mobile) ─── */}
+      <div className="mb-6 sm:mb-8 p-2 sm:p-3.5 rounded-2xl bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.03)]">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-3">
+          <StepTab
+            stepNumber={1}
+            shortTitle="Details"
+            fullTitle="1. Basic Details"
+            subtitle="Occasion & dates"
+            isActive={currentStep === 1}
+            isCompleted={currentStep > 1}
+            onClick={() => setCurrentStep(1)}
           />
-          
-          <div className="flex items-center justify-between gap-4">
-            <h3 className="text-sm font-semibold text-neutral-800 flex items-center gap-2">
-              💼 Corporate Branding Mode
-            </h3>
-            <button
-              type="button"
-              onClick={() => setIsCorporate(!isCorporate)}
-              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                isCorporate ? "bg-[#E4603C]" : "bg-neutral-200"
-              }`}
-            >
-              <span
-                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
-                  isCorporate ? "translate-x-5" : "translate-x-0"
-                }`}
-              />
-            </button>
-          </div>
+          <StepTab
+            stepNumber={2}
+            shortTitle="Wishes"
+            fullTitle="2. Wishes & Media"
+            subtitle="Wish, photos, audio"
+            isActive={currentStep === 2}
+            isCompleted={currentStep > 2}
+            onClick={() => {
+              if (isStep1Valid()) setCurrentStep(2);
+            }}
+          />
+          <StepTab
+            stepNumber={3}
+            shortTitle="Design"
+            fullTitle="3. Design & Launch"
+            subtitle="Theme & privacy"
+            isActive={currentStep === 3}
+            isCompleted={false}
+            onClick={() => {
+              if (isStep1Valid()) setCurrentStep(3);
+            }}
+          />
+        </div>
+      </div>
 
-          {isCorporate && (
-            <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="text-xs text-neutral-500 font-medium max-w-[320px] text-left">
-                Please upload a company logo to apply professional corporate branding:
-              </div>
-              <div className="w-full sm:w-auto flex-1 max-w-[280px]">
-                {corporateLogo ? (
-                  <div className="relative flex items-center justify-between gap-3 p-2.5 rounded-xl border border-[#E4603C]/30 bg-[#F4ECE0]/10 bg-white">
-                    <div className="h-8 flex items-center justify-center p-1 bg-white rounded border border-neutral-100 flex-1 max-w-[160px]">
-                      <img src={corporateLogo} alt="Corporate Logo" className="max-h-full max-w-full object-contain" />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCorporateLogo("")}
-                      className="p-1.5 rounded-full hover:bg-red-50 text-neutral-450 hover:text-red-500 transition cursor-pointer"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                ) : (
+      {/* ─── MAIN 2-COLUMN LAYOUT (Left: Wizard Step, Right: Real-time Live Preview) ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* LEFT COLUMN: ACTIVE STEP FORM (7 cols) */}
+        <div className="lg:col-span-7 space-y-6">
+          {/* ═════════════════════════════════════════════════════════ */}
+          {/* STEP 1: BASIC DETAILS                                     */}
+          {/* ═════════════════════════════════════════════════════════ */}
+          {currentStep === 1 && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Card 1.1: Creation Mode Selector */}
+              <div className="card-soft p-4 sm:p-6 bg-white border border-[#241621]/10 shadow-sm">
+                <div className="text-left mb-3.5">
+                  <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                    Step 1 · Page Type
+                  </span>
+                  <h2 className="font-display text-base sm:text-lg font-bold text-neutral-800">
+                    What type of page are you creating?
+                  </h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                   <button
                     type="button"
-                    onClick={() => logoInput.current?.click()}
-                    className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50/50 px-4 py-3 text-xs font-bold text-neutral-700 hover:border-[#E4603C]/50 hover:bg-neutral-50 transition cursor-pointer"
+                    onClick={() => handlePageTypeSelect("wish")}
+                    className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                      pageType === "wish"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/20 ring-2 ring-[#E4603C]/25"
+                        : "border-border bg-white hover:bg-neutral-50"
+                    }`}
                   >
-                    <Upload className="h-4 w-4 text-neutral-400" />
-                    Upload Company Logo *
+                    <span className="text-2xl shrink-0">🎂</span>
+                    <div className="min-w-0">
+                      <strong className="text-xs font-bold text-neutral-800 block">
+                        Wish & Memory Book
+                      </strong>
+                      <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug">
+                        Digital guestbook for birthdays, trips, farewells, or milestones.
+                      </p>
+                    </div>
                   </button>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Card 2: Basics Info & Theme */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
-          <h3 className="text-lg font-semibold text-neutral-800 mb-4 pb-2 border-b border-neutral-100 flex items-center gap-2">
-            ✨ Basics & Theme
-          </h3>
-
-          <div className="grid gap-5 sm:grid-cols-2">
-            <Field label="Occasion">
-              <select
-                value={occasion}
-                onChange={(e) => setOccasion(e.target.value)}
-                className="input"
-              >
-                {OCCASIONS.map((o) => (
-                  <option key={o}>{o}</option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={isInvitation ? "Date of Event *" : "Date of Celebration *"}>
-              <input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="input"
-              />
-            </Field>
-
-            {!isInvitation ? (
-              <Field label="Recipient Name *">
-                <input
-                  value={recipient}
-                  onChange={(e) => setRecipient(e.target.value)}
-                  placeholder="e.g. Meera Iyer"
-                  className="input"
-                />
-              </Field>
-            ) : (
-              <Field label="Couple / Celebrants Name *">
-                <input
-                  value={coupleNames}
-                  onChange={(e) => setCoupleNames(e.target.value)}
-                  placeholder="e.g. Arjun & Neha"
-                  className="input"
-                />
-              </Field>
-            )}
-
-            <Field label={isInvitation ? "Hosts (From) *" : "Organizer Name (From) *"}>
-              <input
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                placeholder="e.g. The Sharma family"
-                className="input"
-              />
-            </Field>
-
-            <div className="sm:col-span-2 mt-2">
-              <div className="mb-2 text-sm font-semibold text-neutral-700">
-                Select Accent Color Theme
-              </div>
-              <div className="flex flex-wrap gap-3">
-                {THEMES.map((t) => (
                   <button
-                    key={t.id}
-                    onClick={() => setThemeId(t.id)}
-                    className={`flex items-center gap-2.5 rounded-full border px-4 py-2 text-sm transition cursor-pointer ${themeId === t.id ? "border-[#E4603C] ring-2 ring-[#E4603C]/20 bg-white" : "border-border bg-white hover:bg-neutral-50"}`}
+                    type="button"
+                    onClick={() => handlePageTypeSelect("invite")}
+                    className={`flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                      pageType === "invite"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/20 ring-2 ring-[#E4603C]/25"
+                        : "border-border bg-white hover:bg-neutral-50"
+                    }`}
                   >
-                    <span className="flex">
-                      <span className="h-5 w-5 rounded-full" style={{ background: t.bg }} />
-                      <span
-                        className="-ml-2 h-5 w-5 rounded-full border border-white"
-                        style={{ background: t.accent }}
-                      />
-                    </span>
-                    <span className="font-medium text-neutral-700">{t.name}</span>
+                    <span className="text-2xl shrink-0">💌</span>
+                    <div className="min-w-0">
+                      <strong className="text-xs font-bold text-neutral-800 block">
+                        Event Invitation Card
+                      </strong>
+                      <p className="text-[11px] text-neutral-500 mt-0.5 leading-snug">
+                        Event page with timeline, venue map, and RSVP collection.
+                      </p>
+                    </div>
                   </button>
-                ))}
+                </div>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Card 3: Mode-Specific Details */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
-          {!isInvitation ? (
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-800 mb-3 flex items-center gap-2">
-                ✍️ Write First Wish
-              </h3>
-              <p className="text-xs text-neutral-500 mb-4">
-                Write a warm greeting or personal message to pre-populate this memory book.
-                (Optional)
-              </p>
-              <textarea
-                value={hostWish}
-                onChange={(e) => setHostWish(e.target.value)}
-                rows={4}
-                placeholder="e.g. Happy Birthday Meera! Wishing you a gorgeous orbit around the sun. You bring so much light and joy into our lives! 🥰🥂"
-                className="input resize-none"
-              />
-            </div>
-          ) : (
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-800 mb-4 pb-2 border-b border-neutral-100 flex items-center gap-2">
-                📍 Event Venue & Celebration Details
-              </h3>
+              {/* Card 1.2: Occasion, Names & Dates */}
+              <div className="card-soft p-4 sm:p-6 bg-white border border-[#241621]/10 shadow-sm space-y-4">
+                <div className="border-b border-neutral-100 pb-3">
+                  <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                    Step 1 · Basic Details
+                  </span>
+                  <h3 className="text-sm sm:text-base font-bold text-neutral-800 flex items-center gap-2">
+                    ✨ Occasion, Date & Names
+                  </h3>
+                </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Venue Name">
-                  <input
-                    value={venueName}
-                    onChange={(e) => setVenueName(e.target.value)}
-                    placeholder="e.g. Royal Orchid Grand Ballroom"
-                    className="input"
-                  />
-                </Field>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Occasion">
+                    <select
+                      value={occasion}
+                      onChange={(e) => setOccasion(e.target.value)}
+                      className="input"
+                    >
+                      {OCCASIONS.map((o) => (
+                        <option key={o}>{o}</option>
+                      ))}
+                    </select>
+                  </Field>
 
-                <Field label="Google Maps Link">
-                  <input
-                    value={venueMapsUrl}
-                    onChange={(e) => setVenueMapsUrl(e.target.value)}
-                    placeholder="e.g. https://maps.google.com/..."
-                    className="input"
-                  />
-                </Field>
-
-                <div className="sm:col-span-2">
-                  <Field label="Venue Address">
+                  <Field label={isInvitation ? "Date of Event *" : "Date of Celebration *"}>
                     <input
-                      value={venueAddress}
-                      onChange={(e) => setVenueAddress(e.target.value)}
-                      placeholder="e.g. 45 Royale Boulevard, Indiranagar, Bangalore"
+                      type="date"
+                      value={date}
+                      onChange={(e) => setDate(e.target.value)}
+                      className="input"
+                    />
+                  </Field>
+
+                  {/* Dedicated Custom Heading Input */}
+                  {isCustomOccasion && (
+                    <div className="sm:col-span-2 p-4 rounded-2xl border-2 border-[#E4603C]/35 bg-[#F4ECE0]/30 transition-all space-y-2">
+                      <label className="block text-xs font-bold text-[#241621] uppercase tracking-wider flex items-center justify-between">
+                        <span className="flex items-center gap-1.5">
+                          <span>✍️ Custom Heading / Occasion Title *</span>
+                        </span>
+                        <span className="text-[10px] lowercase font-semibold text-[#E4603C] bg-white px-2 py-0.5 rounded-full border border-[#E4603C]/20 shadow-2xs">
+                          Custom Title
+                        </span>
+                      </label>
+                      <input
+                        value={customHeading}
+                        onChange={(e) => setCustomHeading(e.target.value)}
+                        placeholder="e.g. A Trip to Lonavala with Team EMERGY"
+                        className="input bg-white font-medium text-neutral-800 text-sm shadow-xs"
+                      />
+                      <p className="text-[11px] text-neutral-600 leading-normal">
+                        Give your memory page a custom title (e.g.{" "}
+                        <em>A Trip to Lonavala with Team EMERGY</em>, <em>Summer Reunion 2026</em>, or{" "}
+                        <em>Project Alpha Milestone</em>).
+                      </p>
+                    </div>
+                  )}
+
+                  {!isInvitation ? (
+                    <Field
+                      label={
+                        isCustomOccasion
+                          ? "Recipient / Group Name (Optional if in heading)"
+                          : "Recipient Name *"
+                      }
+                    >
+                      <input
+                        value={recipient}
+                        onChange={(e) => setRecipient(e.target.value)}
+                        placeholder={
+                          isCustomOccasion
+                            ? "e.g. Team EMERGY / Everyone / Meera"
+                            : "e.g. Meera Iyer"
+                        }
+                        className="input"
+                      />
+                    </Field>
+                  ) : (
+                    <Field label="Couple / Celebrants Name *">
+                      <input
+                        value={coupleNames}
+                        onChange={(e) => setCoupleNames(e.target.value)}
+                        placeholder="e.g. Arjun & Neha"
+                        className="input"
+                      />
+                    </Field>
+                  )}
+
+                  <Field label={isInvitation ? "Hosts (From) *" : "Organizer Name (From) *"}>
+                    <input
+                      value={from}
+                      onChange={(e) => setFrom(e.target.value)}
+                      placeholder="e.g. The Sharma family"
                       className="input"
                     />
                   </Field>
                 </div>
+              </div>
 
-                <Field label="Dress Code">
-                  <input
-                    value={dressCode}
-                    onChange={(e) => setDressCode(e.target.value)}
-                    placeholder="e.g. Ethnic Elegance / Pastel Shades"
-                    className="input"
-                  />
-                </Field>
-
-                <Field label="Registry / Special Notes">
-                  <input
-                    value={registryInfo}
-                    onChange={(e) => setRegistryInfo(e.target.value)}
-                    placeholder="e.g. Amazon Gift Registry / No Box Gifts Please"
-                    className="input"
-                  />
-                </Field>
-
-                <div className="sm:col-span-2 border-t border-neutral-100 pt-4 mt-2">
-                  <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-xs font-bold text-[#241621] uppercase tracking-wider">
-                      🗓️ Event Schedule / Timeline
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setTimeline([...timeline, { time: "", event: "" }])}
-                      className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:underline cursor-pointer"
-                    >
-                      <Plus className="h-3 w-3" /> Add Event Row
-                    </button>
+              {/* Card 1.3: Corporate Branding (Optional) */}
+              <div className="card-soft p-5 bg-white border border-[#241621]/10 shadow-sm">
+                <input
+                  ref={logoInput}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={(e) => handleLogoUpload(e.target.files)}
+                />
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">💼</span>
+                    <div>
+                      <h4 className="text-xs font-bold text-neutral-800">
+                        Corporate Branding Mode
+                      </h4>
+                      <p className="text-[11px] text-neutral-500">
+                        Include company logo and business styling
+                      </p>
+                    </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsCorporate(!isCorporate)}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out ${
+                      isCorporate ? "bg-[#E4603C]" : "bg-neutral-200"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        isCorporate ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </button>
+                </div>
 
-                  <div className="space-y-2">
-                    {timeline.map((item, idx) => (
-                      <div key={idx} className="flex gap-2 items-center">
-                        <input
-                          value={item.time}
-                          onChange={(e) => {
-                            const updated = [...timeline];
-                            updated[idx].time = e.target.value;
-                            setTimeline(updated);
-                          }}
-                          placeholder="e.g. 5:30 PM"
-                          className="w-1/3 rounded-xl border border-border bg-white px-3 py-2 text-xs outline-none focus:border-primary"
-                        />
-                        <input
-                          value={item.event}
-                          onChange={(e) => {
-                            const updated = [...timeline];
-                            updated[idx].event = e.target.value;
-                            setTimeline(updated);
-                          }}
-                          placeholder="e.g. Welcoming Guests / Ring Ceremony"
-                          className="flex-1 rounded-xl border border-border bg-white px-3 py-2 text-xs outline-none focus:border-primary"
-                        />
-                        {timeline.length > 1 && (
+                {isCorporate && (
+                  <div className="mt-3 pt-3 border-t border-neutral-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                    <div className="text-xs text-neutral-500 font-medium">Upload Company Logo:</div>
+                    <div className="w-full sm:w-auto flex-1 max-w-[240px]">
+                      {corporateLogo ? (
+                        <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-[#E4603C]/30 bg-white">
+                          <div className="h-7 flex items-center justify-center p-1 bg-white rounded border border-neutral-100 flex-1 max-w-[140px]">
+                            <img
+                              src={corporateLogo}
+                              alt="Logo"
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          </div>
                           <button
                             type="button"
-                            onClick={() => setTimeline(timeline.filter((_, tIdx) => tIdx !== idx))}
-                            className="p-2 text-[#594855] hover:text-red-500 cursor-pointer"
+                            onClick={() => setCorporateLogo("")}
+                            className="p-1 text-neutral-400 hover:text-red-500 transition cursor-pointer"
                           >
-                            ✕
+                            <Trash2 className="h-3.5 w-3.5" />
                           </button>
-                        )}
-                      </div>
-                    ))}
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => logoInput.current?.click()}
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-neutral-50 px-3 py-2 text-xs font-bold text-neutral-700 hover:border-[#E4603C]/50 hover:bg-neutral-100 transition cursor-pointer"
+                        >
+                          <Upload className="h-3.5 w-3.5 text-neutral-400" />
+                          Upload Logo *
+                        </button>
+                      )}
+                    </div>
                   </div>
+                )}
+              </div>
+
+              {/* Card 1.4: Event Venue & Timeline (If Invitation Card) */}
+              {isInvitation && (
+                <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-sm space-y-4">
+                  <div className="border-b border-neutral-100 pb-3">
+                    <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                      Event Details
+                    </span>
+                    <h3 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                      📍 Venue, Schedule & Notes
+                    </h3>
+                  </div>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Field label="Venue Name">
+                      <input
+                        value={venueName}
+                        onChange={(e) => setVenueName(e.target.value)}
+                        placeholder="e.g. Grand Royal Orchid Ballroom"
+                        className="input"
+                      />
+                    </Field>
+
+                    <Field label="Google Maps Link">
+                      <input
+                        value={venueMapsUrl}
+                        onChange={(e) => setVenueMapsUrl(e.target.value)}
+                        placeholder="e.g. https://maps.google.com/..."
+                        className="input"
+                      />
+                    </Field>
+
+                    <div className="sm:col-span-2">
+                      <Field label="Venue Address">
+                        <input
+                          value={venueAddress}
+                          onChange={(e) => setVenueAddress(e.target.value)}
+                          placeholder="e.g. 45 Royale Boulevard, Indiranagar, Bangalore"
+                          className="input"
+                        />
+                      </Field>
+                    </div>
+
+                    <Field label="Dress Code">
+                      <input
+                        value={dressCode}
+                        onChange={(e) => setDressCode(e.target.value)}
+                        placeholder="e.g. Traditional Festive / Pastel Shades"
+                        className="input"
+                      />
+                    </Field>
+
+                    <Field label="Registry / Special Notes">
+                      <input
+                        value={registryInfo}
+                        onChange={(e) => setRegistryInfo(e.target.value)}
+                        placeholder="e.g. No Box Gifts Please / Gift Registry Link"
+                        className="input"
+                      />
+                    </Field>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Step 1 Action Bar */}
+              <div className="flex items-center justify-between pt-2">
+                <div className="text-xs text-neutral-400 font-medium">
+                  Step 1 of 3 · Basic Information
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  disabled={!isStep1Valid()}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] px-6 py-3 text-sm font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] transition-all cursor-pointer shadow-md select-none"
+                >
+                  <span>Next: Wishes & Media</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════ */}
+          {/* STEP 2: CONTRIBUTING FIRST WISH, PHOTOS, VIDEOS, AUDIO   */}
+          {/* ═════════════════════════════════════════════════════════ */}
+          {currentStep === 2 && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Card 2.1: Write First Wish */}
+              <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-sm space-y-3">
+                <div className="border-b border-neutral-100 pb-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                      Step 2 · Personal Greeting
+                    </span>
+                    <h3 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                      ✍️ Write First Wish
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-semibold text-neutral-400 bg-neutral-100 px-2.5 py-0.5 rounded-full">
+                    Optional
+                  </span>
+                </div>
+
+                <p className="text-xs text-neutral-500">
+                  Pre-populate this living memory page with your personal message as the organizer.
+                </p>
+
+                <textarea
+                  value={hostWish}
+                  onChange={(e) => setHostWish(e.target.value)}
+                  rows={4}
+                  placeholder={
+                    isCustomOccasion
+                      ? `e.g. Unforgettable memories with ${recipient.trim() || customHeading.trim() || "the team"}! So happy to cherish these special moments together! 🌟🏕️`
+                      : occasion === "Thank You"
+                      ? `e.g. Thank you so much ${recipient || "Meera"}! Truly appreciate your kindness, support, and guidance. 🙏✨`
+                      : occasion === "Farewell"
+                      ? `e.g. Wishing you all the very best ${recipient || "Rahul"} on your next exciting chapter! You will be deeply missed. 🌿💫`
+                      : occasion === "Just Because"
+                      ? `e.g. Just a little reminder of how wonderful you are! Thinking of you always. 🌸💖`
+                      : occasion === "Baby Shower"
+                      ? `e.g. So thrilled to welcome the little angel! Wishing your family endless health and joy. 🍼💛`
+                      : `e.g. Happy Birthday ${recipient || "Meera"}! Wishing you a gorgeous orbit around the sun. You bring so much light and joy into our lives! 🥰🥂`
+                  }
+                  className="input resize-none text-sm"
+                />
+              </div>
+
+              {/* Card 2.2: Media Attachments */}
+              <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-sm space-y-4">
+                <div className="border-b border-neutral-100 pb-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                      Step 2 · Media Gallery
+                    </span>
+                    <h3 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                      🖼️ Upload Photos, Voice Notes & Videos
+                    </h3>
+                  </div>
+                  <span className="text-[11px] font-semibold text-neutral-400 bg-neutral-100 px-2.5 py-0.5 rounded-full">
+                    Optional
+                  </span>
+                </div>
+
+                <div className="grid gap-5 md:grid-cols-3">
+                  {/* Photos Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="h-3.5 w-3.5 text-emerald-600" /> Photos
+                    </h4>
+                    <div
+                      onClick={() => photoInput.current?.click()}
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        handlePhotos(e.dataTransfer.files);
+                      }}
+                      className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-neutral-50/50 p-4 text-center hover:border-[#E4603C]/50 hover:bg-neutral-50 transition"
+                    >
+                      <Upload className="h-5 w-5 text-neutral-400" />
+                      <div className="text-[11px] font-bold text-neutral-700">Add photos</div>
+                      <div className="text-[10px] text-neutral-400">Drag or click</div>
+                      <input
+                        ref={photoInput}
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        hidden
+                        onChange={(e) => handlePhotos(e.target.files)}
+                      />
+                    </div>
+                    {photos.length > 0 && (
+                      <div className="grid grid-cols-3 gap-1.5 mt-2">
+                        {photos.map((p, i) => (
+                          <div
+                            key={i}
+                            className="group relative aspect-square overflow-hidden rounded-lg border border-border"
+                          >
+                            <img
+                              src={p}
+                              alt=""
+                              className="h-full w-full cursor-zoom-in object-cover"
+                              onClick={() => setLightbox(p)}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
+                              className="absolute right-1 top-1 rounded-full bg-black/70 text-white p-1 opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Audio Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Mic className="h-3.5 w-3.5 text-[#C17F5A]" /> Voice Notes
+                    </h4>
+                    <div className="flex items-center gap-2 rounded-xl border border-border bg-neutral-50/50 p-3">
+                      <button
+                        type="button"
+                        onClick={simulateRecord}
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition cursor-pointer ${
+                          recording ? "bg-red-500 animate-pulse" : "bg-[#E4603C] hover:opacity-90"
+                        }`}
+                      >
+                        <Mic className="h-4.5 w-4.5" />
+                      </button>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-xs font-semibold text-neutral-700 truncate">
+                          {recording ? "Recording…" : "Record voice note"}
+                        </div>
+                        <div className="text-[10px] text-neutral-400 truncate">
+                          {recording ? "Auto-saving in 2s" : "Tap mic to record"}
+                        </div>
+                      </div>
+                    </div>
+                    {audios.length > 0 && (
+                      <ul className="space-y-1.5 mt-2">
+                        {audios.map((a) => (
+                          <li
+                            key={a.id}
+                            className="flex items-center gap-2 rounded-lg border border-border bg-white p-2 text-xs"
+                          >
+                            <span className="shrink-0">🎙️</span>
+                            <div className="min-w-0 flex-1 truncate font-medium text-neutral-600">
+                              {a.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setAudios(audios.filter((x) => x.id !== a.id))}
+                              className="rounded-full p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Videos Column */}
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-bold text-neutral-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Video className="h-3.5 w-3.5 text-indigo-600" /> Videos
+                    </h4>
+                    <div
+                      onClick={() => videoInput.current?.click()}
+                      className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-neutral-50/50 p-4 text-center hover:border-[#E4603C]/50 hover:bg-neutral-50 transition"
+                    >
+                      <Video className="h-5 w-5 text-neutral-400" />
+                      <div className="text-[11px] font-bold text-neutral-700">Upload video</div>
+                      <div className="text-[10px] text-neutral-400">Max 3 clips</div>
+                      <input
+                        ref={videoInput}
+                        type="file"
+                        multiple
+                        accept="video/*"
+                        hidden
+                        onChange={(e) => handleVideo(e.target.files)}
+                      />
+                    </div>
+                    {videos.length > 0 && (
+                      <ul className="space-y-1.5 mt-2">
+                        {videos.map((v) => (
+                          <li
+                            key={v.id}
+                            className="flex items-center gap-2 rounded-lg border border-border bg-white p-2 text-xs"
+                          >
+                            <span className="shrink-0">🎬</span>
+                            <div className="min-w-0 flex-1 truncate font-medium text-neutral-600">
+                              {v.name}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setVideos(videos.filter((x) => x.id !== v.id))}
+                              className="rounded-full p-1 text-muted-foreground hover:text-destructive cursor-pointer"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom Step 2 Action Bar */}
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  <span>Back to Details</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className="inline-flex items-center gap-2 rounded-full bg-[#E4603C] px-6 py-3 text-sm font-bold text-white hover:bg-[#c94b29] transition-all cursor-pointer shadow-md select-none"
+                >
+                  <span>Next: Design Template</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ═════════════════════════════════════════════════════════ */}
+          {/* STEP 3: CHOOSING THE DESIGN TEMPLATE & LAUNCH            */}
+          {/* ═════════════════════════════════════════════════════════ */}
+          {currentStep === 3 && (
+            <div className="space-y-6 animate-fade-in">
+              {/* Card 3.1: Design Theme Template Selection */}
+              <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-sm space-y-4">
+                <div className="border-b border-neutral-100 pb-3">
+                  <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                    Step 3 · Styling & Mood
+                  </span>
+                  <h3 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                    🎨 Select Page Design Template
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Select a color palette and visual theme. See the live preview update instantly!
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {THEMES.map((t) => {
+                    const isSelected = themeId === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => setThemeId(t.id)}
+                        className={`p-4 rounded-2xl border text-left transition-all cursor-pointer select-none relative flex flex-col justify-between ${
+                          isSelected
+                            ? "border-[#E4603C] ring-2 ring-[#E4603C]/30 bg-[#FFFDF9] shadow-sm"
+                            : "border-neutral-200/80 bg-white hover:bg-neutral-50/70"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="flex">
+                              <span
+                                className="h-6 w-6 rounded-full border border-black/10 shadow-2xs"
+                                style={{ background: t.bg }}
+                              />
+                              <span
+                                className="-ml-2 h-6 w-6 rounded-full border-2 border-white shadow-2xs"
+                                style={{ background: t.accent }}
+                              />
+                            </span>
+                            <span className="text-xs font-bold text-neutral-800">{t.name}</span>
+                          </div>
+                          {isSelected && (
+                            <CheckCircle2 className="h-4 w-4 text-[#E4603C] shrink-0" />
+                          )}
+                        </div>
+                        <div
+                          className="h-1.5 w-full rounded-full"
+                          style={{
+                            background: `linear-gradient(90deg, ${t.bg} 0%, ${t.accent} 100%)`,
+                          }}
+                        />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Card 3.2: Contribution Privacy Mode */}
+              <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-sm space-y-4">
+                <div className="border-b border-neutral-100 pb-3">
+                  <span className="text-[10px] font-bold text-[#594855] uppercase tracking-widest block mb-0.5">
+                    Step 3 · Privacy & Access
+                  </span>
+                  <h3 className="text-base font-bold text-neutral-800 flex items-center gap-2">
+                    🔒 Contribution Privacy Setting
+                  </h3>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    Choose who can submit photos, audio notes, and wishes to this page.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setContributionMode("open")}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                      contributionMode === "open"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/20 ring-2 ring-[#E4603C]/20"
+                        : "border-border bg-white hover:bg-neutral-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-800">
+                      <span>🌐</span>
+                      <span>Public (Open)</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                      Anyone with the QR code or link can post wishes and photos.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setContributionMode("guests")}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                      contributionMode === "guests"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/20 ring-2 ring-[#E4603C]/20"
+                        : "border-border bg-white hover:bg-neutral-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-800">
+                      <span>👥</span>
+                      <span>Guests Only</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                      Only invited guests in your list can contribute.
+                    </p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setContributionMode("closed")}
+                    className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer select-none ${
+                      contributionMode === "closed"
+                        ? "border-[#E4603C] bg-[#F4ECE0]/20 ring-2 ring-[#E4603C]/20"
+                        : "border-border bg-white hover:bg-neutral-50"
+                    }`}
+                  >
+                    <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-800">
+                      <span>🔒</span>
+                      <span>Host Only</span>
+                    </div>
+                    <p className="text-[10px] text-neutral-500 mt-1 leading-snug">
+                      Only you can add content. Visitors can view only.
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Card 3.3: Ready to Launch Summary & Action */}
+              <div className="card-soft p-6 sm:p-7 bg-white border border-[#241621]/10 shadow-md space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
+                      Ready to Publish
+                    </h4>
+                    <p className="text-sm font-bold text-neutral-800 mt-0.5">
+                      🎨 {activeTheme.name} · 📅{" "}
+                      {isCustomOccasion ? customHeading.trim() || "Custom Heading" : occasion}
+                    </p>
+                  </div>
+                  <div className="text-xs text-neutral-500">
+                    For:{" "}
+                    <strong className="text-neutral-800">
+                      {isInvitation ? coupleNames || "Couple" : recipient || "Everyone"}
+                    </strong>
+                  </div>
+                </div>
+
+                {createError && (
+                  <div className="text-xs text-red-500 font-semibold flex items-center gap-1.5 p-3 rounded-xl bg-red-50 border border-red-200">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{createError}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between pt-2 border-t border-neutral-100">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentStep(2)}
+                    className="inline-flex items-center gap-2 rounded-full border border-neutral-300 bg-white px-5 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition cursor-pointer"
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    <span>Back to Media</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleCreate}
+                    disabled={creating || !isValid()}
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-[#E4603C] px-8 py-3.5 text-sm font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] transition-all cursor-pointer shadow-lg select-none"
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" /> Creating Page…
+                      </>
+                    ) : (
+                      <>
+                        <span>Create Live Page & QR Code</span>
+                        <Sparkles className="h-4 w-4" />
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Card 4: Media Attachments (Photos, Voice Notes, Videos) */}
-        <div className="card-soft p-6 sm:p-8 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)]">
-          <h3 className="text-lg font-semibold text-neutral-800 mb-4 pb-2 border-b border-neutral-100 flex items-center gap-2">
-            🖼️ Upload Media Attachments{" "}
-            <span className="text-xs text-neutral-400 font-medium">(Optional)</span>
-          </h3>
-
-          <div className="grid gap-6 md:grid-cols-3">
-            {/* Photos Column */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-neutral-700 flex items-center gap-1.5">
-                <ImageIcon className="h-4 w-4 text-emerald-600" /> Photos
-              </h4>
-              <div
-                onClick={() => photoInput.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  handlePhotos(e.dataTransfer.files);
-                }}
-                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-neutral-50/50 p-4 text-center hover:border-primary/50 transition"
-              >
-                <Upload className="h-5 w-5 text-neutral-400" />
-                <div className="text-[11px] font-semibold text-neutral-600">Click to upload</div>
-                <input
-                  ref={photoInput}
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  hidden
-                  onChange={(e) => handlePhotos(e.target.files)}
-                />
-              </div>
-              {photos.length > 0 && (
-                <div className="grid grid-cols-3 gap-1.5 mt-2">
-                  {photos.map((p, i) => (
-                    <div
-                      key={i}
-                      className="group relative aspect-square overflow-hidden rounded-lg border border-border"
-                    >
-                      <img
-                        src={p}
-                        alt=""
-                        className="h-full w-full cursor-zoom-in object-cover"
-                        onClick={() => setLightbox(p)}
-                      />
-                      <button
-                        onClick={() => setPhotos(photos.filter((_, j) => j !== i))}
-                        className="absolute right-1 top-1 rounded-full bg-background/90 p-1 opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 className="h-3 w-3 text-destructive" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Audio Column */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-neutral-700 flex items-center gap-1.5">
-                <Mic className="h-4 w-4 text-[#C17F5A]" /> Voice Notes
-              </h4>
-              <div className="flex items-center gap-2 rounded-xl border border-border bg-neutral-50/50 p-3">
-                <button
-                  onClick={simulateRecord}
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white transition cursor-pointer ${recording ? "bg-accent pulse-ring" : "bg-primary hover:opacity-90"}`}
-                >
-                  <Mic className="h-4.5 w-4.5" />
-                </button>
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-semibold text-neutral-700 truncate">
-                    {recording ? "Recording…" : "Record voice note"}
-                  </div>
-                  <div className="text-[10px] text-neutral-400 truncate">
-                    {recording ? "Auto-saving in 2s" : "Tap mic to start"}
-                  </div>
-                </div>
-              </div>
-              {audios.length > 0 && (
-                <ul className="space-y-1.5 mt-2">
-                  {audios.map((a) => (
-                    <li
-                      key={a.id}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-white p-2 text-xs"
-                    >
-                      <span className="shrink-0">🎙️</span>
-                      <div className="min-w-0 flex-1 truncate font-medium text-neutral-600">
-                        {a.name}
-                      </div>
-                      <button
-                        onClick={() => setAudios(audios.filter((x) => x.id !== a.id))}
-                        className="rounded-full p-1 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Videos Column */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-neutral-700 flex items-center gap-1.5">
-                <Video className="h-4 w-4 text-indigo-600" /> Videos
-              </h4>
-              <div
-                onClick={() => videoInput.current?.click()}
-                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-border bg-neutral-50/50 p-4 text-center hover:border-primary/50 transition"
-              >
-                <Video className="h-5 w-5 text-neutral-400" />
-                <div className="text-[11px] font-semibold text-neutral-600">
-                  Upload video (max 3)
-                </div>
-                <input
-                  ref={videoInput}
-                  type="file"
-                  multiple
-                  accept="video/*"
-                  hidden
-                  onChange={(e) => handleVideo(e.target.files)}
-                />
-              </div>
-              {videos.length > 0 && (
-                <ul className="space-y-1.5 mt-2">
-                  {videos.map((v) => (
-                    <li
-                      key={v.id}
-                      className="flex items-center gap-2 rounded-lg border border-border bg-white p-2 text-xs"
-                    >
-                      <span className="shrink-0">🎬</span>
-                      <div className="min-w-0 flex-1 truncate font-medium text-neutral-600">
-                        {v.name}
-                      </div>
-                      <button
-                        onClick={() => setVideos(videos.filter((x) => x.id !== v.id))}
-                        className="rounded-full p-1 text-muted-foreground hover:text-destructive"
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Card 5: Submission & Info Validation */}
-        <div className="card-soft p-5 bg-white border border-[#241621]/10 shadow-[0_4px_24px_rgba(92,61,46,0.02)] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-center sm:text-left">
-            <h4 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
-              Selected Settings
-            </h4>
-            <p className="text-sm font-semibold text-neutral-800 mt-1">
-              🎨 {THEMES.find((t) => t.id === themeId)?.name} Theme · 📅 {occasion}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-end gap-1.5 w-full sm:w-auto">
-            {createError && (
-              <div className="text-xs text-red-500 font-semibold mb-1 flex items-center gap-1">
-                <AlertCircle className="h-3.5 w-3.5 shrink-0" /> {createError}
-              </div>
-            )}
-            {!isValid() && (
-              <span className="text-xs font-semibold text-neutral-400 text-center sm:text-right">
-                {isInvitation
-                  ? "Please fill Couple Names, From, and Date of Event."
-                  : "Please fill Recipient Name, From, and Date of Celebration."}
-              </span>
-            )}
-            <button
-              onClick={handleCreate}
-              disabled={creating || !isValid()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-full bg-[#E4603C] px-8 py-3 text-sm font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] cursor-pointer transition-all shadow-md select-none animate-pulse-ring"
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" /> Creating Page…
-                </>
-              ) : (
-                "Create Live Page & QR Code ✨"
-              )}
-            </button>
-          </div>
+        {/* ═════════════════════════════════════════════════════════ */}
+        {/* RIGHT COLUMN: REALTIME LIVE PREVIEW PANEL (5 cols)       */}
+        {/* ═════════════════════════════════════════════════════════ */}
+        <div className="hidden lg:block lg:col-span-5 sticky top-20">
+          <LiveMemoryPreview
+            theme={activeTheme}
+            occasion={occasion}
+            customHeading={customHeading}
+            recipient={recipient}
+            coupleNames={coupleNames}
+            from={from}
+            date={date}
+            hostWish={hostWish}
+            photos={photos}
+            audios={audios}
+            videos={videos}
+            pageType={pageType}
+            isInvitation={isInvitation}
+            venueName={venueName}
+            venueAddress={venueAddress}
+            dressCode={dressCode}
+            isCorporate={isCorporate}
+            corporateLogo={corporateLogo}
+          />
         </div>
       </div>
 
+      {/* Lightbox Modal */}
       {lightbox && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4"
           onClick={() => setLightbox(null)}
         >
           <img src={lightbox} alt="" className="max-h-full max-w-full rounded-xl object-contain" />
-          <button className="absolute right-4 top-4 rounded-full bg-background/90 p-2">
+          <button className="absolute right-4 top-4 rounded-full bg-background/90 p-2 text-white">
             <X className="h-5 w-5" />
           </button>
         </div>
       )}
 
-      <style>{`.input { width: 100%; border-radius: 0.75rem; border: 1px solid var(--color-border); background: var(--color-background); padding: 0.625rem 0.875rem; font-size: 0.95rem; outline: none; transition: border-color .2s, box-shadow .2s; }
-      .input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-ring); }`}</style>
+      {/* ─── MOBILE STICKY FLOATING ACTION BAR (lg:hidden) ─── */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-neutral-200/80 p-2.5 px-4 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] flex items-center justify-between gap-2.5">
+        {/* Left: Quick Live Preview Pill */}
+        <button
+          type="button"
+          onClick={() => setShowMobilePreviewModal(true)}
+          className="inline-flex items-center justify-center gap-1.5 rounded-full border border-[#E4603C]/35 bg-[#F4ECE0]/35 px-3.5 py-2.5 text-xs font-bold text-[#E4603C] hover:bg-[#E4603C]/15 active:scale-95 transition cursor-pointer shrink-0 shadow-2xs"
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <Eye className="h-3.5 w-3.5" />
+          <span>Preview</span>
+        </button>
+
+        {/* Right: Step Navigation Action Buttons */}
+        <div className="flex items-center gap-2 min-w-0">
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={() => setCurrentStep((s) => (s - 1) as 1 | 2)}
+              className="inline-flex items-center justify-center h-9 w-9 rounded-full border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50 active:scale-95 transition cursor-pointer shrink-0"
+              title="Back"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
+
+          {currentStep === 1 && (
+            <button
+              type="button"
+              onClick={() => setCurrentStep(2)}
+              disabled={!isStep1Valid()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#E4603C] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] active:scale-95 transition cursor-pointer shadow-md select-none truncate"
+            >
+              <span>Next: Media</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {currentStep === 2 && (
+            <button
+              type="button"
+              onClick={() => setCurrentStep(3)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#E4603C] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#c94b29] active:scale-95 transition cursor-pointer shadow-md select-none truncate"
+            >
+              <span>Next: Theme</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          )}
+
+          {currentStep === 3 && (
+            <button
+              type="button"
+              onClick={handleCreate}
+              disabled={creating || !isValid()}
+              className="inline-flex items-center justify-center gap-1.5 rounded-full bg-[#E4603C] px-5 py-2.5 text-xs font-bold text-white disabled:opacity-40 hover:bg-[#c94b29] active:scale-95 transition cursor-pointer shadow-md select-none truncate"
+            >
+              {creating ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Creating…</span>
+                </>
+              ) : (
+                <>
+                  <span>Publish Page</span>
+                  <Sparkles className="h-3.5 w-3.5" />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ─── MOBILE LIVE PREVIEW BOTTOM SHEET DRAWER ─── */}
+      {showMobilePreviewModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm lg:hidden animate-in fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowMobilePreviewModal(false);
+          }}
+        >
+          <div
+            className="bg-[#FFFDF9] rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[92vh] flex flex-col p-4 sm:p-5 relative shadow-2xl animate-in slide-in-from-bottom duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Mobile drag bar handle */}
+            <div className="w-12 h-1 bg-neutral-300 rounded-full mx-auto mb-2.5 sm:hidden" />
+
+            <div className="flex items-center justify-between pb-2.5 border-b border-neutral-100 mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-bold text-[#241621] uppercase tracking-wider">
+                  Live Memory Preview
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobilePreviewModal(false)}
+                className="h-7 w-7 rounded-full bg-neutral-100 flex items-center justify-center text-neutral-500 hover:text-neutral-800 transition cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1 pb-2">
+              <LiveMemoryPreview
+                theme={activeTheme}
+                occasion={occasion}
+                customHeading={customHeading}
+                recipient={recipient}
+                coupleNames={coupleNames}
+                from={from}
+                date={date}
+                hostWish={hostWish}
+                photos={photos}
+                audios={audios}
+                videos={videos}
+                pageType={pageType}
+                isInvitation={isInvitation}
+                venueName={venueName}
+                venueAddress={venueAddress}
+                dressCode={dressCode}
+                isCorporate={isCorporate}
+                corporateLogo={corporateLogo}
+              />
+            </div>
+
+            <div className="pt-2.5 border-t border-neutral-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowMobilePreviewModal(false)}
+                className="w-full py-2.5 rounded-full bg-[#E4603C] text-white font-bold text-xs shadow-md cursor-pointer hover:bg-[#c94b29] transition"
+              >
+                Back to Editing →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .input { width: 100%; border-radius: 0.75rem; border: 1px solid var(--color-border); background: var(--color-background); padding: 0.625rem 0.875rem; font-size: 0.95rem; outline: none; transition: border-color .2s, box-shadow .2s; }
+        .input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-ring); }
+      `}</style>
     </div>
+  );
+}
+
+function StepTab({
+  stepNumber,
+  shortTitle,
+  fullTitle,
+  subtitle,
+  isActive,
+  isCompleted,
+  onClick,
+}: {
+  stepNumber: number;
+  shortTitle: string;
+  fullTitle: string;
+  subtitle: string;
+  isActive: boolean;
+  isCompleted: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl text-left border transition-all cursor-pointer select-none flex items-center sm:items-start gap-1.5 sm:gap-2.5 ${
+        isActive
+          ? "border-[#E4603C] bg-[#F4ECE0]/35 shadow-xs ring-1 ring-[#E4603C]/30"
+          : isCompleted
+          ? "border-emerald-200 bg-emerald-50/40 hover:bg-emerald-50/70"
+          : "border-neutral-200/60 bg-neutral-50/40 hover:bg-neutral-100/60 opacity-80"
+      }`}
+    >
+      <div
+        className={`h-5 w-5 sm:h-6 sm:w-6 rounded-full text-[11px] sm:text-xs font-bold flex items-center justify-center shrink-0 ${
+          isActive
+            ? "bg-[#E4603C] text-white shadow-2xs"
+            : isCompleted
+            ? "bg-emerald-600 text-white"
+            : "bg-neutral-200 text-neutral-600"
+        }`}
+      >
+        {isCompleted ? "✓" : stepNumber}
+      </div>
+      <div className="min-w-0 flex-1">
+        <strong
+          className={`text-xs block font-bold truncate ${
+            isActive ? "text-[#E4603C]" : isCompleted ? "text-emerald-900" : "text-neutral-700"
+          }`}
+        >
+          <span className="sm:hidden">{shortTitle}</span>
+          <span className="hidden sm:inline">{fullTitle}</span>
+        </strong>
+        <span className="text-[10px] text-neutral-400 block truncate hidden md:block">
+          {subtitle}
+        </span>
+      </div>
+    </button>
   );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <div className="mb-1.5 text-sm font-medium">{label}</div>
+      <div className="mb-1.5 text-xs font-semibold text-neutral-700">{label}</div>
       {children}
     </label>
   );
 }
 
+/* ─── REALTIME LIVE MEMORY PREVIEW COMPONENT ─── */
+function LiveMemoryPreview({
+  theme,
+  occasion,
+  customHeading,
+  recipient,
+  coupleNames,
+  from,
+  date,
+  hostWish,
+  photos,
+  audios,
+  videos,
+  pageType,
+  isInvitation,
+  venueName,
+  venueAddress,
+  dressCode,
+  isCorporate,
+  corporateLogo,
+}: {
+  theme: { id: string; name: string; bg: string; accent: string };
+  occasion: string;
+  customHeading: string;
+  recipient: string;
+  coupleNames: string;
+  from: string;
+  date: string;
+  hostWish: string;
+  photos: string[];
+  audios: { id: string; name: string; url: string }[];
+  videos: { id: string; name: string; url: string }[];
+  pageType: "wish" | "invite";
+  isInvitation: boolean;
+  venueName: string;
+  venueAddress: string;
+  dressCode: string;
+  isCorporate: boolean;
+  corporateLogo: string;
+}) {
+  const formatted = formatMemoryHeading({
+    occasion,
+    recipient,
+    customHeading,
+    isInvitation,
+    coupleNames,
+  });
+
+  const formattedDate = date
+    ? new Date(date).toLocaleDateString(undefined, {
+        weekday: "short",
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : "Celebration Date";
+
+  return (
+    <div className="space-y-3">
+      {/* Top Preview Header */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-1.5 text-xs font-bold text-neutral-700">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Live Memory Preview</span>
+        </div>
+        <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-100 px-2.5 py-0.5 rounded-full">
+          Real-time
+        </span>
+      </div>
+
+      {/* 📱 Mobile Phone Mockup */}
+      <div
+        className="mx-auto w-full max-w-[340px] rounded-[2.2rem] p-2.5 bg-[#1C1917] shadow-2xl border-4 border-[#2E2824] transition-all duration-300"
+        style={{
+          boxShadow: `0 20px 50px ${theme.accent}25, 0 4px 16px rgba(0,0,0,0.18)`,
+        }}
+      >
+        {/* Top Speaker / Notch */}
+        <div className="mx-auto h-3.5 w-20 rounded-full bg-black/80 mb-2 flex items-center justify-center">
+          <span className="h-1.5 w-1.5 rounded-full bg-neutral-800" />
+        </div>
+
+        {/* Screen Content Viewport */}
+        <div
+          className="rounded-[1.6rem] overflow-hidden p-4 sm:p-5 flex flex-col justify-between min-h-[480px] max-h-[520px] overflow-y-auto text-center relative transition-colors duration-300"
+          style={{ backgroundColor: theme.bg }}
+        >
+          {/* Background Glow */}
+          <div
+            className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full pointer-events-none opacity-40 blur-2xl"
+            style={{ backgroundColor: theme.accent }}
+          />
+
+          <div className="relative z-10 space-y-3">
+            {/* Corporate Logo */}
+            {isCorporate && corporateLogo && (
+              <div className="flex justify-center mb-1">
+                <div className="h-8 max-w-[120px] p-1 bg-white rounded-lg border border-neutral-100 shadow-2xs flex items-center justify-center">
+                  <img
+                    src={corporateLogo}
+                    alt="Logo"
+                    className="max-h-full max-w-full object-contain"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Occasion Badge */}
+            <div>
+              <span
+                className="inline-flex items-center gap-1 rounded-full px-3 py-0.5 text-[10px] font-bold text-white shadow-2xs"
+                style={{ backgroundColor: theme.accent }}
+              >
+                <span>{isCorporate ? "💼" : formatted.badgeIcon}</span>
+                <span>{formatted.badgeLabel}</span>
+              </span>
+            </div>
+
+            {/* Main Heading */}
+            <div className="px-1">
+              {isInvitation ? (
+                <>
+                  <span className="text-[8px] font-bold uppercase tracking-widest text-[#594855] block mb-1">
+                    {formatted.prefix || "CORDIALLY INVITING YOU TO CELEBRATE"}
+                  </span>
+                  <h2
+                    className="font-display text-lg sm:text-xl font-bold tracking-tight text-neutral-900 leading-tight"
+                    style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
+                  >
+                    {formatted.mainText ? (
+                      <>
+                        {formatted.mainText}
+                        {formatted.highlightText && (
+                          <span style={{ color: theme.accent }} className="block text-sm mt-0.5">
+                            {formatted.highlightText}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        The {occasion} of
+                        <span style={{ color: theme.accent }} className="block mt-0.5">
+                          {coupleNames || recipient || "The Couple"}
+                        </span>
+                      </>
+                    )}
+                  </h2>
+                </>
+              ) : (
+                <h2
+                  className="font-display text-lg sm:text-xl font-bold tracking-tight text-neutral-900 leading-tight"
+                  style={{ fontFamily: "'Baloo 2', system-ui, sans-serif" }}
+                >
+                  {formatted.prefix && (
+                    <>
+                      <span>{formatted.prefix}</span>
+                      <br />
+                    </>
+                  )}
+                  {formatted.mainText && <span>{formatted.mainText}</span>}
+                  {formatted.highlightText && (
+                    <span style={{ color: theme.accent }} className="block mt-0.5">
+                      {formatted.highlightText}
+                    </span>
+                  )}
+                </h2>
+              )}
+
+              <p className="text-[10px] text-neutral-500 mt-1 font-medium">
+                {isInvitation ? "Hosted with love by " : "With love from "}
+                <strong className="text-neutral-800">{from || "You"}</strong>
+              </p>
+
+              {/* Date Tag */}
+              <div className="flex items-center justify-center gap-1 text-[10px] font-semibold text-[#594855] mt-1.5">
+                <Calendar className="h-3 w-3 text-[#C17F5A]" />
+                <span>{formattedDate}</span>
+              </div>
+            </div>
+
+            {/* Invitation Venue Details Pill */}
+            {isInvitation && (venueName || venueAddress) && (
+              <div className="p-2.5 rounded-xl bg-white/80 border border-black/5 text-left text-[10px] shadow-2xs space-y-0.5">
+                <div className="font-bold text-neutral-800 flex items-center gap-1">
+                  <span>📍</span>
+                  <span className="truncate">{venueName || "Celebration Venue"}</span>
+                </div>
+                {venueAddress && (
+                  <div className="text-[9px] text-neutral-500 truncate">{venueAddress}</div>
+                )}
+              </div>
+            )}
+
+            {/* Host Wish Preview Box */}
+            {hostWish ? (
+              <div className="p-2.5 rounded-xl bg-white/90 border border-black/5 shadow-2xs text-left space-y-1">
+                <div className="flex items-center gap-1.5 text-[9px] font-bold text-neutral-700">
+                  <span className="h-4 w-4 rounded-full bg-[#E4603C]/20 text-[#E4603C] flex items-center justify-center text-[9px]">
+                    ✍️
+                  </span>
+                  <span>Organizer's First Wish</span>
+                </div>
+                <p className="text-[10px] text-neutral-600 line-clamp-3 italic leading-relaxed">
+                  "{hostWish}"
+                </p>
+              </div>
+            ) : (
+              <div className="p-2.5 rounded-xl bg-white/60 border border-dashed border-neutral-300 text-[10px] text-neutral-400 italic">
+                No first wish written yet (Step 2)
+              </div>
+            )}
+
+            {/* Uploaded Photos Gallery Preview */}
+            {photos.length > 0 && (
+              <div className="space-y-1 text-left">
+                <div className="text-[9px] font-bold text-neutral-600 uppercase tracking-wider flex items-center justify-between">
+                  <span>📸 Photos ({photos.length})</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {photos.slice(0, 3).map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="aspect-square rounded-lg overflow-hidden border border-black/5 bg-white shadow-2xs"
+                    >
+                      <img src={p} alt="" className="h-full w-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Media Badges */}
+            {(audios.length > 0 || videos.length > 0) && (
+              <div className="flex flex-wrap gap-1 justify-center pt-1">
+                {audios.length > 0 && (
+                  <span className="text-[9px] font-semibold bg-white/80 border border-neutral-200 px-2 py-0.5 rounded-full text-neutral-700">
+                    🎙️ {audios.length} Voice Note{audios.length > 1 ? "s" : ""}
+                  </span>
+                )}
+                {videos.length > 0 && (
+                  <span className="text-[9px] font-semibold bg-white/80 border border-neutral-200 px-2 py-0.5 rounded-full text-neutral-700">
+                    🎬 {videos.length} Video{videos.length > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Live Stats Strip */}
+          <div className="mt-3 pt-2.5 border-t border-black/8 flex justify-around items-center text-center">
+            <div>
+              <span className="block text-xs font-bold text-neutral-800">
+                {hostWish ? 1 : 0}
+              </span>
+              <span className="text-[8px] font-bold text-neutral-400 uppercase">Wishes</span>
+            </div>
+            <div className="h-4 w-px bg-neutral-300" />
+            <div>
+              <span className="block text-xs font-bold text-neutral-800">{photos.length}</span>
+              <span className="text-[8px] font-bold text-neutral-400 uppercase">Photos</span>
+            </div>
+            <div className="h-4 w-px bg-neutral-300" />
+            <div>
+              <span className="block text-xs font-bold text-neutral-800">
+                {audios.length + videos.length}
+              </span>
+              <span className="text-[8px] font-bold text-neutral-400 uppercase">Media</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Helper Tooltip */}
+      <p className="text-center text-[11px] text-neutral-400 font-medium">
+        ✨ Real-time preview · Updates dynamically across all 3 steps
+      </p>
+    </div>
+  );
+}
+
+/* ─── CREATED PREVIEW / CONTROL CENTER COMPONENT ─── */
 function CreatedPreview({
   data,
   qrUrl,
@@ -824,20 +1652,14 @@ function CreatedPreview({
   qrUrl: string;
   onNext: () => void;
 }) {
-  const theme = THEMES.find((t) => t.id === data.themeId)!;
+  const theme = THEMES.find((t) => t.id === data.themeId) || THEMES[0];
   const accent = theme.accent;
   const url =
     typeof window !== "undefined" ? `${window.location.origin}/m/${data.slug}` : `/m/${data.slug}`;
 
   const [entered, setEntered] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [showShareMenu, setShowShareMenu] = useState(false);
   const [showPostcardModal, setShowPostcardModal] = useState(false);
-
-  // Contribution popup states
-  const [showSettingsModal, setShowSettingsModal] = useState(true);
-  const [contributionMode, setContributionMode] = useState<"open" | "guests" | "closed">("open");
-  const updateMemory = useStore((s) => s.updateMemory);
 
   useEffect(() => {
     const t = setTimeout(() => setEntered(true), 80);
@@ -869,207 +1691,6 @@ function CreatedPreview({
         paddingBottom: "5rem",
       }}
     >
-      {/* Contribution Privacy Settings Popup */}
-      {showSettingsModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            backgroundColor: "rgba(26,23,20,0.5)",
-            backdropFilter: "blur(8px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1rem",
-            animation: "cpFade 0.25s ease-out",
-          }}
-        >
-          <div
-            style={{
-              background: "#FFFDF9",
-              border: `1px solid ${accent}25`,
-              borderRadius: "2rem",
-              padding: "2rem 1.5rem",
-              maxWidth: 520,
-              width: "100%",
-              boxShadow: "0 20px 50px rgba(92,61,46,0.15)",
-              animation: "cpPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both",
-              maxHeight: "90vh",
-              overflowY: "auto",
-            }}
-          >
-            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
-              <span style={{ fontSize: "2.5rem", display: "block", marginBottom: "0.5rem" }}>
-                🔒
-              </span>
-              <h3
-                style={{
-                  fontFamily: "'Baloo 2', 'Inter', system-ui, sans-serif",
-                  fontSize: "1.8rem",
-                  margin: 0,
-                  color: "#241621",
-                }}
-              >
-                Contribution Privacy
-              </h3>
-              <p
-                style={{
-                  fontSize: "0.82rem",
-                  color: "#594855",
-                  marginTop: "0.5rem",
-                  lineHeight: 1.5,
-                }}
-              >
-                Choose who can add wishes, photos, and voice notes to this memory page. You can
-                always change this later in the Dashboard page.
-              </p>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.75rem",
-                marginBottom: "2rem",
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setContributionMode("open")}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "1rem",
-                  padding: "1.1rem",
-                  borderRadius: "1.25rem",
-                  border:
-                    contributionMode === "open" ? `2px solid ${accent}` : "1.5px solid #E6E1DA",
-                  background: contributionMode === "open" ? `${accent}0a` : "#FFF",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>🌐</span>
-                <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
-                    Public (Open)
-                  </strong>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "0.75rem",
-                      color: "#594855",
-                      marginTop: "0.2rem",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    Anyone with the link or QR code can post wishes, photos, and record audio.
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setContributionMode("guests")}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "1rem",
-                  padding: "1.1rem",
-                  borderRadius: "1.25rem",
-                  border:
-                    contributionMode === "guests" ? `2px solid ${accent}` : "1.5px solid #E6E1DA",
-                  background: contributionMode === "guests" ? `${accent}0a` : "#FFF",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>👥</span>
-                <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
-                    Guests Only
-                  </strong>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "0.75rem",
-                      color: "#594855",
-                      marginTop: "0.2rem",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    Only registered guests in your Guest Manager can contribute.
-                  </span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setContributionMode("closed")}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "1rem",
-                  padding: "1.1rem",
-                  borderRadius: "1.25rem",
-                  border:
-                    contributionMode === "closed" ? `2px solid ${accent}` : "1.5px solid #E6E1DA",
-                  background: contributionMode === "closed" ? `${accent}0a` : "#FFF",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  transition: "all 0.2s",
-                }}
-              >
-                <span style={{ fontSize: "1.5rem", marginTop: "-2px" }}>🔒</span>
-                <div>
-                  <strong style={{ display: "block", fontSize: "0.875rem", color: "#241621" }}>
-                    Host Only (Read-Only)
-                  </strong>
-                  <span
-                    style={{
-                      display: "block",
-                      fontSize: "0.75rem",
-                      color: "#594855",
-                      marginTop: "0.2rem",
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    Only you (the creator) can add media and wishes. Visitors can only view.
-                  </span>
-                </div>
-              </button>
-            </div>
-
-            <div style={{ display: "flex", gap: "0.75rem" }}>
-              <button
-                type="button"
-                onClick={() => {
-                  updateMemory(data.slug, { contributionMode });
-                  setShowSettingsModal(false);
-                }}
-                style={{
-                  flex: 1,
-                  padding: "0.75rem",
-                  borderRadius: "9999px",
-                  background: accent,
-                  color: "#fff",
-                  border: "none",
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                  cursor: "pointer",
-                  boxShadow: `0 4px 12px ${accent}40`,
-                }}
-              >
-                Save Settings & Show Live QR Code
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Floating particles */}
       <div
         style={{
@@ -1212,7 +1833,7 @@ function CreatedPreview({
           </div>
         </div>
 
-        {/* Interactive Mockup Phone Frame Wrapper - Optimized Responsively for Mobile */}
+        {/* Interactive Mockup Phone Frame Wrapper */}
         <div
           style={{
             marginTop: "2.5rem",

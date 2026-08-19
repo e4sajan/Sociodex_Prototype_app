@@ -60,7 +60,9 @@ export const OCCASIONS = [
   "Anniversary",
   "Housewarming",
   "Thank You",
+  "Baby Shower",
   "Just Because",
+  "Other (Custom Heading)",
 ];
 
 export const THEMES = [
