@@ -1150,7 +1150,7 @@ function MemoryCreator() {
       )}
 
       {/* ─── MOBILE STICKY FLOATING ACTION BAR (lg:hidden) ─── */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-neutral-200/80 p-2.5 px-4 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] flex items-center justify-between gap-2.5">
+      <div className="lg:hidden fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-neutral-200/80 p-2.5 px-4 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] flex items-center justify-between gap-2.5">
         {/* Left: Quick Live Preview Pill */}
         <button
           type="button"
