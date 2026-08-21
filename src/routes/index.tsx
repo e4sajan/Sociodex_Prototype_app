@@ -82,9 +82,6 @@ function SocioDexLandingPage() {
   const [mockupTab, setMockupTab] = useState<"all" | "photos" | "wishes" | "rsvps">("all");
   const [mockupLikes, setMockupLikes] = useState({ emma: 34, jason: 56 });
 
-  // Interactive Why SocioDex Feature Discovery Row
-  const [activeFeatureRow, setActiveFeatureRow] = useState<number>(1);
-
   // FAQ Accordion State
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -387,12 +384,12 @@ function SocioDexLandingPage() {
         </div>
       </section>
 
-      {/* ── 8. SECTION 5: HOW IT WORKS ── */}
+      {/* ── 8. SECTION 5: HOW IT WORKS & FEATURES MATRIX (CREATE, CONNECT, REMEMBER) ── */}
       <section
         id="how-it-works"
-        className="py-20 px-4 sm:px-6 lg:px-8 bg-[#FAF6F0] border-t border-b border-[#241621]/10"
+        className="py-20 px-4 sm:px-6 lg:px-8 bg-[#FAF6F0] border-t border-b border-[#241621]/10 scroll-mt-20"
       >
-        <div className="max-w-5xl mx-auto text-center space-y-12">
+        <div id="features" className="max-w-7xl mx-auto text-center space-y-12">
           <div className="space-y-3">
             <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
               Simplicity by Design
@@ -404,80 +401,6 @@ function SocioDexLandingPage() {
               How SocioDex works.
             </h2>
             <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
-              Four effortless steps to convert ephemeral moments into permanent digital keepsakes.
-            </p>
-          </div>
-
-          {/* 4 Steps Horizontal Pathway */}
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4 text-left">
-            {[
-              {
-                step: "01",
-                title: "Create a Page",
-                desc: "Choose a theme, customize your occasion title, and generate your custom memory link in 60 seconds.",
-                icon: FileText,
-              },
-              {
-                step: "02",
-                title: "Invite Everyone",
-                desc: "Share via WhatsApp, email, or display a single QR code at your venue for guests to scan instantly.",
-                icon: QrCode,
-              },
-              {
-                step: "03",
-                title: "Celebrate Together",
-                desc: "Guests post messages, upload high-res photos, drop videos, and leave audio wishes without needing an app.",
-                icon: MessageSquare,
-              },
-              {
-                step: "04",
-                title: "Relive Forever",
-                desc: "Your celebration stays archived forever. Revisit memories on every anniversary with family and friends.",
-                icon: InfinityIcon,
-              },
-            ].map((s, idx) => {
-              const Icon = s.icon;
-              return (
-                <div
-                  key={idx}
-                  className="rounded-3xl bg-white border border-[#241621]/10 p-6 shadow-xs relative overflow-hidden flex flex-col justify-between hover:shadow-lg transition-all"
-                >
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="h-10 w-10 rounded-2xl bg-[#E4603C]/10 text-[#E4603C] flex items-center justify-center font-bold">
-                        <Icon className="h-5 w-5" />
-                      </div>
-                      <span className="text-2xl font-display font-bold text-[#241621]/30">
-                        {s.step}
-                      </span>
-                    </div>
-
-                    <h3 className="font-display text-xl font-bold text-[#241621]">{s.title}</h3>
-                    <p className="text-xs text-[#6B5A66] leading-relaxed font-medium font-sans">
-                      {s.desc}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* ── 9. SECTION 6: FEATURES MATRIX ── */}
-      <section id="features" className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        <div className="text-center space-y-12">
-          <div className="space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
-              Crafted for Excellence
-            </span>
-            <h2
-              className="font-display text-3xl sm:text-5xl font-bold text-[#241621]"
-              style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-            >
-              Everything you need for perfect memories.
-            </h2>
-            <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
               Thoughtfully built tools that make gathering, organizing, and reliving moments
               effortless.
             </p>
@@ -485,7 +408,7 @@ function SocioDexLandingPage() {
 
           <div className="grid gap-8 md:grid-cols-3 text-left">
             {/* Column 1: CREATE */}
-            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6">
+            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6 hover:shadow-md transition-all">
               <div className="flex items-center gap-3 border-b border-[#241621]/10 pb-4">
                 <span className="h-8 w-8 rounded-full bg-[#E4603C] text-white font-bold text-xs flex items-center justify-center">
                   01
@@ -532,7 +455,7 @@ function SocioDexLandingPage() {
             </div>
 
             {/* Column 2: CONNECT */}
-            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6">
+            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6 hover:shadow-md transition-all">
               <div className="flex items-center gap-3 border-b border-[#241621]/10 pb-4">
                 <span className="h-8 w-8 rounded-full bg-[#EBC85A] text-[#241621] font-bold text-xs flex items-center justify-center">
                   02
@@ -576,7 +499,7 @@ function SocioDexLandingPage() {
             </div>
 
             {/* Column 3: REMEMBER */}
-            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6">
+            <div className="rounded-3xl border border-[#241621]/10 bg-white p-6 shadow-xs space-y-6 hover:shadow-md transition-all">
               <div className="flex items-center gap-3 border-b border-[#241621]/10 pb-4">
                 <span className="h-8 w-8 rounded-full bg-[#5C3A50] text-white font-bold text-xs flex items-center justify-center">
                   03
@@ -622,201 +545,6 @@ function SocioDexLandingPage() {
         </div>
       </section>
 
-      {/* ── 10. SECTION 7: WHY SOCIODEX (COMPARISON & DISCOVERY) ── */}
-      <section id="why" className="py-20 px-4 sm:px-6 lg:px-8 bg-[#FAF6F0]">
-        <div className="max-w-6xl mx-auto text-center space-y-12">
-          <div className="space-y-3">
-            <span className="text-xs font-extrabold uppercase tracking-widest text-[#E4603C] bg-[#E4603C]/10 px-4 py-1.5 rounded-full">
-              The Upgrade You Need
-            </span>
-            <h2
-              className="font-display text-3xl sm:text-5xl font-bold text-[#241621]"
-              style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-            >
-              Why choose SocioDex?
-            </h2>
-            <p className="text-sm sm:text-base text-[#6B5A66] max-w-md mx-auto font-medium">
-              Hover or tap any SocioDex feature below to discover how it works.
-            </p>
-          </div>
-
-          {/* Grid Layout for Discovery */}
-          <div className="grid gap-8 lg:grid-cols-12 text-left items-start">
-            {/* Table Column */}
-            <div className="lg:col-span-7 rounded-3xl border border-[#241621]/10 bg-white p-4 sm:p-6 shadow-xs space-y-3">
-              <div className="grid grid-cols-2 gap-4 pb-3 border-b border-[#241621]/10 text-xs font-bold uppercase tracking-wider text-[#6B5A66]">
-                <div>Traditional Way</div>
-                <div className="text-[#E4603C]">SocioDex Experience</div>
-              </div>
-
-              {[
-                {
-                  id: 1,
-                  trad: "Wishes disappear in chats",
-                  dex: "Collaborative Memory Pages",
-                  headline: "One celebration. Everyone contributes.",
-                  sub: "Friends and family can add:",
-                  chips: ["💌 Wishes", "📸 Photos", "🎥 Videos", "🎙️ Voice Notes"],
-                },
-                {
-                  id: 2,
-                  trad: "Forgotten farewells",
-                  dex: "Community Farewell Walls",
-                  headline: "Celebrate the impact someone leaves behind.",
-                  sub: "Colleagues, seniors, juniors, and friends can contribute:",
-                  chips: ["💬 Personal Stories", "💌 Farewell Wishes", "📸 Photos", "❤️ Team Memories"],
-                },
-                {
-                  id: 3,
-                  trad: "Static invitations",
-                  dex: "Interactive Event Pages",
-                  headline: "The invitation becomes the celebration.",
-                  sub: "Guests can:",
-                  chips: ["✅ RSVP", "💌 Leave Wishes", "📸 Upload Photos", "🎥 Share Videos"],
-                  note: "✨ Even after the event ends.",
-                },
-                {
-                  id: 4,
-                  trad: "Scattered photos",
-                  dex: "Shared Memory Galleries",
-                  headline: "Every memory belongs together.",
-                  sub: "Automatically collect:",
-                  chips: ["📸 Photos", "🎥 Videos", "🗂️ Shared Albums", "🕒 Event Timeline"],
-                  note: "📱 Instead of keeping memories scattered across multiple devices.",
-                },
-                {
-                  id: 5,
-                  trad: "Moments fade away",
-                  dex: "Forever Celebration Pages",
-                  headline: "Revisit meaningful moments anytime.",
-                  sub: "Every celebration is preserved with:",
-                  chips: [
-                    "💌 Wishes",
-                    "📸 Photos",
-                    "🎥 Videos",
-                    "🕒 Timeline",
-                    "🔗 Shareable Forever Link",
-                  ],
-                },
-              ].map((row) => {
-                const isActive = activeFeatureRow === row.id;
-                return (
-                  <div
-                    key={row.id}
-                    onClick={() => setActiveFeatureRow(row.id)}
-                    className={`grid grid-cols-2 gap-4 p-3.5 rounded-2xl transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-[#E4603C]/10 border border-[#E4603C]/30 shadow-xs"
-                        : "hover:bg-[#FAF6F0]"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 text-xs text-[#6B5A66] font-medium">
-                      <X className="h-4 w-4 text-red-400 shrink-0" />
-                      <span>{row.trad}</span>
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs font-bold text-[#241621]">
-                      <div className="flex items-center gap-2">
-                        <Check className="h-4 w-4 text-green-600 shrink-0" />
-                        <span>{row.dex}</span>
-                      </div>
-                      <span className="text-[10px] text-[#E4603C] font-semibold hidden sm:inline">
-                        Explore ↗
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Discovery Stage Right Column */}
-            <div className="lg:col-span-5 rounded-3xl border border-[#241621]/15 bg-[#241621] text-white p-6 sm:p-8 shadow-xl relative min-h-[360px] flex flex-col justify-between">
-              {(() => {
-                const activeData = [
-                  {
-                    id: 1,
-                    headline: "One celebration. Everyone contributes.",
-                    sub: "Friends and family can add:",
-                    chips: ["💌 Wishes", "📸 Photos", "🎥 Videos", "🎙️ Voice Notes"],
-                  },
-                  {
-                    id: 2,
-                    headline: "Celebrate the impact someone leaves behind.",
-                    sub: "Colleagues, seniors, juniors, and friends can contribute:",
-                    chips: [
-                      "💬 Personal Stories",
-                      "💌 Farewell Wishes",
-                      "📸 Photos",
-                      "❤️ Team Memories",
-                    ],
-                  },
-                  {
-                    id: 3,
-                    headline: "The invitation becomes the celebration.",
-                    sub: "Guests can:",
-                    chips: ["✅ RSVP", "💌 Leave Wishes", "📸 Upload Photos", "🎥 Share Videos"],
-                    note: "✨ Even after the event ends.",
-                  },
-                  {
-                    id: 4,
-                    headline: "Every memory belongs together.",
-                    sub: "Automatically collect:",
-                    chips: ["📸 Photos", "🎥 Videos", "🗂️ Shared Albums", "🕒 Event Timeline"],
-                    note: "📱 Instead of keeping memories scattered across multiple devices.",
-                  },
-                  {
-                    id: 5,
-                    headline: "Revisit meaningful moments anytime.",
-                    sub: "Every celebration is preserved with:",
-                    chips: [
-                      "💌 Wishes",
-                      "📸 Photos",
-                      "🎥 Videos",
-                      "🕒 Timeline",
-                      "🔗 Shareable Forever Link",
-                    ],
-                  },
-                ].find((r) => r.id === activeFeatureRow)!;
-
-                return (
-                  <div className="space-y-6 fade-up" key={activeData.id}>
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#EBC85A] bg-[#EBC85A]/10 px-3 py-1 rounded-full">
-                      HOW SOCIODEX DOES IT
-                    </span>
-
-                    <h3
-                      className="font-display text-2xl font-bold leading-tight"
-                      style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-                    >
-                      {activeData.headline}
-                    </h3>
-
-                    <p className="text-xs text-white/70 font-medium">{activeData.sub}</p>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      {activeData.chips.map((chip, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-[#382033] border border-white/10 rounded-xl px-3 py-2 text-xs font-semibold text-white flex items-center gap-2"
-                        >
-                          {chip}
-                        </div>
-                      ))}
-                    </div>
-
-                    {activeData.note && (
-                      <p className="text-xs text-[#EBC85A] font-semibold pt-2">
-                        {activeData.note}
-                      </p>
-                    )}
-                  </div>
-                );
-              })()}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ── 11. SECTION 8: WHO IT'S FOR (Continuous Revolving Strap) ── */}
       <section id="who-its-for" className="py-14 sm:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
         <div className="text-center space-y-8">
@@ -837,56 +565,6 @@ function SocioDexLandingPage() {
 
           {/* Continuous Revolving Audience Ribbon */}
           <AudienceStrapCarousel />
-        </div>
-      </section>
-
-      {/* ── 12. SECTION 9: OUR VISION (OUR PHILOSOPHY) ── */}
-      <section
-        id="vision"
-        className="bg-[#241621] text-white py-20 px-4 sm:px-6 lg:px-8 relative overflow-hidden text-center"
-      >
-        <div className="max-w-4xl mx-auto space-y-8 relative z-10">
-          <span className="text-xs font-extrabold uppercase tracking-widest text-[#EBC85A] bg-[#EBC85A]/10 px-4 py-1.5 rounded-full inline-block">
-            Our Philosophy
-          </span>
-
-          <h2
-            className="font-display text-3xl sm:text-5xl font-bold text-white tracking-tight leading-tight"
-            style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-          >
-            We're Redefining What Social Media Should Be.
-          </h2>
-
-          <div className="space-y-4 text-sm sm:text-base text-white/80 leading-relaxed max-w-2xl mx-auto">
-            <p>
-              For years, social media has become a race for attention—endless feeds, infinite
-              scrolling, and algorithms designed to keep us engaged instead of helping us connect.
-            </p>
-
-            <p className="font-bold text-[#EBC85A] text-lg">We believe there's a better way.</p>
-
-            <p>
-              SocioDex is a purpose-driven social platform where every interaction begins with a
-              reason: celebrating a milestone, bringing people together, preserving memories, or
-              building meaningful communities. Instead of disappearing into forgotten chats and
-              fleeting stories, every celebration becomes a lasting place where people can connect,
-              contribute, and relive the moments that matter.
-            </p>
-          </div>
-
-          <div className="p-6 bg-[#382033]/70 border border-white/10 rounded-2xl shadow-xl max-w-2xl mx-auto">
-            <p
-              className="font-display text-lg sm:text-xl font-bold text-[#FFFDF9]"
-              style={{ fontFamily: "'Baloo 2', Georgia, serif" }}
-            >
-              "We're not building another feed. We're building a platform where people gather with
-              purpose."
-            </p>
-          </div>
-
-          <div className="text-xs font-bold text-[#EBC85A] uppercase tracking-widest">
-            — The SocioDex Vision
-          </div>
         </div>
       </section>
 
@@ -1462,11 +1140,6 @@ function SocioDexLandingPage() {
                     Pricing
                   </a>
                 </li>
-                <li>
-                  <a href="#why" className="hover:text-white transition-colors">
-                    Why SocioDex
-                  </a>
-                </li>
               </ul>
             </div>
 
@@ -1475,11 +1148,6 @@ function SocioDexLandingPage() {
                 Company
               </h4>
               <ul className="space-y-2 text-xs text-white/70 font-medium">
-                <li>
-                  <a href="#vision" className="hover:text-white transition-colors">
-                    Our Vision
-                  </a>
-                </li>
                 <li>
                   <a href="#who-its-for" className="hover:text-white transition-colors">
                     Who It's For

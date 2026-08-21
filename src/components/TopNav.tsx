@@ -85,12 +85,6 @@ export function TopNav() {
                   Home
                 </Link>
                 <a
-                  href="#features"
-                  className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
-                >
-                  Features
-                </a>
-                <a
                   href="#how-it-works"
                   className="rounded-full px-4 py-2 text-sm font-semibold text-[#241621]/70 transition-colors hover:bg-[#F4ECE0] hover:text-[#241621]"
                 >
